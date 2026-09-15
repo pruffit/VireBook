@@ -55,43 +55,6 @@
     });
   }
 
-  // На странице нет chrome.tabs.captureVisibleTab, поэтому сцену для линзы рисуем
-  // сами — той же заливкой, что у страницы. Только в демо: в расширении сцена это
-  // настоящий снимок вкладки.
-  function fakeCapture() {
-    const g = window.__FK_GLASS__;
-    if (!g) return;
-    const dpr = window.devicePixelRatio || 1;
-    const c = document.createElement('canvas');
-    c.width = Math.ceil(innerWidth * dpr);
-    c.height = Math.ceil(innerHeight * dpr);
-    const x = c.getContext('2d');
-    x.scale(dpr, dpr);
-    const cls = document.body.className;
-    if (cls === 'dark') {
-      const grad = x.createLinearGradient(0, 0, innerWidth, innerHeight);
-      grad.addColorStop(0, '#191c24');
-      grad.addColorStop(1, '#0e1014');
-      x.fillStyle = grad;
-      x.fillRect(0, 0, innerWidth, innerHeight);
-      x.fillStyle = 'rgba(150,110,255,.5)';
-      x.beginPath(); x.arc(innerWidth * 0.78, innerHeight * 0.82, 220, 0, 7); x.fill();
-      x.fillStyle = 'rgba(255,120,180,.32)';
-      x.beginPath(); x.arc(innerWidth * 0.55, innerHeight * 0.95, 170, 0, 7); x.fill();
-    } else {
-      x.fillStyle = cls === 'busy' ? '#fdfcfa' : '#fdfcfa';
-      x.fillRect(0, 0, innerWidth, innerHeight);
-      x.strokeStyle = cls === 'busy' ? '#c8b8a0' : '#e6e2db';
-      x.lineWidth = 1;
-      for (let i = 0; i < innerWidth; i += 40) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, innerHeight); x.stroke(); }
-      for (let i = 0; i < innerHeight; i += 40) { x.beginPath(); x.moveTo(0, i); x.lineTo(innerWidth, i); x.stroke(); }
-    }
-    const box = document.getElementById('virebook-root').shadowRoot.querySelector('canvas.glass').getBoundingClientRect();
-    g.setBackdrop(c, dpr, box.left, box.top);
-  }
-  window.fakeCapture = fakeCapture;
-  setInterval(() => { fakeCapture(); window.dispatchEvent(new Event('resize')); }, 400);
-
   const widget = FK.ui.create({
     siteName: 'Книга Фанфиков',
     defaultFormat: 'epub',

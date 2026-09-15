@@ -10,17 +10,6 @@
     "128": "icons/icon128.png"
   },
   "permissions": ["storage", "activeTab", "scripting"],
-  "host_permissions": [
-    "*://ficbook.net/*",
-    "*://*.ficbook.net/*",
-    "*://archiveofourown.org/*",
-    "*://*.archiveofourown.org/*",
-    "*://fanfics.me/*",
-    "*://*.fanfics.me/*",
-    "*://*.fanfiction.net/*",
-    "*://*.wattpad.com/*",
-    "*://*.royalroad.com/*"
-  ],
   "action": {
     "default_title": "Скачать фанфик",
     "default_popup": "src/popup.html",

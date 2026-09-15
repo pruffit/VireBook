@@ -1131,6 +1131,17 @@ var FKGlass = (() => {
   function materialForInk(material, carriesInk) {
     return { ...material, legibility: carriesInk ? VIREGLASS_LYRICS_MATERIAL.legibility : 0 };
   }
+  function activeMaterial(material, on) {
+    const k = Math.min(Math.max(on, 0), 1);
+    return {
+      ...material,
+      ior: material.ior + 0.35 * k,
+      thickness: material.thickness * (1 + 0.9 * k),
+      bevel: material.bevel * (1 + 1.8 * k),
+      roughness: material.roughness * (1 - 0.75 * k),
+      presence: material.presence + 0.12 * k
+    };
+  }
   function resolveMaterial(patch = {}) {
     const m = { ...VIREGLASS_MATERIAL, ...patch };
     const out = { ...m };
@@ -3116,36 +3127,39 @@ void main() {
         const bottom = Math.min(height, Math.ceil(height - (piece.centerY - halfHeight - padPx)));
         gl.enable(gl.SCISSOR_TEST);
         gl.scissor(left, top, Math.max(0, right - left), Math.max(0, bottom - top));
-        gl.useProgram(lensProgram);
-        bindTextureAt(gl, 0, contentTexture, lensProgram, "content");
-        setUniform(gl, lensLoc("u_contentSize"), [width, height]);
-        setUniform(gl, lensLoc("u_resolution"), [width, height]);
-        setUniform(gl, lensLoc("u_center"), [piece.centerX, piece.centerY]);
-        setUniform(gl, lensLoc("u_reach"), Math.max(width, height));
-        setUniform(gl, lensLoc("u_contentMin"), [1, 1]);
-        setUniform(gl, lensLoc("u_contentMax"), [width - 1, height - 1]);
-        if (stats) {
-          setUniform(gl, lensLoc("u_probeLuma"), stats.luma);
-          setUniform(gl, lensLoc("u_probeBusy"), stats.busy);
-          setUniform(gl, lensLoc("u_probeRange"), [stats.lo, stats.hi]);
-          setUniform(gl, lensLoc("u_probeSlope"), [stats.slopeX, stats.slopeY]);
-          setUniform(gl, lensLoc("u_probe"), [stats.r, stats.g, stats.b]);
-        } else {
-          setUniform(gl, lensLoc("u_probeLuma"), -1);
+        if (piece.lens ?? true) {
+          gl.useProgram(lensProgram);
+          bindTextureAt(gl, 0, contentTexture, lensProgram, "content");
+          setUniform(gl, lensLoc("u_contentSize"), [width, height]);
+          setUniform(gl, lensLoc("u_resolution"), [width, height]);
+          setUniform(gl, lensLoc("u_center"), [piece.centerX, piece.centerY]);
+          setUniform(gl, lensLoc("u_reach"), Math.max(width, height));
+          setUniform(gl, lensLoc("u_contentMin"), [1, 1]);
+          setUniform(gl, lensLoc("u_contentMax"), [width - 1, height - 1]);
+          if (stats) {
+            setUniform(gl, lensLoc("u_probeLuma"), stats.luma);
+            setUniform(gl, lensLoc("u_probeBusy"), stats.busy);
+            setUniform(gl, lensLoc("u_probeRange"), [stats.lo, stats.hi]);
+            setUniform(gl, lensLoc("u_probeSlope"), [stats.slopeX, stats.slopeY]);
+            setUniform(gl, lensLoc("u_probe"), [stats.r, stats.g, stats.b]);
+          } else {
+            setUniform(gl, lensLoc("u_probeLuma"), -1);
+          }
+          const lens = toLensProps(piece.optics, piece.geometry, options2.density, {
+            debug: options2.debug,
+            morph: piece.morph,
+            touch: piece.touch,
+            progress: piece.progress
+          });
+          applyChannel(gl, lensLoc, lens.uniformNames, lens.uniformSizes, lens.uniformValues);
+          drawFullscreenTriangle(gl);
         }
-        const lens = toLensProps(piece.optics, piece.geometry, options2.density, {
-          debug: options2.debug,
-          morph: piece.morph,
-          touch: piece.touch,
-          progress: piece.progress
-        });
-        applyChannel(gl, lensLoc, lens.uniformNames, lens.uniformSizes, lens.uniformValues);
-        drawFullscreenTriangle(gl);
         gl.useProgram(surfaceProgram);
         const rawSurface = toSurfaceUniforms(piece.optics, piece.geometry, {
           debug: options2.debug,
           morph: piece.morph,
-          bodyInLens: true,
+          // Тело рисует линза — но только если её проход вообще был.
+          bodyInLens: piece.lens ?? true,
           touch: piece.touch,
           progress: piece.progress
         });
@@ -3200,7 +3214,7 @@ void main() {
 
   // src/glass/entry.ts
   var MATERIAL = materialForInk(VIREGLASS_CONTROL_MATERIAL, true);
-  var density = () => Math.min(window.devicePixelRatio || 1, 2);
+  var density = () => window.devicePixelRatio || 1;
   function createGlassSurface(canvas, maxWidth, maxHeight) {
     const renderer = createVireGlassRenderer(canvas, { alpha: true });
     const deform = createDeform();
@@ -3217,43 +3231,28 @@ void main() {
       renderer.resize(Math.ceil(boxW * scale), Math.ceil(boxH * scale));
     }
     fit(density());
-    let shot = null;
-    let shotDpr = 1;
-    let viewLeft = 0;
-    let viewTop = 0;
-    let fallback = "#ffffff";
+    let backdrop = "#ffffff";
     let inkLight = true;
     let confirmations = 0;
     let last = null;
     let prev = 0;
+    let shape = widest;
     const scene = (ctx, w, h) => {
-      ctx.clearRect(0, 0, w, h);
-      if (!shot) {
-        ctx.fillStyle = fallback;
-        ctx.fillRect(0, 0, w, h);
-        return;
-      }
-      const k = scale / shotDpr;
-      const iw = shot.width ?? 0;
-      const ih = shot.height ?? 0;
-      ctx.drawImage(shot, -viewLeft * scale, -viewTop * scale, iw * k, ih * k);
+      ctx.fillStyle = backdrop;
+      ctx.fillRect(0, 0, w, h);
     };
     return {
       /** Отступ канваса за габарит детали: тень, фаска и сбор света уходят наружу формы. */
       pad,
-      /** Снимок вкладки и положение канваса во вьюпорте (CSS-пиксели). */
-      setBackdrop(image, dpr, left, top) {
-        shot = image;
-        shotDpr = dpr || 1;
-        viewLeft = left;
-        viewTop = top;
+      setBackdropColor(color) {
+        backdrop = color;
       },
-      setFallbackColor(color) {
-        fallback = color;
-      },
-      /** Отклик на курсор — пружины ядра, не своя анимация. */
+      /** Отклик на курсор — пружины ядра и его же пропорции, что на стенде:
+       *  ход тяги и радиус пальца берутся от полуразмера детали, не «на глаз». */
       grab: (x, y) => deform.grab(x, y, 3.2),
-      drag: (dx, dy) => deform.drag(dx, dy, 14),
+      drag(dx, dy) {
+        deform.drag(dx, dy, 0.14 * halfMinDp(shape));
+      },
       release: () => deform.release(1.8),
       idle: () => deform.idle(),
       /** Возвращает, должна ли надпись поверх стекла быть светлой. */
@@ -3263,9 +3262,10 @@ void main() {
         deform.step(prev ? Math.min((now - prev) / 1e3, 0.25) : 0);
         prev = now;
         const geometry = roundedRectGeometry(width, height, cornerRadius);
-        const material = { ...MATERIAL, ink: inkLight ? 1 : 0 };
-        const optics = resolveOptics(material);
+        shape = geometry;
         const d = deform.sample();
+        const material = { ...activeMaterial(MATERIAL, d.active), ink: inkLight ? 1 : 0 };
+        const optics = resolveOptics(material);
         const centerX = (boxW - pad - width / 2) * scale;
         const centerY = (boxH - pad - height / 2) * scale;
         const { probes } = renderer.render({
@@ -3279,6 +3279,7 @@ void main() {
               geometry,
               centerX,
               centerY,
+              lens: false,
               press: d.press,
               active: d.active,
               touch: {
@@ -3287,7 +3288,7 @@ void main() {
                 pullX: d.pullX,
                 pullY: d.pullY,
                 press: d.press,
-                radius: Math.max(26, Math.min(width, height) * 0.62),
+                radius: 0.72 * halfMinDp(geometry),
                 waveAmp: d.waveAmp,
                 wavePhase: d.wavePhase
               }
@@ -3308,7 +3309,7 @@ void main() {
         return inkLight;
       },
       /** Последний замер фона и решение по надписи — для отладки материала. */
-      probe: () => ({ stats: last, inkLight, hasShot: Boolean(shot) }),
+      probe: () => ({ stats: last, inkLight, backdrop }),
       destroy: () => renderer.destroy()
     };
   }

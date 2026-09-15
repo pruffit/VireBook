@@ -59,11 +59,11 @@
     height var(--morph) var(--ease),
     border-radius var(--morph) var(--ease);
 }
-/* Снимка вкладки нет — прозрачность берём от живого DOM, чтобы деталь не была
-   сплошной плашкой поверх текста. Фаску и блик по-прежнему рисует ядро. */
-.shell.see-through {
-  -webkit-backdrop-filter: blur(14px) saturate(160%);
-  backdrop-filter: blur(14px) saturate(160%);
+/* Пропускание: страница под деталью размывается браузером. Тело, фаску, блик и
+   тень поверх этого рисует ядро — проходом поверхности, без линзы. */
+.shell {
+  -webkit-backdrop-filter: blur(14px) saturate(165%);
+  backdrop-filter: blur(14px) saturate(165%);
 }
 /* Запасной материал, когда WebGL2 недоступен: расширение обязано работать и без стекла. */
 .shell.flat {
@@ -211,69 +211,18 @@
       painting = requestAnimationFrame(frame);
     }
 
-    let capturing = false;
-    // Не ноль: на свежей странице performance.now() сам меньше порога, и первый
-    // снимок — единственный, который нужен сразу, — молча пропускался.
-    let captureAt = -1e9;
-    let gotShot = false;
-    /** Линза преломляет пиксели, а не DOM: сцену даёт снимок вкладки. Себя из кадра
-     *  убираем — иначе стекло начинает преломлять собственное отражение. */
-    async function refreshBackdrop() {
-      if (!glass || capturing) return;
-      const canSend = typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage;
-      if (!canSend) {
-        glass.setFallbackColor(pageBackdrop());
-        paintGlass(performance.now() + 900);
-        return;
-      }
-      // captureVisibleTab ограничен по частоте — чаще пары раз в секунду не зовём.
-      const now = performance.now();
-      if (now - captureAt < 600) return;
-      captureAt = now;
-      capturing = true;
-      host.style.visibility = 'hidden';
-      try {
-        // Снимок берёт последний скомпонованный кадр: без паузы в него попадает
-        // ещё не спрятанный виджет, и стекло начинает преломлять само себя.
-        await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 80)));
-        const res = await new Promise((resolve) => {
-          try {
-            chrome.runtime.sendMessage({ type: 'fk-capture' }, resolve);
-          } catch {
-            resolve(null);
-          }
-        });
-        if (res && res.dataUrl) {
-          const img = new Image();
-          await new Promise((resolve) => {
-            img.onload = resolve;
-            img.onerror = resolve;
-            img.src = res.dataUrl;
-          });
-          if (img.width) {
-            const box = canvas.getBoundingClientRect();
-            glass.setBackdrop(img, window.devicePixelRatio || 1, box.left, box.top);
-            gotShot = true;
-            shell.classList.remove('see-through');
-          }
-        }
-        if (!gotShot) {
-          // Снимка нет (нет разрешения, ограничение частоты, about:-страница) — без
-          // пикселей линзе нечего преломлять, и она закрасила бы текст сплошной
-          // заливкой. Тогда прозрачность берём от бэкдропа живого DOM.
-          glass.setFallbackColor(pageBackdrop());
-          shell.classList.add('see-through');
-        }
-      } finally {
-        host.style.visibility = '';
-        capturing = false;
-        paintGlass(performance.now() + 900);
-      }
+    /** Пропускание даёт живой DOM под прозрачным канвасом, а зонду ядра нужен цвет
+     *  фона: от него зависят плотность тела и полярность надписи. */
+    function refreshBackdrop() {
+      if (!glass) return;
+      glass.setBackdropColor(pageBackdrop());
+      paintGlass(performance.now() + 900);
     }
 
     let controller = null;
     let settled = true;
     let view = null;
+    let mode = 'idle';
 
     /** Габарит меряем на клоне: панель должна въехать сразу в конечной ширине,
      *  иначе текст переверстается по ходу морфинга. */
@@ -328,6 +277,22 @@
       window.addEventListener('pointercancel', letGo);
     }
 
+    // Панель закрывается кликом мимо и Escape. Во время скачивания не закрываем:
+    // случайный клик по странице не должен отменять начатую работу.
+    const closable = () => mode === 'menu' || mode === 'result';
+    document.addEventListener(
+      'pointerdown',
+      (e) => {
+        if (!closable()) return;
+        if (e.composedPath && e.composedPath().includes(host)) return;
+        renderIdle();
+      },
+      true
+    );
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && closable()) renderIdle();
+    });
+
     let mountFrames = 0;
     /** create() зовут до вставки в документ, а габарит меряется только в
      *  разложенном дереве: до вставки он нулевой и панель схлопывается. */
@@ -374,6 +339,7 @@
 
     function renderIdle() {
       settled = true;
+      mode = 'idle';
       const fab = document.createElement('button');
       fab.className = 'fab';
       fab.innerHTML = ICON + '<span>Скачать книгу</span>';
@@ -383,6 +349,7 @@
 
     function renderMenu() {
       settled = false;
+      mode = 'menu';
       const panel = document.createElement('div');
       panel.className = 'panel';
       const head = document.createElement('div');
@@ -410,6 +377,7 @@
 
     function renderProgress() {
       settled = false;
+      mode = 'progress';
       const wrap = document.createElement('div');
       wrap.className = 'pad';
       const label = document.createElement('div');
@@ -436,6 +404,7 @@
 
     function renderResult({ error, filename, note }) {
       settled = true;
+      mode = 'result';
       const wrap = document.createElement('div');
       wrap.className = 'pad';
       const msg = document.createElement('div');

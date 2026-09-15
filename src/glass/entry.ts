@@ -1,13 +1,19 @@
 // Мост между расширением и ядром VireGlass. Собирается esbuild'ом в src/lib/glass.js
 // (IIFE, глобальная FKGlass) — расширение в рантайме остаётся без зависимостей.
 //
-// Линза преломляет то, что нарисовано в сцену, а не DOM. Поэтому сценой служит снимок
-// видимой области вкладки (chrome.tabs.captureVisibleTab), сдвинутый так, чтобы под
-// деталью оказались те самые пиксели страницы, что под ней и есть.
+// Деталь лежит поверх ЧУЖОГО живого содержимого, пикселей которого у нас нет. Поэтому
+// проход линзы выключен: она сэмплирует сцену и закрыла бы страницу непрозрачной
+// заливкой. Работает проход ПОВЕРХНОСТИ — фаска, Френель, блик, кромка, тень, — а
+// пропускание даёт браузер под прозрачным канвасом.
+//
+// Сцена при этом не бесполезна: по ней зонд снимает светлоту фона, и от неё зависят
+// плотность тела и полярность надписи. Её заливают локальным цветом страницы.
 import {
   CONFIRMATIONS,
   VIREGLASS_CONTROL_MATERIAL,
+  activeMaterial,
   createDeform,
+  halfMinDp,
   lensPadDp,
   materialForInk,
   resolveOptics,
@@ -19,8 +25,8 @@ import { createVireGlassRenderer } from '@vire/vireglass/web';
 
 const MATERIAL = materialForInk(VIREGLASS_CONTROL_MATERIAL, true);
 
-/** Плотность режем двойкой: кадр растёт квадратом, а деталь мелкая. */
-const density = () => Math.min(window.devicePixelRatio || 1, 2);
+/** Настоящая плотность экрана — та же, что подаёт стенд. */
+const density = () => window.devicePixelRatio || 1;
 
 export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, maxHeight: number) {
   const renderer = createVireGlassRenderer(canvas, { alpha: true });
@@ -46,51 +52,32 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
   }
   fit(density());
 
-  let shot: CanvasImageSource | null = null;
-  let shotDpr = 1;
-  let viewLeft = 0;
-  let viewTop = 0;
-  let fallback = '#ffffff';
+  let backdrop = '#ffffff';
   let inkLight = true;
   let confirmations = 0;
   let last: unknown = null;
   let prev = 0;
+  /** Текущая форма детали — от неё стенд считает ход тяги и радиус пальца. */
+  let shape = widest;
 
-  // Сцена — то, что под деталью на самом деле. Снимок кладётся так, чтобы точка
-  // (viewLeft, viewTop) вьюпорта пришлась на левый верхний угол канваса.
   const scene = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
-    ctx.clearRect(0, 0, w, h);
-    if (!shot) {
-      // Снимка ещё нет (первый кадр, отказ разрешения) — материал всё равно обязан
-      // решить свою плотность, а для этого хватает локального цвета фона страницы.
-      ctx.fillStyle = fallback;
-      ctx.fillRect(0, 0, w, h);
-      return;
-    }
-    const k = scale / shotDpr;
-    const iw = (shot as HTMLImageElement).width ?? 0;
-    const ih = (shot as HTMLImageElement).height ?? 0;
-    ctx.drawImage(shot, -viewLeft * scale, -viewTop * scale, iw * k, ih * k);
+    ctx.fillStyle = backdrop;
+    ctx.fillRect(0, 0, w, h);
   };
 
   return {
     /** Отступ канваса за габарит детали: тень, фаска и сбор света уходят наружу формы. */
     pad,
-
-    /** Снимок вкладки и положение канваса во вьюпорте (CSS-пиксели). */
-    setBackdrop(image: CanvasImageSource | null, dpr: number, left: number, top: number) {
-      shot = image;
-      shotDpr = dpr || 1;
-      viewLeft = left;
-      viewTop = top;
-    },
-    setFallbackColor(color: string) {
-      fallback = color;
+    setBackdropColor(color: string) {
+      backdrop = color;
     },
 
-    /** Отклик на курсор — пружины ядра, не своя анимация. */
+    /** Отклик на курсор — пружины ядра и его же пропорции, что на стенде:
+     *  ход тяги и радиус пальца берутся от полуразмера детали, не «на глаз». */
     grab: (x: number, y: number) => deform.grab(x, y, 3.2),
-    drag: (dx: number, dy: number) => deform.drag(dx, dy, 14),
+    drag(dx: number, dy: number) {
+      deform.drag(dx, dy, 0.14 * halfMinDp(shape));
+    },
     release: () => deform.release(1.8),
     idle: () => deform.idle(),
 
@@ -102,9 +89,12 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
       prev = now;
 
       const geometry = roundedRectGeometry(width, height, cornerRadius);
-      const material = { ...MATERIAL, ink: inkLight ? 1 : 0 };
-      const optics = resolveOptics(material);
+      shape = geometry;
       const d = deform.sample();
+      // Активность — состояние СРЕДЫ: плотнее и чище стекло, а не подсветка поверх.
+      // Ровно так собирает материал кнопки стенд.
+      const material = { ...activeMaterial(MATERIAL, d.active), ink: inkLight ? 1 : 0 };
+      const optics = resolveOptics(material);
       // Координаты детали — от левого верхнего угла канваса (шейдеры получают
       // перевёрнутый Y транспайлером, см. targets/glsl.ts).
       const centerX = (boxW - pad - width / 2) * scale;
@@ -121,6 +111,7 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
             geometry,
             centerX,
             centerY,
+            lens: false,
             press: d.press,
             active: d.active,
             touch: {
@@ -129,7 +120,7 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
               pullX: d.pullX,
               pullY: d.pullY,
               press: d.press,
-              radius: Math.max(26, Math.min(width, height) * 0.62),
+              radius: 0.72 * halfMinDp(geometry),
               waveAmp: d.waveAmp,
               wavePhase: d.wavePhase,
             },
@@ -154,7 +145,7 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
     },
 
     /** Последний замер фона и решение по надписи — для отладки материала. */
-    probe: () => ({ stats: last, inkLight, hasShot: Boolean(shot) }),
+    probe: () => ({ stats: last, inkLight, backdrop }),
     destroy: () => renderer.destroy(),
   };
 }
