@@ -59,12 +59,8 @@
     height var(--morph) var(--ease),
     border-radius var(--morph) var(--ease);
 }
-/* Пропускание: страница под деталью размывается браузером. Тело, фаску, блик и
-   тень поверх этого рисует ядро — проходом поверхности, без линзы. */
-.shell {
-  -webkit-backdrop-filter: blur(14px) saturate(165%);
-  backdrop-filter: blur(14px) saturate(165%);
-}
+/* Своего фона у оболочки нет: страницу под деталью показывает линза, преломляя
+   снимок вкладки. Здесь только клип содержимого по форме. */
 /* Запасной материал, когда WebGL2 недоступен: расширение обязано работать и без стекла. */
 .shell.flat {
   background: color-mix(in oklch, var(--vg-body) 90%, transparent);
@@ -211,12 +207,60 @@
       painting = requestAnimationFrame(frame);
     }
 
-    /** Пропускание даёт живой DOM под прозрачным канвасом, а зонду ядра нужен цвет
-     *  фона: от него зависят плотность тела и полярность надписи. */
-    function refreshBackdrop() {
-      if (!glass) return;
+    let capturing = false;
+    // Не ноль: на свежей странице performance.now() сам меньше порога, и первый
+    // снимок — единственный, который нужен сразу, — молча пропускался.
+    let captureAt = -1e9;
+
+    /** Сцена для линзы — снимок вкладки. Себя из кадра убираем, иначе стекло
+     *  начинает преломлять собственное отражение. */
+    async function refreshBackdrop() {
+      if (!glass || capturing) return;
       glass.setBackdropColor(pageBackdrop());
-      paintGlass(performance.now() + 900);
+      const canSend = typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage;
+      if (!canSend) {
+        paintGlass(performance.now() + 900);
+        return;
+      }
+      // captureVisibleTab ограничен по частоте — чаще пары раз в секунду не зовём.
+      const now = performance.now();
+      if (now - captureAt < 600) return;
+      captureAt = now;
+      capturing = true;
+      host.style.visibility = 'hidden';
+      try {
+        // Снимок берёт последний скомпонованный кадр: без паузы в него попадает
+        // ещё не спрятанный виджет.
+        await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 70)));
+        const res = await new Promise((resolve) => {
+          try {
+            chrome.runtime.sendMessage({ type: 'fk-capture' }, resolve);
+          } catch {
+            resolve(null);
+          }
+        });
+        if (res && res.dataUrl) {
+          const img = new Image();
+          await new Promise((resolve) => {
+            img.onload = resolve;
+            img.onerror = resolve;
+            img.src = res.dataUrl;
+          });
+          if (img.width) {
+            const box = canvas.getBoundingClientRect();
+            glass.setBackdrop(img, img.width, img.height, window.devicePixelRatio || 1, box.left, box.top);
+          }
+        }
+      } finally {
+        host.style.visibility = '';
+        capturing = false;
+        // Без снимка линзе нечего преломлять, и она закрасила бы страницу плоской
+        // заливкой. Тогда стекла нет — показываем честный плоский материал.
+        const ok = glass.hasShot();
+        canvas.style.display = ok ? '' : 'none';
+        shell.classList.toggle('flat', !ok);
+        if (ok) paintGlass(performance.now() + 900);
+      }
     }
 
     let controller = null;

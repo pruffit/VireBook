@@ -3127,39 +3127,36 @@ void main() {
         const bottom = Math.min(height, Math.ceil(height - (piece.centerY - halfHeight - padPx)));
         gl.enable(gl.SCISSOR_TEST);
         gl.scissor(left, top, Math.max(0, right - left), Math.max(0, bottom - top));
-        if (piece.lens ?? true) {
-          gl.useProgram(lensProgram);
-          bindTextureAt(gl, 0, contentTexture, lensProgram, "content");
-          setUniform(gl, lensLoc("u_contentSize"), [width, height]);
-          setUniform(gl, lensLoc("u_resolution"), [width, height]);
-          setUniform(gl, lensLoc("u_center"), [piece.centerX, piece.centerY]);
-          setUniform(gl, lensLoc("u_reach"), Math.max(width, height));
-          setUniform(gl, lensLoc("u_contentMin"), [1, 1]);
-          setUniform(gl, lensLoc("u_contentMax"), [width - 1, height - 1]);
-          if (stats) {
-            setUniform(gl, lensLoc("u_probeLuma"), stats.luma);
-            setUniform(gl, lensLoc("u_probeBusy"), stats.busy);
-            setUniform(gl, lensLoc("u_probeRange"), [stats.lo, stats.hi]);
-            setUniform(gl, lensLoc("u_probeSlope"), [stats.slopeX, stats.slopeY]);
-            setUniform(gl, lensLoc("u_probe"), [stats.r, stats.g, stats.b]);
-          } else {
-            setUniform(gl, lensLoc("u_probeLuma"), -1);
-          }
-          const lens = toLensProps(piece.optics, piece.geometry, options2.density, {
-            debug: options2.debug,
-            morph: piece.morph,
-            touch: piece.touch,
-            progress: piece.progress
-          });
-          applyChannel(gl, lensLoc, lens.uniformNames, lens.uniformSizes, lens.uniformValues);
-          drawFullscreenTriangle(gl);
+        gl.useProgram(lensProgram);
+        bindTextureAt(gl, 0, contentTexture, lensProgram, "content");
+        setUniform(gl, lensLoc("u_contentSize"), [width, height]);
+        setUniform(gl, lensLoc("u_resolution"), [width, height]);
+        setUniform(gl, lensLoc("u_center"), [piece.centerX, piece.centerY]);
+        setUniform(gl, lensLoc("u_reach"), Math.max(width, height));
+        setUniform(gl, lensLoc("u_contentMin"), [1, 1]);
+        setUniform(gl, lensLoc("u_contentMax"), [width - 1, height - 1]);
+        if (stats) {
+          setUniform(gl, lensLoc("u_probeLuma"), stats.luma);
+          setUniform(gl, lensLoc("u_probeBusy"), stats.busy);
+          setUniform(gl, lensLoc("u_probeRange"), [stats.lo, stats.hi]);
+          setUniform(gl, lensLoc("u_probeSlope"), [stats.slopeX, stats.slopeY]);
+          setUniform(gl, lensLoc("u_probe"), [stats.r, stats.g, stats.b]);
+        } else {
+          setUniform(gl, lensLoc("u_probeLuma"), -1);
         }
+        const lens = toLensProps(piece.optics, piece.geometry, options2.density, {
+          debug: options2.debug,
+          morph: piece.morph,
+          touch: piece.touch,
+          progress: piece.progress
+        });
+        applyChannel(gl, lensLoc, lens.uniformNames, lens.uniformSizes, lens.uniformValues);
+        drawFullscreenTriangle(gl);
         gl.useProgram(surfaceProgram);
         const rawSurface = toSurfaceUniforms(piece.optics, piece.geometry, {
           debug: options2.debug,
           morph: piece.morph,
-          // Тело рисует линза — но только если её проход вообще был.
-          bodyInLens: piece.lens ?? true,
+          bodyInLens: true,
           touch: piece.touch,
           progress: piece.progress
         });
@@ -3232,14 +3229,25 @@ void main() {
     }
     fit(density());
     let backdrop = "#ffffff";
+    let shot = null;
+    let shotW = 0;
+    let shotH = 0;
+    let shotDpr = 1;
+    let viewLeft = 0;
+    let viewTop = 0;
     let inkLight = true;
     let confirmations = 0;
     let last = null;
     let prev = 0;
     let shape = widest;
     const scene = (ctx, w, h) => {
-      ctx.fillStyle = backdrop;
-      ctx.fillRect(0, 0, w, h);
+      if (!shot) {
+        ctx.fillStyle = backdrop;
+        ctx.fillRect(0, 0, w, h);
+        return;
+      }
+      const k = scale / shotDpr;
+      ctx.drawImage(shot, -viewLeft * scale, -viewTop * scale, shotW * k, shotH * k);
     };
     return {
       /** Отступ канваса за габарит детали: тень, фаска и сбор света уходят наружу формы. */
@@ -3247,6 +3255,16 @@ void main() {
       setBackdropColor(color) {
         backdrop = color;
       },
+      /** Снимок вкладки и положение канваса во вьюпорте (CSS-пиксели). */
+      setBackdrop(image, w, h, dpr, left, top) {
+        shot = image;
+        shotW = w;
+        shotH = h;
+        shotDpr = dpr || 1;
+        viewLeft = left;
+        viewTop = top;
+      },
+      hasShot: () => Boolean(shot),
       /** Отклик на курсор — пружины ядра и его же пропорции, что на стенде:
        *  ход тяги и радиус пальца берутся от полуразмера детали, не «на глаз». */
       grab: (x, y) => deform.grab(x, y, 3.2),
@@ -3279,7 +3297,6 @@ void main() {
               geometry,
               centerX,
               centerY,
-              lens: false,
               press: d.press,
               active: d.active,
               touch: {

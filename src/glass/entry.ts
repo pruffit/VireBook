@@ -1,13 +1,11 @@
 // Мост между расширением и ядром VireGlass. Собирается esbuild'ом в src/lib/glass.js
 // (IIFE, глобальная FKGlass) — расширение в рантайме остаётся без зависимостей.
 //
-// Деталь лежит поверх ЧУЖОГО живого содержимого, пикселей которого у нас нет. Поэтому
-// проход линзы выключен: она сэмплирует сцену и закрыла бы страницу непрозрачной
-// заливкой. Работает проход ПОВЕРХНОСТИ — фаска, Френель, блик, кромка, тень, — а
-// пропускание даёт браузер под прозрачным канвасом.
-//
-// Сцена при этом не бесполезна: по ней зонд снимает светлоту фона, и от неё зависят
-// плотность тела и полярность надписи. Её заливают локальным цветом страницы.
+// Линза преломляет пиксели, а не DOM, и в ней же живёт плотность тела по `legibility` —
+// то, чем деталь отделяется от страницы под собой. Поэтому сцена ей нужна настоящая:
+// снимок видимой области вкладки, сдвинутый так, чтобы под деталью оказались те самые
+// пиксели страницы, что под ней и есть. Пока снимка нет, сцену заливает локальный цвет
+// фона — этого хватает зонду, чтобы решить полярность надписи.
 import {
   CONFIRMATIONS,
   VIREGLASS_CONTROL_MATERIAL,
@@ -53,6 +51,12 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
   fit(density());
 
   let backdrop = '#ffffff';
+  let shot: CanvasImageSource | null = null;
+  let shotW = 0;
+  let shotH = 0;
+  let shotDpr = 1;
+  let viewLeft = 0;
+  let viewTop = 0;
   let inkLight = true;
   let confirmations = 0;
   let last: unknown = null;
@@ -61,8 +65,13 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
   let shape = widest;
 
   const scene = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
-    ctx.fillStyle = backdrop;
-    ctx.fillRect(0, 0, w, h);
+    if (!shot) {
+      ctx.fillStyle = backdrop;
+      ctx.fillRect(0, 0, w, h);
+      return;
+    }
+    const k = scale / shotDpr;
+    ctx.drawImage(shot, -viewLeft * scale, -viewTop * scale, shotW * k, shotH * k);
   };
 
   return {
@@ -71,6 +80,16 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
     setBackdropColor(color: string) {
       backdrop = color;
     },
+    /** Снимок вкладки и положение канваса во вьюпорте (CSS-пиксели). */
+    setBackdrop(image: CanvasImageSource, w: number, h: number, dpr: number, left: number, top: number) {
+      shot = image;
+      shotW = w;
+      shotH = h;
+      shotDpr = dpr || 1;
+      viewLeft = left;
+      viewTop = top;
+    },
+    hasShot: () => Boolean(shot),
 
     /** Отклик на курсор — пружины ядра и его же пропорции, что на стенде:
      *  ход тяги и радиус пальца берутся от полуразмера детали, не «на глаз». */
@@ -111,7 +130,6 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
             geometry,
             centerX,
             centerY,
-            lens: false,
             press: d.press,
             active: d.active,
             touch: {
