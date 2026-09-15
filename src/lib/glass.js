@@ -3213,7 +3213,10 @@ void main() {
   }
 
   // src/glass/entry.ts
-  var MATERIAL = materialForInk(VIREGLASS_CONTROL_MATERIAL, true);
+  var MATERIAL = materialForInk(
+    { ...VIREGLASS_CONTROL_MATERIAL, roughness: VIREGLASS_SHEET_MATERIAL.roughness },
+    true
+  );
   var density = () => window.devicePixelRatio || 1;
   function displacementMap(width, height, radius, bevel, push) {
     const w = Math.max(1, Math.round(width));

@@ -14,6 +14,7 @@
 import {
   CONFIRMATIONS,
   VIREGLASS_CONTROL_MATERIAL,
+  VIREGLASS_SHEET_MATERIAL,
   activeMaterial,
   bevelDp,
   createDeform,
@@ -27,7 +28,14 @@ import {
 } from '@vire/vireglass';
 import { createVireGlassRenderer } from '@vire/vireglass/web';
 
-const MATERIAL = materialForInk(VIREGLASS_CONTROL_MATERIAL, true);
+// Деталь — орган управления (отсюда толщина, фаска и presence CONTROL-материала),
+// но лежит она поверх ЖИВОГО экрана, а такому листу прозрачным быть нельзя: сквозь
+// него читается страница и спорит с его собственными подписями. Лечится это не
+// затемнением, а шероховатостью — её и берём у листового материала ядра.
+const MATERIAL = materialForInk(
+  { ...VIREGLASS_CONTROL_MATERIAL, roughness: VIREGLASS_SHEET_MATERIAL.roughness },
+  true,
+);
 
 /** Настоящая плотность экрана — та же, что подаёт стенд. */
 const density = () => window.devicePixelRatio || 1;
