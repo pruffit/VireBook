@@ -1,15 +1,23 @@
 // Мост между расширением и ядром VireGlass. Собирается esbuild'ом в src/lib/glass.js
 // (IIFE, глобальная FKGlass) — расширение в рантайме остаётся без зависимостей.
 //
-// Линза преломляет пиксели, а не DOM, и в ней же живёт плотность тела по `legibility` —
-// то, чем деталь отделяется от страницы под собой. Поэтому сцена ей нужна настоящая:
-// снимок видимой области вкладки, сдвинутый так, чтобы под деталью оказались те самые
-// пиксели страницы, что под ней и есть. Пока снимка нет, сцену заливает локальный цвет
-// фона — этого хватает зонду, чтобы решить полярность надписи.
+// Деталь лежит поверх ЧУЖОГО живого DOM, растра которого нет: снимок вкладки требует
+// <all_urls>, троттлится, снимает вместе с виджетом и устаревает на любом скролле.
+// Поэтому проход линзы выключен, а её обязанности разнесены:
+//
+//   пропускание  — backdrop-filter браузера, живое и никогда не устаревает;
+//   фаска и свет — проход ПОВЕРХНОСТИ ядра;
+//   читаемость   — bodyDensityFor/bodyLuma ядра: плотность приходит числом, CSS её
+//                  только красит. Без неё подписи панели сталкиваются с текстом страницы.
+//
+// Сцена остаётся источником замера для зонда: её заливает локальный цвет страницы.
 import {
   CONFIRMATIONS,
   VIREGLASS_CONTROL_MATERIAL,
   activeMaterial,
+  bevelDp,
+  bodyDensityFor,
+  bodyLuma,
   createDeform,
   halfMinDp,
   lensPadDp,
@@ -25,6 +33,69 @@ const MATERIAL = materialForInk(VIREGLASS_CONTROL_MATERIAL, true);
 
 /** Настоящая плотность экрана — та же, что подаёт стенд. */
 const density = () => window.devicePixelRatio || 1;
+
+/**
+ * Карта смещений для feDisplacementMap: R/G — сдвиг выборки по x/y.
+ *
+ * Это и есть преломление ЖИВОГО DOM. Форма — тот же скруглённый прямоугольник, что у
+ * ядра, величины — из его оптики: ширина фаски задаёт полосу, где поверхность наклонена,
+ * `edgePushDp` — насколько уводится луч. Снимок страницы для этого не нужен.
+ */
+function displacementMap(width: number, height: number, radius: number, bevel: number, push: number): string {
+  const w = Math.max(1, Math.round(width));
+  const h = Math.max(1, Math.round(height));
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext('2d');
+  if (!ctx) return '';
+  const img = ctx.createImageData(w, h);
+  const hx = w / 2;
+  const hy = h / 2;
+  const r = Math.min(radius, Math.min(hx, hy));
+  const band = Math.max(1, bevel);
+
+  for (let y = 0; y < h; y += 1) {
+    for (let x = 0; x < w; x += 1) {
+      const px = x + 0.5 - hx;
+      const py = y + 0.5 - hy;
+      const qx = Math.abs(px) - (hx - r);
+      const qy = Math.abs(py) - (hy - r);
+      const mx = Math.max(qx, 0);
+      const my = Math.max(qy, 0);
+      const d = Math.hypot(mx, my) + Math.min(Math.max(qx, qy), 0) - r;
+
+      let nx = 0;
+      let ny = 0;
+      if (d < 0) {
+        // Наклон поверхности растёт к контуру и сходит на нет вглубь фаски.
+        const t = Math.min(1, Math.max(0, 1 + d / band));
+        if (t > 0) {
+          if (mx > 0 && my > 0) {
+            const len = Math.hypot(mx, my) || 1;
+            nx = (mx / len) * Math.sign(px);
+            ny = (my / len) * Math.sign(py);
+          } else if (qx > qy) {
+            nx = Math.sign(px);
+          } else {
+            ny = Math.sign(py);
+          }
+          // Луч уводится ВНУТРЬ детали: у кромки видно сжатие, как в линзе.
+          const k = -(t * t);
+          nx *= k;
+          ny *= k;
+        }
+      }
+      const i = (y * w + x) * 4;
+      img.data[i] = Math.round(128 + nx * 127);
+      img.data[i + 1] = Math.round(128 + ny * 127);
+      img.data[i + 2] = 128;
+      img.data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return c.toDataURL();
+}
 
 export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, maxHeight: number) {
   const renderer = createVireGlassRenderer(canvas, { alpha: true });
@@ -65,13 +136,8 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
   let shape = widest;
 
   const scene = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
-    if (!shot) {
-      ctx.fillStyle = backdrop;
-      ctx.fillRect(0, 0, w, h);
-      return;
-    }
-    const k = scale / shotDpr;
-    ctx.drawImage(shot, -viewLeft * scale, -viewTop * scale, shotW * k, shotH * k);
+    ctx.fillStyle = backdrop;
+    ctx.fillRect(0, 0, w, h);
   };
 
   return {
@@ -80,16 +146,6 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
     setBackdropColor(color: string) {
       backdrop = color;
     },
-    /** Снимок вкладки и положение канваса во вьюпорте (CSS-пиксели). */
-    setBackdrop(image: CanvasImageSource, w: number, h: number, dpr: number, left: number, top: number) {
-      shot = image;
-      shotW = w;
-      shotH = h;
-      shotDpr = dpr || 1;
-      viewLeft = left;
-      viewTop = top;
-    },
-    hasShot: () => Boolean(shot),
 
     /** Отклик на курсор — пружины ядра и его же пропорции, что на стенде:
      *  ход тяги и радиус пальца берутся от полуразмера детали, не «на глаз». */
@@ -99,6 +155,25 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
     },
     release: () => deform.release(1.8),
     idle: () => deform.idle(),
+
+    /**
+     * Преломление живого DOM: карта смещений под feDisplacementMap плюс величина
+     * сдвига и мутность — всё из оптики ядра. Пересчитывается только на смену формы:
+     * это растр, и гонять его каждый кадр морфинга незачем.
+     */
+    refraction(width: number, height: number, cornerRadius: number) {
+      const geometry = roundedRectGeometry(width, height, cornerRadius);
+      const optics = resolveOptics(MATERIAL);
+      const bevel = bevelDp(geometry, optics);
+      // Насколько фаска гнёт луч. edgePushDp сюда не годится: он задаёт выборку внутри
+      // шейдера с его запасом вьюхи, и в CSS-карте даёт десятки пикселей на мелкой детали.
+      const push = bevel * optics.refraction;
+      return {
+        map: displacementMap(width, height, cornerRadius, bevel, push),
+        scale: push * 2,
+        blur: optics.blur,
+      };
+    },
 
     /** Возвращает, должна ли надпись поверх стекла быть светлой. */
     draw(width: number, height: number, cornerRadius: number) {
@@ -130,6 +205,7 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
             geometry,
             centerX,
             centerY,
+            lens: false,
             press: d.press,
             active: d.active,
             touch: {
@@ -159,7 +235,18 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
           confirmations = 0;
         }
       }
-      return inkLight;
+
+      // Читаемость: сколько плотности тело обязано набрать над этим фоном. Решает
+      // ядро, CSS только красит. Цвет тинта выводим из bodyLuma, чтобы не дублировать
+      // его константы: итог = local + (tint - local) * density.
+      const local = stats ? stats.luma : 1;
+      const spread = stats ? stats.busy : 0;
+      const alpha = bodyDensityFor(local, material.legibility, optics.bodyDensity, material.ink, spread);
+      const target = bodyLuma(local, material.legibility, optics.bodyDensity, material.ink, spread);
+      const tint = alpha > 1e-3 ? (target - local * (1 - alpha)) / alpha : material.ink > 0.5 ? 0 : 1;
+      const level = Math.round(Math.min(1, Math.max(0, tint)) * 255);
+
+      return { inkLight, body: `rgba(${level}, ${level}, ${level}, ${alpha.toFixed(3)})` };
     },
 
     /** Последний замер фона и решение по надписи — для отладки материала. */

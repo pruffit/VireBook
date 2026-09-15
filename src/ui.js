@@ -151,7 +151,36 @@
     const shell = document.createElement('div');
     shell.className = 'shell';
     rootEl.append(canvas, shell);
-    shadow.append(style, rootEl);
+
+    // Фильтр преломления живёт в теневом дереве: url(#…) в backdrop-filter
+    // резолвится внутри него, и страница о нём ничего не знает.
+    const SVGNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(SVGNS, 'svg');
+    svg.setAttribute('width', '0');
+    svg.setAttribute('height', '0');
+    svg.style.position = 'absolute';
+    const filterEl = document.createElementNS(SVGNS, 'filter');
+    filterEl.setAttribute('id', 'vg-refract');
+    filterEl.setAttribute('filterUnits', 'objectBoundingBox');
+    filterEl.setAttribute('x', '0');
+    filterEl.setAttribute('y', '0');
+    filterEl.setAttribute('width', '1');
+    filterEl.setAttribute('height', '1');
+    const feImage = document.createElementNS(SVGNS, 'feImage');
+    feImage.setAttribute('result', 'map');
+    feImage.setAttribute('preserveAspectRatio', 'none');
+    const feDisp = document.createElementNS(SVGNS, 'feDisplacementMap');
+    feDisp.setAttribute('in', 'SourceGraphic');
+    feDisp.setAttribute('in2', 'map');
+    feDisp.setAttribute('xChannelSelector', 'R');
+    feDisp.setAttribute('yChannelSelector', 'G');
+    feDisp.setAttribute('result', 'bent');
+    const blurEl = document.createElementNS(SVGNS, 'feGaussianBlur');
+    blurEl.setAttribute('in', 'bent');
+    blurEl.setAttribute('stdDeviation', '0');
+    filterEl.append(feImage, feDisp, blurEl);
+    svg.append(filterEl);
+    shadow.append(style, svg, rootEl);
 
     // Габарит самой крупной формы: канвас ставится под неё один раз и дальше не
     // пересоздаётся — во время морфинга размер меняется каждый кадр.
@@ -195,72 +224,46 @@
         const h = shell.offsetHeight;
         if (w && h) {
           const r = parseFloat(getComputedStyle(shell).borderTopLeftRadius) || 0;
-          rootEl.classList.toggle('ink-dark', !glass.draw(w, h, r));
+          const out = glass.draw(w, h, r);
+          rootEl.classList.toggle('ink-dark', !out.inkLight);
+          shell.style.background = out.body;
         }
         if (performance.now() < deadline || !glass.idle()) {
           painting = requestAnimationFrame(frame);
         } else {
           painting = 0;
+          // Карта смещений — растр: строим её на устоявшейся форме, а не каждый кадр.
+          if (w && h) refract(w, h, parseFloat(getComputedStyle(shell).borderTopLeftRadius) || 0);
         }
       };
       if (painting) cancelAnimationFrame(painting);
       painting = requestAnimationFrame(frame);
     }
 
-    let capturing = false;
-    // Не ноль: на свежей странице performance.now() сам меньше порога, и первый
-    // снимок — единственный, который нужен сразу, — молча пропускался.
-    let captureAt = -1e9;
-
-    /** Сцена для линзы — снимок вкладки. Себя из кадра убираем, иначе стекло
-     *  начинает преломлять собственное отражение. */
-    async function refreshBackdrop() {
-      if (!glass || capturing) return;
+    /** Зонду ядра нужен цвет фона: от него зависят плотность тела и полярность надписи. */
+    function refreshBackdrop() {
+      if (!glass) return;
       glass.setBackdropColor(pageBackdrop());
-      const canSend = typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage;
-      if (!canSend) {
-        paintGlass(performance.now() + 900);
-        return;
-      }
-      // captureVisibleTab ограничен по частоте — чаще пары раз в секунду не зовём.
-      const now = performance.now();
-      if (now - captureAt < 600) return;
-      captureAt = now;
-      capturing = true;
-      host.style.visibility = 'hidden';
-      try {
-        // Снимок берёт последний скомпонованный кадр: без паузы в него попадает
-        // ещё не спрятанный виджет.
-        await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 70)));
-        const res = await new Promise((resolve) => {
-          try {
-            chrome.runtime.sendMessage({ type: 'fk-capture' }, resolve);
-          } catch {
-            resolve(null);
-          }
-        });
-        if (res && res.dataUrl) {
-          const img = new Image();
-          await new Promise((resolve) => {
-            img.onload = resolve;
-            img.onerror = resolve;
-            img.src = res.dataUrl;
-          });
-          if (img.width) {
-            const box = canvas.getBoundingClientRect();
-            glass.setBackdrop(img, img.width, img.height, window.devicePixelRatio || 1, box.left, box.top);
-          }
-        }
-      } finally {
-        host.style.visibility = '';
-        capturing = false;
-        // Без снимка линзе нечего преломлять, и она закрасила бы страницу плоской
-        // заливкой. Тогда стекла нет — показываем честный плоский материал.
-        const ok = glass.hasShot();
-        canvas.style.display = ok ? '' : 'none';
-        shell.classList.toggle('flat', !ok);
-        if (ok) paintGlass(performance.now() + 900);
-      }
+      paintGlass(performance.now() + 900);
+    }
+
+    let mapFor = '';
+    /** Преломление живого DOM: карту и величину сдвига считает ядро, применяет
+     *  backdrop-filter. Пересчёт только на смену формы — это растр. */
+    function refract(w, h, r) {
+      if (!glass || !filterEl) return;
+      const key = w + 'x' + h + 'r' + Math.round(r);
+      if (key === mapFor) return;
+      mapFor = key;
+      const out = glass.refraction(w, h, r);
+      if (!out.map) return;
+      feImage.setAttribute('href', out.map);
+      feImage.setAttribute('width', String(w));
+      feImage.setAttribute('height', String(h));
+      feDisp.setAttribute('scale', out.scale.toFixed(2));
+      blurEl.setAttribute('stdDeviation', (out.blur / 2).toFixed(2));
+      shell.style.backdropFilter = 'url(#vg-refract)';
+      shell.style.webkitBackdropFilter = 'url(#vg-refract)';
     }
 
     let controller = null;
