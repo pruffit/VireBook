@@ -1,0 +1,75 @@
+{
+  "manifest_version": 3,
+  "name": "VireBook",
+  "description": "Собирает фанфик целиком в EPUB, MOBI, FB2 или TXT одним нажатием — прямо в браузере, без ожидания генерации на сайте.",
+  "version": "1.0.0",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": [
+    "*://ficbook.net/*",
+    "*://*.ficbook.net/*",
+    "*://archiveofourown.org/*",
+    "*://*.archiveofourown.org/*",
+    "*://fanfics.me/*",
+    "*://*.fanfics.me/*",
+    "*://*.fanfiction.net/*",
+    "*://*.wattpad.com/*",
+    "*://*.royalroad.com/*"
+  ],
+  "action": {
+    "default_title": "Скачать фанфик",
+    "default_popup": "src/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://ficbook.net/*",
+        "*://*.ficbook.net/*",
+        "*://archiveofourown.org/*",
+        "*://*.archiveofourown.org/*",
+        "*://fanfics.me/*",
+        "*://*.fanfics.me/*",
+        "*://*.fanfiction.net/*",
+        "*://*.wattpad.com/*",
+        "*://*.royalroad.com/*"
+      ],
+      "js": [
+        "src/lib/util.js",
+        "src/lib/zip.js",
+        "src/lib/html.js",
+        "src/lib/epub.js",
+        "src/lib/mobi.js",
+        "src/lib/fb2.js",
+        "src/lib/txt.js",
+        "src/lib/glass.js",
+        "src/adapters/base.js",
+        "src/adapters/ficbook.js",
+        "src/adapters/ao3.js",
+        "src/adapters/fanficsme.js",
+        "src/adapters/ffnet.js",
+        "src/adapters/wattpad.js",
+        "src/adapters/royalroad.js",
+        "src/adapters/generic.js",
+        "src/core.js",
+        "src/ui.js",
+        "src/content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ]
+}

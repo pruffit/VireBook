@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Виджет — просмотр</title>
+<style>
+  :root { color-scheme: light; }
+  body {
+    font: 16px/1.6 Georgia, serif; margin: 0;
+    padding: 40px 24px 120px; background: #fdfcfa; color: #1a1a1a;
+    transition: background .2s, color .2s;
+  }
+  body.dark { background: #13151a; color: #d8d8dc; }
+  body.busy { background: #fdfcfa url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><path d="M0 20h40M20 0v40" stroke="%23c8b8a0" stroke-width="1"/></svg>'); }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 24px; }
+  .hint { font: 13px/1.5 system-ui, sans-serif; color: #666; background: #f0efec; padding: 12px 14px; border-radius: 8px; }
+  body.dark .hint { background: #1e2129; color: #9aa0ab; }
+  .bar { position: fixed; top: 12px; left: 12px; display: flex; gap: 6px; font: 13px system-ui, sans-serif; }
+  .bar button { padding: 7px 12px; border-radius: 8px; border: 1px solid #0002; background: #fff; cursor: pointer; }
+  body.dark .bar button { background: #22252c; color: #ddd; border-color: #fff2; }
+</style>
+</head>
+<body>
+<div class="bar">
+  <button id="t-light">светлый</button>
+  <button id="t-dark">тёмный</button>
+  <button id="t-grid">клетка</button>
+</div>
+<div class="wrap">
+<h1>Страница-подделка для просмотра виджета</h1>
+<p class="hint">Кнопка внизу справа — та же, что появляется на странице фанфика. Фон переключается слева вверху: стекло обязано читаться на всех трёх.</p>
+<p>Текст-заполнитель, чтобы страница была похожа на главу и виджету было на чём лежать.</p>
+<p>Дождь начался ещё ночью и не думал заканчиваться, а крыльцо к утру стало скользким. Она стояла у перил и смотрела, как вода собирается в колее под старой яблоней, и думала, что уезжать надо было вчера.</p>
+<p>За спиной скрипнула дверь. Он вышел, не надевая куртки, и встал рядом — так близко, что она слышала, как он дышит, и так далеко, что можно было не оборачиваться.</p>
+<p>— Ты всё решила, — сказал он. Не вопрос.</p>
+<p>Ветер бросил в лицо горсть холодных капель. Где-то за домом, в мокрой темноте, лязгнула цепь, и собака, погремев ею, снова затихла.</p>
+</div>
+
+<script src="../src/lib/util.js"></script>
+<script src="../src/lib/zip.js"></script>
+<script src="../src/lib/html.js"></script>
+<script src="../src/lib/epub.js"></script>
+<script src="../src/lib/mobi.js"></script>
+<script src="../src/lib/fb2.js"></script>
+<script src="../src/lib/txt.js"></script>
+<script src="../src/lib/glass.js"></script>
+<script src="../src/ui.js"></script>
+<script>
+  const modes = { 't-light': '', 't-dark': 'dark', 't-grid': 'busy' };
+  for (const [id, cls] of Object.entries(modes)) {
+    document.getElementById(id).addEventListener('click', () => {
+      document.body.className = cls;
+    });
+  }
+
+  // На странице нет chrome.tabs.captureVisibleTab, поэтому сцену для линзы рисуем
+  // сами — той же заливкой, что у страницы. Только в демо: в расширении сцена это
+  // настоящий снимок вкладки.
+  function fakeCapture() {
+    const g = window.__FK_GLASS__;
+    if (!g) return;
+    const dpr = window.devicePixelRatio || 1;
+    const c = document.createElement('canvas');
+    c.width = Math.ceil(innerWidth * dpr);
+    c.height = Math.ceil(innerHeight * dpr);
+    const x = c.getContext('2d');
+    x.scale(dpr, dpr);
+    const cls = document.body.className;
+    if (cls === 'dark') {
+      const grad = x.createLinearGradient(0, 0, innerWidth, innerHeight);
+      grad.addColorStop(0, '#191c24');
+      grad.addColorStop(1, '#0e1014');
+      x.fillStyle = grad;
+      x.fillRect(0, 0, innerWidth, innerHeight);
+      x.fillStyle = 'rgba(150,110,255,.5)';
+      x.beginPath(); x.arc(innerWidth * 0.78, innerHeight * 0.82, 220, 0, 7); x.fill();
+      x.fillStyle = 'rgba(255,120,180,.32)';
+      x.beginPath(); x.arc(innerWidth * 0.55, innerHeight * 0.95, 170, 0, 7); x.fill();
+    } else {
+      x.fillStyle = cls === 'busy' ? '#fdfcfa' : '#fdfcfa';
+      x.fillRect(0, 0, innerWidth, innerHeight);
+      x.strokeStyle = cls === 'busy' ? '#c8b8a0' : '#e6e2db';
+      x.lineWidth = 1;
+      for (let i = 0; i < innerWidth; i += 40) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, innerHeight); x.stroke(); }
+      for (let i = 0; i < innerHeight; i += 40) { x.beginPath(); x.moveTo(0, i); x.lineTo(innerWidth, i); x.stroke(); }
+    }
+    const box = document.getElementById('virebook-root').shadowRoot.querySelector('canvas.glass').getBoundingClientRect();
+    g.setBackdrop(c, dpr, box.left, box.top);
+  }
+  window.fakeCapture = fakeCapture;
+  setInterval(() => { fakeCapture(); window.dispatchEvent(new Event('resize')); }, 400);
+
+  const widget = FK.ui.create({
+    siteName: 'Книга Фанфиков',
+    defaultFormat: 'epub',
+    onDownload: async ({ format, progress }) => {
+      const steps = ['Найдено частей: 12', 'Скачано глав: 4 из 12', 'Сайт просит сбавить темп — продолжу через 8 с…', 'Скачано глав: 9 из 12', 'Собираю ' + format.toUpperCase() + '…'];
+      for (let i = 0; i < steps.length; i++) {
+        progress(steps[i], 5 + i * 20);
+        await new Promise((r) => setTimeout(r, 600));
+      }
+      return { filename: 'Дом у реки — Тестовый Автор.' + format, note: 'Не разобрались главы: 2' };
+    },
+  });
+  document.documentElement.appendChild(widget.host);
+</script>
+</body>
+</html>

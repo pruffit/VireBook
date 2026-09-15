@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Стеклянный слой (src/lib/glass.js) собирается из приватного пакета и лежит
+      # в репозитории готовым — в CI не пересобирается, только проверяется наличие.
+      - run: test -s src/lib/glass.js
+      - run: npm test
