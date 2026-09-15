@@ -2408,12 +2408,6 @@ half4 main(float2 xy) {
     const demand = clamp3(legibility * 4, 0, 1);
     return Math.max(bodyDensity2, need * demand, busyFloor);
   }
-  function bodyLuma(local, legibility, bodyDensity2, polarity, spread = 0, edgeLight2 = 0) {
-    const tint = polarity > 0.5 ? TINT_DARK : TINT_LIGHT;
-    const density2 = bodyDensityFor(local, legibility, bodyDensity2, polarity, spread);
-    const lift = local * edgeLight2 * (0.12 + 0.55 * (1 - local));
-    return clamp3(local + (tint - local) * density2 + lift, 0, 1);
-  }
   function shouldInkBeLight(sample, legibility, wasLight) {
     const hi = sample.hi ?? sample.luma;
     const decisive = sample.luma * 0.75 + hi * 0.25;
@@ -3385,13 +3379,7 @@ void main() {
             confirmations = 0;
           }
         }
-        const local = stats ? stats.luma : 1;
-        const spread = stats ? stats.busy : 0;
-        const alpha = bodyDensityFor(local, material.legibility, optics.bodyDensity, material.ink, spread);
-        const target = bodyLuma(local, material.legibility, optics.bodyDensity, material.ink, spread);
-        const tint = alpha > 1e-3 ? (target - local * (1 - alpha)) / alpha : material.ink > 0.5 ? 0 : 1;
-        const level = Math.round(Math.min(1, Math.max(0, tint)) * 255);
-        return { inkLight, body: `rgba(${level}, ${level}, ${level}, ${alpha.toFixed(3)})` };
+        return { inkLight };
       },
       /** Последний замер фона и решение по надписи — для отладки материала. */
       probe: () => ({ stats: last, inkLight, backdrop }),

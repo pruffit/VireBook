@@ -224,9 +224,9 @@
         const h = shell.offsetHeight;
         if (w && h) {
           const r = parseFloat(getComputedStyle(shell).borderTopLeftRadius) || 0;
-          const out = glass.draw(w, h, r);
-          rootEl.classList.toggle('ink-dark', !out.inkLight);
-          shell.style.background = out.body;
+          // Своего фона оболочке не задаём: тело стекла рисует проход поверхности.
+          // Красить его ещё и из CSS — двойная заливка (adapters.ts, u_tint).
+          rootEl.classList.toggle('ink-dark', !glass.draw(w, h, r).inkLight);
         }
         if (performance.now() < deadline || !glass.idle()) {
           painting = requestAnimationFrame(frame);

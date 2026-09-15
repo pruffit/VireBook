@@ -16,8 +16,6 @@ import {
   VIREGLASS_CONTROL_MATERIAL,
   activeMaterial,
   bevelDp,
-  bodyDensityFor,
-  bodyLuma,
   createDeform,
   halfMinDp,
   lensPadDp,
@@ -236,17 +234,7 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
         }
       }
 
-      // Читаемость: сколько плотности тело обязано набрать над этим фоном. Решает
-      // ядро, CSS только красит. Цвет тинта выводим из bodyLuma, чтобы не дублировать
-      // его константы: итог = local + (tint - local) * density.
-      const local = stats ? stats.luma : 1;
-      const spread = stats ? stats.busy : 0;
-      const alpha = bodyDensityFor(local, material.legibility, optics.bodyDensity, material.ink, spread);
-      const target = bodyLuma(local, material.legibility, optics.bodyDensity, material.ink, spread);
-      const tint = alpha > 1e-3 ? (target - local * (1 - alpha)) / alpha : material.ink > 0.5 ? 0 : 1;
-      const level = Math.round(Math.min(1, Math.max(0, tint)) * 255);
-
-      return { inkLight, body: `rgba(${level}, ${level}, ${level}, ${alpha.toFixed(3)})` };
+      return { inkLight };
     },
 
     /** Последний замер фона и решение по надписи — для отладки материала. */
