@@ -3042,14 +3042,14 @@ void main() {
     let sceneCtx = sceneCanvas.getContext("2d");
     if (!sceneCtx) throw new Error("vireglass/web: 2D-\u043A\u043E\u043D\u0442\u0435\u043A\u0441\u0442 \u0441\u0446\u0435\u043D\u044B \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u0435\u043D");
     const settled = /* @__PURE__ */ new Map();
-    const SETTLE = 0.12;
+    const SETTLE2 = 0.12;
     function settleStats(index, fresh) {
       const prev = settled.get(index);
       if (!prev) {
         settled.set(index, fresh);
         return fresh;
       }
-      const mix = (a, b) => a + (b - a) * SETTLE;
+      const mix = (a, b) => a + (b - a) * SETTLE2;
       const next = {
         luma: mix(prev.luma, fresh.luma),
         busy: mix(prev.busy, fresh.busy),
@@ -3240,9 +3240,13 @@ void main() {
 
   // src/glass/entry.ts
   var MATERIAL = materialForInk(
-    { ...VIREGLASS_CONTROL_MATERIAL, roughness: VIREGLASS_SHEET_MATERIAL.roughness },
+    // Шероховатость — на потолке модели: у листового материала 0.85, и сквозь него всё
+    // ещё пролезают светлые пятна от текста страницы. Деталь лежит поверх живого текста,
+    // мутность здесь работает на читаемость, а не на красоту.
+    { ...VIREGLASS_CONTROL_MATERIAL, roughness: MATERIAL_RANGES.roughness[1] },
     true
   );
+  var SETTLE = 0.12;
   var density = () => window.devicePixelRatio || 1;
   function displacementMap(width, height, radius, bevel, push) {
     const w = Math.max(1, Math.round(width));
@@ -3312,7 +3316,10 @@ void main() {
     }
     fit(density());
     let backdrop = "#ffffff";
+    let spreadTarget = 0;
     let spread = 0;
+    let settledAlpha = -1;
+    let settledLevel = -1;
     let inkLight = true;
     let confirmations = 0;
     let last = null;
@@ -3333,8 +3340,10 @@ void main() {
        *  Без неё модель считает фон однородным и плотности не требует — тогда подписи
        *  панели ложатся прямо на текст страницы. */
       setSpread(value) {
-        spread = Math.min(1, Math.max(0, value));
+        spreadTarget = Math.min(1, Math.max(0, value));
       },
+      /** Доехали ли параметры материала до цели — по этому решают, рисовать ли дальше. */
+      settled: () => Math.abs(spread - spreadTarget) < 5e-3,
       /** Отклик на курсор — пружины ядра и его же пропорции, что на стенде:
        *  ход тяги и радиус пальца берутся от полуразмера детали, не «на глаз». */
       grab: (x, y) => deform.grab(x, y, 3.2),
@@ -3410,12 +3419,18 @@ void main() {
             confirmations = 0;
           }
         }
+        spread += (spreadTarget - spread) * SETTLE;
         const local = stats ? stats.luma : 1;
         const alpha = bodyDensityFor(local, material.legibility, optics.bodyDensity, material.ink, spread);
-        const target = bodyLuma(local, material.legibility, optics.bodyDensity, material.ink, spread);
-        const tint = alpha > 1e-3 ? (target - local * (1 - alpha)) / alpha : material.ink > 0.5 ? 0 : 1;
+        const aim = bodyLuma(local, material.legibility, optics.bodyDensity, material.ink, spread);
+        const tint = alpha > 1e-3 ? (aim - local * (1 - alpha)) / alpha : material.ink > 0.5 ? 0 : 1;
         const level = Math.round(Math.min(1, Math.max(0, tint)) * 255);
-        return { inkLight, body: `rgba(${level}, ${level}, ${level}, ${alpha.toFixed(3)})` };
+        settledAlpha = settledAlpha < 0 ? alpha : settledAlpha + (alpha - settledAlpha) * SETTLE;
+        settledLevel = settledLevel < 0 ? level : settledLevel + (level - settledLevel) * SETTLE;
+        return {
+          inkLight,
+          body: `rgba(${Math.round(settledLevel)}, ${Math.round(settledLevel)}, ${Math.round(settledLevel)}, ${settledAlpha.toFixed(3)})`
+        };
       },
       /** Последний замер фона и решение по надписи — для отладки материала. */
       probe: () => ({ stats: last, inkLight, backdrop }),

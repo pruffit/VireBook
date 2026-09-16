@@ -185,16 +185,19 @@
       node.setAttribute('in', src);
       merge.append(node);
     }
+    // Рассеяние ПЕРВЫМ, смещение вторым: у матового стекла свет рассеивается в теле,
+    // и преломлять после этого нечего резкого. В обратном порядке кромка затягивает
+    // под деталь ещё чёткий текст страницы — он читается грязными пятнами.
+    const blurEl = document.createElementNS(SVGNS, 'feGaussianBlur');
+    blurEl.setAttribute('in', 'SourceGraphic');
+    blurEl.setAttribute('stdDeviation', '0');
+    blurEl.setAttribute('result', 'scattered');
     const feDisp = document.createElementNS(SVGNS, 'feDisplacementMap');
-    feDisp.setAttribute('in', 'SourceGraphic');
+    feDisp.setAttribute('in', 'scattered');
     feDisp.setAttribute('in2', 'map');
     feDisp.setAttribute('xChannelSelector', 'R');
     feDisp.setAttribute('yChannelSelector', 'G');
-    feDisp.setAttribute('result', 'bent');
-    const blurEl = document.createElementNS(SVGNS, 'feGaussianBlur');
-    blurEl.setAttribute('in', 'bent');
-    blurEl.setAttribute('stdDeviation', '0');
-    filterEl.append(flood, feImage, merge, feDisp, blurEl);
+    filterEl.append(flood, feImage, merge, blurEl, feDisp);
     svg.append(filterEl);
     shadow.append(style, svg, rootEl);
 
@@ -231,6 +234,8 @@
 
     let painting = 0;
     let lastSpread = -1;
+    /** Радиус листа — тот же, что в токене --r-sheet. */
+    const SHEET_RADIUS = 26;
     /** Форма едет transition'ом, отклик на курсор — пружинами ядра. И то и другое
      *  покадрово, поэтому цикл один: идёт до срока и пока деталь не успокоится. */
     function paintGlass(until) {
@@ -245,7 +250,7 @@
           rootEl.classList.toggle('ink-dark', !out.inkLight);
           shell.style.background = out.body;
         }
-        if (performance.now() < deadline || !glass.idle()) {
+        if (performance.now() < deadline || !glass.idle() || !glass.settled()) {
           painting = requestAnimationFrame(frame);
         } else {
           painting = 0;
@@ -273,8 +278,8 @@
      * не пустое место, а содержимое. Над ровным фоном плотность не нужна, над текстом —
      * нужна, и решает это модель, а не мы.
      */
-    function pageSpread() {
-      const box = shell.getBoundingClientRect();
+    function pageSpread(rect) {
+      const box = rect || shell.getBoundingClientRect();
       if (!box.width || !box.height) return 0;
       const cols = 5;
       const rows = 4;
@@ -314,6 +319,9 @@
     }
 
     let mapFor = '';
+    // Построение карты — это цикл по пикселям плюс кодирование PNG, и оно
+    // синхронное. Формы у виджета наперечёт, поэтому считаем каждую один раз.
+    const mapCache = new Map();
     /** Преломление живого DOM: карту и величину сдвига считает ядро, применяет
      *  backdrop-filter. Пересчёт только на смену формы — это растр. */
     function refract(w, h, r) {
@@ -321,7 +329,11 @@
       const key = w + 'x' + h + 'r' + Math.round(r);
       if (key === mapFor) return;
       mapFor = key;
-      const out = glass.refraction(w, h, r);
+      let out = mapCache.get(key);
+      if (!out) {
+        out = glass.refraction(w, h, r);
+        mapCache.set(key, out);
+      }
       if (!out.map) return;
       feImage.setAttribute('href', out.map);
       feImage.setAttribute('width', String(w));
@@ -432,6 +444,19 @@
       }
       shell.append(next);
       view = next;
+
+      // Материал считаем по ЦЕЛЕВОМУ габариту до начала морфинга: иначе панель
+      // въезжает с плотностью и картой от прежней формы и доводится до вида уже
+      // после — это и читается как «сначала не то, потом дёрнулось».
+      if (glass) {
+        const now = shell.getBoundingClientRect();
+        const right = now.right || window.innerWidth - 18;
+        const bottom = now.bottom || window.innerHeight - 18;
+        const target = { left: right - w, top: bottom - h, width: w, height: h };
+        lastSpread = pageSpread(target);
+        glass.setSpread(lastSpread);
+        refract(w, h, pill ? h / 2 : SHEET_RADIUS);
+      }
 
       const apply = () => {
         shell.style.width = w + 'px';

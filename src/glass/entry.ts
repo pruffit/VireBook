@@ -13,8 +13,8 @@
 // Сцена остаётся источником замера для зонда: её заливает локальный цвет страницы.
 import {
   CONFIRMATIONS,
+  MATERIAL_RANGES,
   VIREGLASS_CONTROL_MATERIAL,
-  VIREGLASS_SHEET_MATERIAL,
   activeMaterial,
   applyToggles,
   bevelDp,
@@ -36,9 +36,16 @@ import { createVireGlassRenderer } from '@vire/vireglass/web';
 // него читается страница и спорит с его собственными подписями. Лечится это не
 // затемнением, а шероховатостью — её и берём у листового материала ядра.
 const MATERIAL = materialForInk(
-  { ...VIREGLASS_CONTROL_MATERIAL, roughness: VIREGLASS_SHEET_MATERIAL.roughness },
+  // Шероховатость — на потолке модели: у листового материала 0.85, и сквозь него всё
+  // ещё пролезают светлые пятна от текста страницы. Деталь лежит поверх живого текста,
+  // мутность здесь работает на читаемость, а не на красоту.
+  { ...VIREGLASS_CONTROL_MATERIAL, roughness: MATERIAL_RANGES.roughness[1] },
   true,
 );
+
+/** Доля нового замера на кадр — тот же порядок, что SETTLE рендерера: параметры
+ *  материала обязаны подъезжать к новым, а не прыгать. */
+const SETTLE = 0.12;
 
 /** Настоящая плотность экрана — та же, что подаёт стенд. */
 const density = () => window.devicePixelRatio || 1;
@@ -131,7 +138,10 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
   fit(density());
 
   let backdrop = '#ffffff';
+  let spreadTarget = 0;
   let spread = 0;
+  let settledAlpha = -1;
+  let settledLevel = -1;
   let inkLight = true;
   let confirmations = 0;
   let last: unknown = null;
@@ -155,8 +165,10 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
      *  Без неё модель считает фон однородным и плотности не требует — тогда подписи
      *  панели ложатся прямо на текст страницы. */
     setSpread(value: number) {
-      spread = Math.min(1, Math.max(0, value));
+      spreadTarget = Math.min(1, Math.max(0, value));
     },
+    /** Доехали ли параметры материала до цели — по этому решают, рисовать ли дальше. */
+    settled: () => Math.abs(spread - spreadTarget) < 0.005,
 
     /** Отклик на курсор — пружины ядра и его же пропорции, что на стенде:
      *  ход тяги и радиус пальца берутся от полуразмера детали, не «на глаз». */
@@ -252,13 +264,23 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
       // Плотность, которую тело обязано набрать над этим фоном, чтобы надпись читалась.
       // Считает ядро, CSS только красит. Цвет тинта выводим из bodyLuma, чтобы не
       // дублировать его константы: итог = local + (tint - local) × density.
+      // Пестрота подъезжает к новой оценке, а не прыгает к ней: скачок плотности
+      // читается вспышкой по телу — ровно то, от чего в рендерере сделан SETTLE.
+      spread += (spreadTarget - spread) * SETTLE;
+
       const local = stats ? stats.luma : 1;
       const alpha = bodyDensityFor(local, material.legibility, optics.bodyDensity, material.ink, spread);
-      const target = bodyLuma(local, material.legibility, optics.bodyDensity, material.ink, spread);
-      const tint = alpha > 1e-3 ? (target - local * (1 - alpha)) / alpha : material.ink > 0.5 ? 0 : 1;
+      const aim = bodyLuma(local, material.legibility, optics.bodyDensity, material.ink, spread);
+      const tint = alpha > 1e-3 ? (aim - local * (1 - alpha)) / alpha : material.ink > 0.5 ? 0 : 1;
       const level = Math.round(Math.min(1, Math.max(0, tint)) * 255);
+      // Полярность переключается ступенькой, поэтому цвет тинта тоже подводим.
+      settledAlpha = settledAlpha < 0 ? alpha : settledAlpha + (alpha - settledAlpha) * SETTLE;
+      settledLevel = settledLevel < 0 ? level : settledLevel + (level - settledLevel) * SETTLE;
 
-      return { inkLight, body: `rgba(${level}, ${level}, ${level}, ${alpha.toFixed(3)})` };
+      return {
+        inkLight,
+        body: `rgba(${Math.round(settledLevel)}, ${Math.round(settledLevel)}, ${Math.round(settledLevel)}, ${settledAlpha.toFixed(3)})`,
+      };
     },
 
     /** Последний замер фона и решение по надписи — для отладки материала. */
