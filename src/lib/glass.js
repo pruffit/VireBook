@@ -1293,6 +1293,26 @@ var FKGlass = (() => {
     (acc, e) => ({ ...acc, [e]: true }),
     {}
   );
+  function applyToggles(optics, toggles = {}) {
+    const on = { ...ALL_EFFECTS_ON, ...toggles };
+    const o = { ...optics, tint: { ...optics.tint } };
+    if (!on.blur) o.blur = 0;
+    if (!on.refraction) {
+      o.refraction = 0;
+      o.refractionScale = 1;
+      o.edgePushDp = 0;
+    }
+    if (!on.fresnel) o.fresnel = 0;
+    if (!on.bevel) o.bevelDp = 1;
+    if (!on.specular) o.specular = 0;
+    if (!on.dispersion) o.dispersion = 0;
+    if (!on.tint) o.tintStrength = 0;
+    if (!on.environment) o.environment = 0;
+    if (!on.legibility) o.legibility = 0;
+    if (!on.interference) o.iridescence = 0;
+    if (!on.diffraction) o.diffraction = 0;
+    return o;
+  }
   var DEBUG_MODES = [
     "normal",
     "sdf",
@@ -2408,6 +2428,12 @@ half4 main(float2 xy) {
     const demand = clamp3(legibility * 4, 0, 1);
     return Math.max(bodyDensity2, need * demand, busyFloor);
   }
+  function bodyLuma(local, legibility, bodyDensity2, polarity, spread = 0, edgeLight2 = 0) {
+    const tint = polarity > 0.5 ? TINT_DARK : TINT_LIGHT;
+    const density2 = bodyDensityFor(local, legibility, bodyDensity2, polarity, spread);
+    const lift = local * edgeLight2 * (0.12 + 0.55 * (1 - local));
+    return clamp3(local + (tint - local) * density2 + lift, 0, 1);
+  }
   function shouldInkBeLight(sample, legibility, wasLight) {
     const hi = sample.hi ?? sample.luma;
     const decisive = sample.luma * 0.75 + hi * 0.25;
@@ -3286,12 +3312,7 @@ void main() {
     }
     fit(density());
     let backdrop = "#ffffff";
-    let shot = null;
-    let shotW = 0;
-    let shotH = 0;
-    let shotDpr = 1;
-    let viewLeft = 0;
-    let viewTop = 0;
+    let spread = 0;
     let inkLight = true;
     let confirmations = 0;
     let last = null;
@@ -3306,6 +3327,13 @@ void main() {
       pad,
       setBackdropColor(color) {
         backdrop = color;
+      },
+      /** Разнородность фона под деталью, 0…1 — параметр `spread` модели. Зонд снимает её
+       *  с нарисованной сцены, а наша сцена ровная: пестроту живой страницы туда не подать.
+       *  Без неё модель считает фон однородным и плотности не требует — тогда подписи
+       *  панели ложатся прямо на текст страницы. */
+      setSpread(value) {
+        spread = Math.min(1, Math.max(0, value));
       },
       /** Отклик на курсор — пружины ядра и его же пропорции, что на стенде:
        *  ход тяги и радиус пальца берутся от полуразмера детали, не «на глаз». */
@@ -3341,7 +3369,7 @@ void main() {
         shape = geometry;
         const d = deform.sample();
         const material = { ...activeMaterial(MATERIAL, d.active), ink: inkLight ? 1 : 0 };
-        const optics = resolveOptics(material);
+        const optics = applyToggles(resolveOptics(material), { tint: false });
         const centerX = (boxW - pad - width / 2) * scale;
         const centerY = (boxH - pad - height / 2) * scale;
         const { probes } = renderer.render({
@@ -3382,7 +3410,12 @@ void main() {
             confirmations = 0;
           }
         }
-        return { inkLight };
+        const local = stats ? stats.luma : 1;
+        const alpha = bodyDensityFor(local, material.legibility, optics.bodyDensity, material.ink, spread);
+        const target = bodyLuma(local, material.legibility, optics.bodyDensity, material.ink, spread);
+        const tint = alpha > 1e-3 ? (target - local * (1 - alpha)) / alpha : material.ink > 0.5 ? 0 : 1;
+        const level = Math.round(Math.min(1, Math.max(0, tint)) * 255);
+        return { inkLight, body: `rgba(${level}, ${level}, ${level}, ${alpha.toFixed(3)})` };
       },
       /** Последний замер фона и решение по надписи — для отладки материала. */
       probe: () => ({ stats: last, inkLight, backdrop }),

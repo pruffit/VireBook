@@ -16,7 +16,10 @@ import {
   VIREGLASS_CONTROL_MATERIAL,
   VIREGLASS_SHEET_MATERIAL,
   activeMaterial,
+  applyToggles,
   bevelDp,
+  bodyDensityFor,
+  bodyLuma,
   createDeform,
   halfMinDp,
   lensPadDp,
@@ -128,12 +131,7 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
   fit(density());
 
   let backdrop = '#ffffff';
-  let shot: CanvasImageSource | null = null;
-  let shotW = 0;
-  let shotH = 0;
-  let shotDpr = 1;
-  let viewLeft = 0;
-  let viewTop = 0;
+  let spread = 0;
   let inkLight = true;
   let confirmations = 0;
   let last: unknown = null;
@@ -151,6 +149,13 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
     pad,
     setBackdropColor(color: string) {
       backdrop = color;
+    },
+    /** Разнородность фона под деталью, 0…1 — параметр `spread` модели. Зонд снимает её
+     *  с нарисованной сцены, а наша сцена ровная: пестроту живой страницы туда не подать.
+     *  Без неё модель считает фон однородным и плотности не требует — тогда подписи
+     *  панели ложатся прямо на текст страницы. */
+    setSpread(value: number) {
+      spread = Math.min(1, Math.max(0, value));
     },
 
     /** Отклик на курсор — пружины ядра и его же пропорции, что на стенде:
@@ -194,7 +199,9 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
       // Активность — состояние СРЕДЫ: плотнее и чище стекло, а не подсветка поверх.
       // Ровно так собирает материал кнопки стенд.
       const material = { ...activeMaterial(MATERIAL, d.active), ink: inkLight ? 1 : 0 };
-      const optics = resolveOptics(material);
+      // Тело поверхность не красит: единственное тело — адаптивное, ниже из
+      // bodyDensityFor. Две заливки дали бы двойную плотность (adapters.ts, u_tint).
+      const optics = applyToggles(resolveOptics(material), { tint: false });
       // Координаты детали — от левого верхнего угла канваса (шейдеры получают
       // перевёрнутый Y транспайлером, см. targets/glsl.ts).
       const centerX = (boxW - pad - width / 2) * scale;
@@ -242,7 +249,16 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
         }
       }
 
-      return { inkLight };
+      // Плотность, которую тело обязано набрать над этим фоном, чтобы надпись читалась.
+      // Считает ядро, CSS только красит. Цвет тинта выводим из bodyLuma, чтобы не
+      // дублировать его константы: итог = local + (tint - local) × density.
+      const local = stats ? stats.luma : 1;
+      const alpha = bodyDensityFor(local, material.legibility, optics.bodyDensity, material.ink, spread);
+      const target = bodyLuma(local, material.legibility, optics.bodyDensity, material.ink, spread);
+      const tint = alpha > 1e-3 ? (target - local * (1 - alpha)) / alpha : material.ink > 0.5 ? 0 : 1;
+      const level = Math.round(Math.min(1, Math.max(0, tint)) * 255);
+
+      return { inkLight, body: `rgba(${level}, ${level}, ${level}, ${alpha.toFixed(3)})` };
     },
 
     /** Последний замер фона и решение по надписи — для отладки материала. */

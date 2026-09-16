@@ -161,14 +161,30 @@
     svg.style.position = 'absolute';
     const filterEl = document.createElementNS(SVGNS, 'filter');
     filterEl.setAttribute('id', 'vg-refract');
+    // Область с запасом: ровно по боксу примитивы за краем не рисуются, и по периметру
+    // остаётся полоса нетронутого фона — видно как кусок без преломления.
     filterEl.setAttribute('filterUnits', 'objectBoundingBox');
-    filterEl.setAttribute('x', '0');
-    filterEl.setAttribute('y', '0');
-    filterEl.setAttribute('width', '1');
-    filterEl.setAttribute('height', '1');
+    filterEl.setAttribute('x', '-0.25');
+    filterEl.setAttribute('y', '-0.25');
+    filterEl.setAttribute('width', '1.5');
+    filterEl.setAttribute('height', '1.5');
+    // Нейтральная заливка под картой: там, где карты нет, канал равен нулю, а это
+    // сдвиг на половину шкалы — запас области поехал бы целиком.
+    const flood = document.createElementNS(SVGNS, 'feFlood');
+    flood.setAttribute('flood-color', 'rgb(128,128,128)');
+    flood.setAttribute('result', 'flat');
     const feImage = document.createElementNS(SVGNS, 'feImage');
-    feImage.setAttribute('result', 'map');
+    feImage.setAttribute('result', 'shape');
     feImage.setAttribute('preserveAspectRatio', 'none');
+    feImage.setAttribute('x', '0');
+    feImage.setAttribute('y', '0');
+    const merge = document.createElementNS(SVGNS, 'feMerge');
+    merge.setAttribute('result', 'map');
+    for (const src of ['flat', 'shape']) {
+      const node = document.createElementNS(SVGNS, 'feMergeNode');
+      node.setAttribute('in', src);
+      merge.append(node);
+    }
     const feDisp = document.createElementNS(SVGNS, 'feDisplacementMap');
     feDisp.setAttribute('in', 'SourceGraphic');
     feDisp.setAttribute('in2', 'map');
@@ -178,7 +194,7 @@
     const blurEl = document.createElementNS(SVGNS, 'feGaussianBlur');
     blurEl.setAttribute('in', 'bent');
     blurEl.setAttribute('stdDeviation', '0');
-    filterEl.append(feImage, feDisp, blurEl);
+    filterEl.append(flood, feImage, merge, feDisp, blurEl);
     svg.append(filterEl);
     shadow.append(style, svg, rootEl);
 
@@ -214,6 +230,7 @@
     }
 
     let painting = 0;
+    let lastSpread = -1;
     /** Форма едет transition'ом, отклик на курсор — пружинами ядра. И то и другое
      *  покадрово, поэтому цикл один: идёт до срока и пока деталь не успокоится. */
     function paintGlass(until) {
@@ -224,26 +241,75 @@
         const h = shell.offsetHeight;
         if (w && h) {
           const r = parseFloat(getComputedStyle(shell).borderTopLeftRadius) || 0;
-          // Своего фона оболочке не задаём: тело стекла рисует проход поверхности.
-          // Красить его ещё и из CSS — двойная заливка (adapters.ts, u_tint).
-          rootEl.classList.toggle('ink-dark', !glass.draw(w, h, r).inkLight);
+          const out = glass.draw(w, h, r);
+          rootEl.classList.toggle('ink-dark', !out.inkLight);
+          shell.style.background = out.body;
         }
         if (performance.now() < deadline || !glass.idle()) {
           painting = requestAnimationFrame(frame);
         } else {
           painting = 0;
-          // Карта смещений — растр: строим её на устоявшейся форме, а не каждый кадр.
-          if (w && h) refract(w, h, parseFloat(getComputedStyle(shell).borderTopLeftRadius) || 0);
+          if (w && h) {
+            // Карта смещений — растр: строим её на устоявшейся форме, а не каждый кадр.
+            refract(w, h, parseFloat(getComputedStyle(shell).borderTopLeftRadius) || 0);
+            // Пестрота считается обходом точек — тоже по устоявшейся форме. Перерисовка
+            // только если она заметно изменилась, иначе цикл сам себя будит.
+            const next = pageSpread();
+            if (Math.abs(next - lastSpread) > 0.05) {
+              lastSpread = next;
+              glass.setSpread(next);
+              paintGlass(performance.now() + 500);
+            }
+          }
         }
       };
       if (painting) cancelAnimationFrame(painting);
       painting = requestAnimationFrame(frame);
     }
 
+    /**
+     * Пестрота фона под деталью. Зонд ядра снимает её с нарисованной сцены, но сцены
+     * у нас нет — линза выключена. Оцениваем по DOM: доля точек под панелью, где лежит
+     * не пустое место, а содержимое. Над ровным фоном плотность не нужна, над текстом —
+     * нужна, и решает это модель, а не мы.
+     */
+    function pageSpread() {
+      const box = shell.getBoundingClientRect();
+      if (!box.width || !box.height) return 0;
+      const cols = 5;
+      const rows = 4;
+      let hits = 0;
+      let total = 0;
+      for (let i = 0; i < cols; i += 1) {
+        for (let j = 0; j < rows; j += 1) {
+          const x = box.left + (box.width * (i + 0.5)) / cols;
+          const y = box.top + (box.height * (j + 0.5)) / rows;
+          if (x < 0 || y < 0 || x > innerWidth || y > innerHeight) continue;
+          total += 1;
+          const stack = document.elementsFromPoint(x, y);
+          for (const el of stack) {
+            if (el === host || el === document.documentElement || el === document.body) continue;
+            // Картинка или непустой текст — то, что модель и называет пестротой.
+            const tag = el.tagName;
+            if (tag === 'IMG' || tag === 'VIDEO' || tag === 'CANVAS' || tag === 'SVG') {
+              hits += 1;
+              break;
+            }
+            if ((el.textContent || '').trim()) {
+              hits += 1;
+              break;
+            }
+          }
+        }
+      }
+      return total ? hits / total : 0;
+    }
+
     /** Зонду ядра нужен цвет фона: от него зависят плотность тела и полярность надписи. */
     function refreshBackdrop() {
       if (!glass) return;
       glass.setBackdropColor(pageBackdrop());
+      glass.setSpread(pageSpread());
       paintGlass(performance.now() + 900);
     }
 
