@@ -161,13 +161,14 @@
     svg.style.position = 'absolute';
     const filterEl = document.createElementNS(SVGNS, 'filter');
     filterEl.setAttribute('id', 'vg-refract');
-    // Область с запасом: ровно по боксу примитивы за краем не рисуются, и по периметру
-    // остаётся полоса нетронутого фона — видно как кусок без преломления.
+    // Область — ровно по боксу. С запасом backdrop-filter выплёскивает отфильтрованный
+    // фон за границы элемента, и мимо скруглённой формы виден прямоугольный ореол.
+    // Полосу нетронутого края закрывает нейтральная заливка ниже, а не запас области.
     filterEl.setAttribute('filterUnits', 'objectBoundingBox');
-    filterEl.setAttribute('x', '-0.25');
-    filterEl.setAttribute('y', '-0.25');
-    filterEl.setAttribute('width', '1.5');
-    filterEl.setAttribute('height', '1.5');
+    filterEl.setAttribute('x', '0');
+    filterEl.setAttribute('y', '0');
+    filterEl.setAttribute('width', '1');
+    filterEl.setAttribute('height', '1');
     // Нейтральная заливка под картой: там, где карты нет, канал равен нулю, а это
     // сдвиг на половину шкалы — запас области поехал бы целиком.
     const flood = document.createElementNS(SVGNS, 'feFlood');

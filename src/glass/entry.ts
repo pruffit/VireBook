@@ -233,16 +233,21 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
             lens: false,
             press: d.press,
             active: d.active,
-            touch: {
-              x: d.touchX,
-              y: d.touchY,
-              pullX: d.pullX,
-              pullY: d.pullY,
-              press: d.press,
-              radius: 0.72 * halfMinDp(geometry),
-              waveAmp: d.waveAmp,
-              wavePhase: d.wavePhase,
-            },
+            // Успокоившаяся деталь — ровно нейтральный материал. Точка касания живёт
+            // дольше самой деформации, и на сменившей габарит форме она остаётся
+            // продавленной в устаревшем месте — видно пятном на пустом месте.
+            touch: deform.idle()
+              ? undefined
+              : {
+                  x: d.touchX,
+                  y: d.touchY,
+                  pullX: d.pullX,
+                  pullY: d.pullY,
+                  press: d.press,
+                  radius: 0.72 * halfMinDp(geometry),
+                  waveAmp: d.waveAmp,
+                  wavePhase: d.wavePhase,
+                },
           },
         ],
       });
