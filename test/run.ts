@@ -502,6 +502,34 @@ check('every file the manifest names exists', () => {
   }
 });
 
+check('the browser can actually load the built bundles', () => {
+  // Chromium reads extension files through IsStringUTF8(), which rejects Unicode
+  // non-characters and lone surrogates, and then refuses the WHOLE extension:
+  // "Could not load file for content script. It isn't UTF-8 encoded." That
+  // happens at install time, where no other test looks — and it really happened,
+  // over the U+FFFE/U+FFFF that used to sit as raw characters in the
+  // control-character regex in lib/html.ts. A bundler copies regex literals
+  // through verbatim, so the only defence is not writing those bytes at all.
+  for (const file of ['dist/content.js', 'dist/popup.js', 'dist/background.js', 'dist/popup.html']) {
+    const bytes = readFileSync(join(ROOT, file));
+    let text: string;
+    try {
+      text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    } catch (err) {
+      throw new Error(`${file} is not valid UTF-8: ${(err as Error).message}`);
+    }
+    for (const ch of text) {
+      const c = ch.codePointAt(0)!;
+      const nonCharacter = c === 0xfffe || c === 0xffff || (c >= 0xfdd0 && c <= 0xfdef);
+      const loneSurrogate = c >= 0xd800 && c <= 0xdfff;
+      assert(
+        !nonCharacter && !loneSurrogate,
+        `${file}: U+${c.toString(16).toUpperCase()} — Chromium will reject the extension over it`,
+      );
+    }
+  }
+});
+
 check('every site adapter has its domain in the manifest matches', () => {
   const matches = manifest.content_scripts[0]!.matches.join(' ');
   const domains: Record<string, string> = {

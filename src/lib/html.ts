@@ -47,8 +47,17 @@ export function escapeAttr(s: string): string {
 }
 
 // Control characters: XML does not accept them at all, so strip before serialising.
+//
+// Built from a string rather than written as a regex literal on purpose. U+FFFE
+// and U+FFFF are Unicode non-characters, and a bundler passes regex literals
+// through verbatim — they would end up as raw bytes in dist/, where Chromium
+// reads extension files through IsStringUTF8(), rejects non-characters and
+// refuses the whole extension with "It isn't UTF-8 encoded". Inside a string
+// the escapes stay escapes, so the bundle keeps them as plain ASCII text.
+const CONTROL = new RegExp('[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\uFFFE\\uFFFF]', 'g');
+
 export function stripControl(s: string): string {
-  return s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F￾￿]/g, '');
+  return s.replace(CONTROL, '');
 }
 
 export function absolutize(href: string | null | undefined, base: string): string | null {

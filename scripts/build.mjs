@@ -34,7 +34,12 @@ const options = {
   target: 'chrome111',
   platform: 'browser',
   legalComments: 'none',
-  charset: 'utf8',
+  // No `charset: 'utf8'`, deliberately. With it, esbuild turns escapes back into
+  // literal characters — including the ￾￿ inside the control-character
+  // regex in lib/html.ts. Those are Unicode non-characters, and Chromium refuses
+  // the whole extension over them: "Could not load file for content script. It
+  // isn't UTF-8 encoded." The default escapes everything non-ASCII, so the
+  // bundle is plain ASCII and no loader can argue with it. A test enforces this.
   logLevel: 'info',
 };
 

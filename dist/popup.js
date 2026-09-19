@@ -22,7 +22,7 @@
   var forceButton = document.getElementById("force");
   forceButton.addEventListener("click", async () => {
     forceButton.disabled = true;
-    setStatus("Loading…");
+    setStatus("Loading\u2026");
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab || !tab.id) throw new Error("no active tab");

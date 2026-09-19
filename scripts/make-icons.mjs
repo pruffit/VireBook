@@ -1,4 +1,4 @@
-// Рисует иконки расширения без внешних зависимостей: свой минимальный PNG.
+// Draws the extension icons with no external dependencies: a minimal PNG writer.
 import { deflateSync } from 'node:zlib';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -36,11 +36,11 @@ function png(size, pixels) {
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(size, 0);
   ihdr.writeUInt32BE(size, 4);
-  ihdr[8] = 8;   // бит на канал
+  ihdr[8] = 8; // bits per channel
   ihdr[9] = 6;   // RGBA
   const raw = Buffer.alloc(size * (size * 4 + 1));
   for (let y = 0; y < size; y++) {
-    raw[y * (size * 4 + 1)] = 0; // фильтр строки
+    raw[y * (size * 4 + 1)] = 0; // row filter
     pixels.copy(raw, y * (size * 4 + 1) + 1, y * size * 4, (y + 1) * size * 4);
   }
   return Buffer.concat([
@@ -51,13 +51,13 @@ function png(size, pixels) {
   ]);
 }
 
-// Сглаживание — усреднением по сетке 4×4 внутри пикселя: без него на 16px
-// стрелка превращается в лесенку.
+// Antialiasing by averaging over a 4×4 grid inside each pixel: without it the
+// arrow turns into a staircase at 16px.
 const SS = 4;
 
 function shade(size, x, y) {
   const s = size;
-  const r = s * 0.235;            // радиус скругления подложки
+  const r = s * 0.235; // corner radius of the plate
   const inset = s * 0.055;
   const lo = inset;
   const hi = s - inset;
@@ -77,7 +77,7 @@ function shade(size, x, y) {
 
   const inStem = Math.abs(x - cx) <= stemW / 2 && y >= stemTop && y <= stemBottom;
 
-  // Галочка-стрелка вниз: две наклонные полосы от концов к острию.
+  // The downward arrowhead: two slanted bars running from the ends to the tip.
   const tipY = s * 0.645;
   const armW = s * 0.085;
   const armSpan = s * 0.20;

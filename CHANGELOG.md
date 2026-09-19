@@ -3,6 +3,19 @@
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 the numbering [SemVer](https://semver.org/).
 
+## [1.1.1] — 2026-09-19
+
+### Fixed
+
+- **The extension would not install at all.** Chromium reads extension files
+  through `IsStringUTF8()`, which rejects Unicode non-characters, and U+FFFE /
+  U+FFFF sat as raw characters in the control-character regex in `lib/html.ts`.
+  A bundler copies regex literals through verbatim, so they reached
+  `dist/content.js` and the browser refused the whole manifest with "Could not
+  load file dist/content.js for content script. It isn't UTF-8 encoded." The
+  regex is now built from a string, where the escapes stay escapes, and a test
+  checks the built bundles for exactly this before it can happen again.
+
 ## [1.1.0] — 2026-09-19
 
 The whole project rewritten in TypeScript and switched to English.
@@ -62,5 +75,6 @@ In full under "Honest limitations" in the README.
   the known structure and was not exercised live.
 - Images do not make it into the book — text only.
 
+[1.1.1]: https://github.com/pruffit/VireBook/releases/tag/v1.1.1
 [1.1.0]: https://github.com/pruffit/VireBook/releases/tag/v1.1.0
 [1.0.0]: https://github.com/pruffit/VireBook/releases/tag/v1.0.0
