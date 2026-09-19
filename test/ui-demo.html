@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Виджет — просмотр</title>
+<title>Widget preview</title>
 <style>
   :root { color-scheme: light; }
   body {
@@ -24,29 +24,22 @@
 </head>
 <body>
 <div class="bar">
-  <button id="t-light">светлый</button>
-  <button id="t-dark">тёмный</button>
-  <button id="t-grid">клетка</button>
+  <button id="t-light">light</button>
+  <button id="t-dark">dark</button>
+  <button id="t-grid">grid</button>
 </div>
 <div class="wrap">
-<h1>Страница-подделка для просмотра виджета</h1>
-<p class="hint">Кнопка внизу справа — та же, что появляется на странице фанфика. Фон переключается слева вверху: стекло обязано читаться на всех трёх. Плашку можно перетащить — она уйдёт в ближайший угол; с клавиатуры то же делают Alt+стрелки.</p>
-<p>Текст-заполнитель, чтобы страница была похожа на главу и виджету было на чём лежать.</p>
-<p>Дождь начался ещё ночью и не думал заканчиваться, а крыльцо к утру стало скользким. Она стояла у перил и смотрела, как вода собирается в колее под старой яблоней, и думала, что уезжать надо было вчера.</p>
-<p>За спиной скрипнула дверь. Он вышел, не надевая куртки, и встал рядом — так близко, что она слышала, как он дышит, и так далеко, что можно было не оборачиваться.</p>
-<p>— Ты всё решила, — сказал он. Не вопрос.</p>
-<p>Ветер бросил в лицо горсть холодных капель. Где-то за домом, в мокрой темноте, лязгнула цепь, и собака, погремев ею, снова затихла.</p>
+<h1>A stand-in page for previewing the widget</h1>
+<p class="hint">The button at the bottom right is the one that appears on a book page. The background switches at the top left: the glass has to read on all three. The pane can be dragged — it lands in the nearest corner; Alt+arrows do the same from the keyboard.</p>
+<p>Filler text, so the page looks like a chapter and the widget has something to lie on.</p>
+<p>The rain had started in the night and showed no sign of stopping, and by morning the porch had turned slippery. She stood at the railing and watched the water collect in the rut under the old apple tree, and thought she should have left yesterday.</p>
+<p>The door creaked behind her. He came out without a coat and stood beside her — close enough that she could hear him breathe, and far enough that she did not have to turn around.</p>
+<p>&mdash;&nbsp;You have decided, then, he said. Not a question.</p>
+<p>The wind threw a handful of cold drops into her face. Somewhere behind the house, in the wet dark, a chain clanked, and the dog, having rattled it, went quiet again.</p>
 </div>
 
-<script src="../src/lib/util.js"></script>
-<script src="../src/lib/zip.js"></script>
-<script src="../src/lib/html.js"></script>
-<script src="../src/lib/epub.js"></script>
-<script src="../src/lib/mobi.js"></script>
-<script src="../src/lib/fb2.js"></script>
-<script src="../src/lib/txt.js"></script>
-<script src="../src/lib/glass.js"></script>
-<script src="../src/ui.js"></script>
+<!-- Built by `npm run demo`, which bundles src/ui.ts the same way dist/ is built. -->
+<script src="../dist/ui-demo.js"></script>
 <script>
   const modes = { 't-light': '', 't-dark': 'dark', 't-grid': 'busy' };
   for (const [id, cls] of Object.entries(modes)) {
@@ -55,23 +48,29 @@
     });
   }
 
-  const widget = VireBook.ui.create({
-    siteName: 'Книга Фанфиков',
+  const widget = VireBookUI.create({
+    siteName: 'Ficbook',
     defaultFormat: 'epub',
-    // В расширении угол хранит chrome.storage; на подделке — localStorage.
+    // In the extension the corner is kept by chrome.storage; on this stand-in, localStorage.
     corner: localStorage.getItem('virebook-corner'),
     onCornerChange: (next) => localStorage.setItem('virebook-corner', next),
     onDownload: async ({ format, progress }) => {
-      const steps = ['Найдено частей: 12', 'Скачано глав: 4 из 12', 'Сайт просит сбавить темп — продолжу через 8 с…', 'Скачано глав: 9 из 12', 'Собираю ' + format.toUpperCase() + '…'];
+      const steps = [
+        'Parts found: 12',
+        'Chapters fetched: 4 of 12',
+        'The site asked us to slow down — continuing in 8 s…',
+        'Chapters fetched: 9 of 12',
+        'Assembling ' + format.toUpperCase() + '…',
+      ];
       for (let i = 0; i < steps.length; i++) {
         progress(steps[i], 5 + i * 20);
         await new Promise((r) => setTimeout(r, 600));
       }
-      return { filename: 'Дом у реки — Тестовый Автор.' + format, note: 'Не разобрались главы: 2' };
+      return { filename: 'River House — Test Author.' + format, note: 'Chapters not parsed: 2' };
     },
   });
   document.documentElement.appendChild(widget.host);
-  // Как в расширении: удобно дёргать руками из консоли (widget.moveTo('tl') и т. п.).
+  // Same as in the extension: handy to poke from the console (widget.moveTo('tl') and so on).
   window.__VIREBOOK_WIDGET__ = widget;
 </script>
 </body>

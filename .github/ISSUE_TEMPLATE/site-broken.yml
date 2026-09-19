@@ -1,41 +1,42 @@
-name: Сайт перестал скачиваться
-description: Кнопка не появилась, текста не нашлось, книга пустая или обрезана.
-title: '[сайт] '
-labels: [сайт]
+name: A site stopped downloading
+description: No button appeared, no text was found, or the book is empty or truncated.
+title: '[site] '
+labels: [site]
 body:
   - type: markdown
     attributes:
       value: |
-        Сайты переверстывают разметку — это обычное дело и чинится точечно,
-        в `src/adapters/<сайт>.js`. Чтобы починить, нужна ссылка и то, что видно в консоли.
+        Sites get restyled — that is routine, and it is fixed one file at a time
+        in `src/adapters/<site>.ts`. To fix it we need a link and whatever the
+        console says.
   - type: input
     id: url
     attributes:
-      label: Ссылка на работу
-      description: Страница, на которой не сработало. Если работа закрытая — напишите это словами.
+      label: Link to the work
+      description: The page it failed on. If the work is locked, say so in words.
       placeholder: https://ficbook.net/readfic/...
     validations:
       required: true
   - type: dropdown
     id: symptom
     attributes:
-      label: Что именно случилось
+      label: What exactly happened
       options:
-        - Кнопка не появилась вовсе
-        - Кнопка есть, но «Не нашёл текста»
-        - Книга скачалась пустой
-        - Книга обрезана — глав меньше, чем на сайте
-        - Файл не открывается на читалке
-        - Что-то с видом панели
+        - No button appeared at all
+        - The button is there, but "No text found"
+        - The book downloaded empty
+        - The book is truncated — fewer chapters than on the site
+        - The file does not open on the reader
+        - Something about how the panel looks
     validations:
       required: true
   - type: textarea
     id: details
     attributes:
-      label: Подробности
-      description: Сколько глав ожидалось и сколько вышло, что написано в панели, что в консоли (F12 → Console).
+      label: Details
+      description: How many chapters you expected and how many came out, what the panel said, what the console says (F12 → Console).
   - type: input
     id: browser
     attributes:
-      label: Браузер и версия
-      placeholder: Яндекс.Браузер 24.x / Chrome 131 / Edge 131
+      label: Browser and version
+      placeholder: Chrome 131 / Edge 131 / Yandex Browser 24.x

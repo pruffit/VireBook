@@ -1,243 +1,288 @@
 <h1 align="center">VireBook</h1>
 
 <p align="center">
-  Расширение для браузера: фанфик целиком в EPUB, MOBI, FB2 или TXT — <b>одним нажатием</b>.
+  Browser extension: a whole book as EPUB, MOBI, FB2 or TXT — <b>in one press</b>.
 </p>
 
 <p align="center">
   <a href="https://github.com/pruffit/VireBook/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/pruffit/VireBook/actions/workflows/ci.yml/badge.svg"></a>
-  <a href="LICENSE"><img alt="Лицензия MIT" src="https://img.shields.io/badge/лицензия-MIT-informational"></a>
-  <a href="CHANGELOG.md"><img alt="Версия 1.0.0" src="https://img.shields.io/badge/версия-1.0.0-success"></a>
+  <a href="LICENSE"><img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-informational"></a>
+  <a href="CHANGELOG.md"><img alt="Version 1.1.0" src="https://img.shields.io/badge/version-1.1.0-success"></a>
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-3178c6">
   <img alt="Manifest V3" src="https://img.shields.io/badge/Chrome-Manifest%20V3-blue">
-  <img alt="Зависимостей в рантайме нет" src="https://img.shields.io/badge/зависимостей%20в%20рантайме-нет-brightgreen">
+  <img alt="No runtime dependencies" src="https://img.shields.io/badge/runtime%20dependencies-none-brightgreen">
 </p>
 
 ---
 
-Без цепочки «скачать → подождать → выбрать формат → подождать»: книга собирается прямо
-в браузере. Расширение обходит главы, вынимает текст из HTML и склеивает файл локально.
-Сервер сайта ничего не генерирует, ждать нечего.
+No "download → wait → pick a format → wait" chain: the book is assembled right
+in the browser. The extension walks the chapters, pulls the text out of the HTML
+and glues the file together locally. The site's server generates nothing, so
+there is nothing to wait for.
 
-Интерфейс — панель из [VireGlass](#стекло), материала проекта vire: преломление живого
-DOM, а не тень из CSS. Плашку можно перебросить в любой угол окна.
+The interface is a panel made of [VireGlass](#the-glass), the material of the
+vire project: refraction of the live DOM, not a CSS shadow. The pane can be
+thrown into any corner of the window.
 
 | | |
 |---|---|
-| **Форматы** | EPUB · MOBI · FB2 · TXT |
-| **Сайты** | ficbook.net · AO3 · fanfics.me · fanfiction.net · wattpad.com · royalroad.com · [любой другой](#какие-сайты) |
-| **Наружу отправляет** | ничего — ни `<all_urls>`, ни снимков экрана, ни сетевых вызовов |
-| **Лицензия** | [MIT](LICENSE) |
+| **Formats** | EPUB · MOBI · FB2 · TXT |
+| **Sites** | ficbook.net · AO3 · fanfics.me · fanfiction.net · wattpad.com · royalroad.com · [any other](#which-sites) |
+| **Sends outwards** | nothing — no `<all_urls>`, no screenshots, no network calls |
+| **Licence** | [MIT](LICENSE) |
 
-## Установка (Яндекс.Браузер)
+## Installing
 
-1. Открыть `browser://extensions` (вбить в адресную строку).
-2. Включить **Режим разработчика** — тумблер справа сверху.
-3. Нажать **Загрузить распакованное расширение** и указать папку репозитория
-   (ту, где лежит `manifest.json`).
-4. Готово. Значок появится справа от адресной строки.
+1. Download the repository (Code → Download ZIP) and unpack it, or `git clone` it.
+2. Open `chrome://extensions` (in Yandex Browser, `browser://extensions`).
+3. Turn on **Developer mode** — the toggle at the top right.
+4. Press **Load unpacked** and point at the repository folder (the one with
+   `manifest.json` in it).
+5. Done. The icon appears to the right of the address bar.
 
-То же самое работает в Chrome и Edge — `chrome://extensions`, `edge://extensions`.
+The same works in Chrome, Edge and Yandex Browser. No build step is needed:
+`dist/` is committed ready to run.
 
-> Папку после установки **не удалять и не переименовывать**: браузер загружает
-> расширение из неё при каждом запуске.
+> After installing, **do not delete or rename the folder**: the browser loads
+> the extension from it on every start.
 
-## Как пользоваться
+## Using it
 
-На странице фанфика справа внизу появляется кнопка **«Скачать книгу»**.
-Нажать → выбрать формат → файл скачается.
+On a book page a **Download book** button appears at the bottom right.
+Press it → pick a format → the file downloads.
 
-**Плашка мешает читать — её можно перебросить.** Потянуть за неё мышью и отпустить:
-уйдёт в ближайший угол окна. С клавиатуры то же делают **Alt+стрелки**. Выбранный угол
-запоминается и держится на всех сайтах, пока его снова не поменять.
+**The pane is in the way? Throw it somewhere else.** Drag it with the mouse and
+let go: it lands in the nearest corner of the window. From the keyboard,
+**Alt+arrows** do the same. The chosen corner is remembered and holds across all
+sites until you change it again.
 
-Если сайт незнакомый и кнопка не появилась — нажать значок расширения в панели и
-**«Показать кнопку на этой странице»**.
+If the site is unknown and no button appeared, click the extension icon in the
+toolbar and choose **Show the button on this page**.
 
-В том же окошке выбирается формат по умолчанию — он встаёт первым в списке.
+The same popup is where the default format is set — it moves to the top of the list.
 
-## Как файл попадает на Kindle 11
+## Getting the file onto a Kindle 11
 
-**EPUB — основной путь.** Amazon конвертирует его сам, оглавление и курсив
-сохраняются:
+**EPUB is the main route.** Amazon converts it itself, and the table of contents
+and italics survive:
 
-- почтой: отправить файл вложением на адрес вида `имя@kindle.com` (он есть в
-  настройках устройства на amazon.com → Manage Your Content and Devices → Preferences
-  → Personal Document Settings). Отправлять нужно **с того адреса, который там же
-  внесён в список разрешённых**, иначе письмо молча не дойдёт;
-- либо через веб-загрузчик Amazon «Send to Kindle» — перетащить файл в браузере.
+- by mail: send the file as an attachment to an address like `name@kindle.com`
+  (it is in the device settings on amazon.com → Manage Your Content and Devices
+  → Preferences → Personal Document Settings). You must send it **from the
+  address listed as approved in that same place**, otherwise the mail silently
+  never arrives;
+- or through Amazon's "Send to Kindle" web uploader — drag the file in the browser.
 
-**MOBI — путь по кабелю.** Подключить Kindle к компьютеру, скопировать файл в папку
-`documents` на устройстве, отключить.
+**MOBI is the cable route.** Plug the Kindle into the computer, copy the file
+into the `documents` folder on the device, unplug.
 
-**FB2** — для телефона и PocketBook, Kindle его не читает.
-**TXT** — если всё остальное не завелось.
+**FB2** — for a phone and PocketBook; a Kindle does not read it.
+**TXT** — if nothing else worked out.
 
-## Какие сайты
+## Which sites
 
-| Сайт | Как работает |
+| Site | How it works |
 |---|---|
-| **ficbook.net** | Свой парсер. Разметка сверена с живой страницей 15.09.2026 |
-| **archiveofourown.org** | Берёт **готовый файл сайта** (у AO3 свои EPUB/AZW3/MOBI — мгновенно и качеством выше) |
-| **fanfics.me** | Свой парсер, разметка **не проверена** — см. «Честные ограничения» |
-| **fanfiction.net** | Свой парсер по известной разметке, вживую не проверен |
-| **wattpad.com** | Свой парсер, текст берётся из внутренней ручки сайта |
-| **royalroad.com** | Свой парсер |
-| **любой другой** | Универсальный разбор: ищет самый «текстовый» блок страницы, находит оглавление или идёт по ссылкам «следующая глава» |
+| **ficbook.net** | Own parser. Markup checked against the live page on 2026-09-15 |
+| **archiveofourown.org** | Takes the **site's own ready-made file** (AO3 builds EPUB/AZW3/MOBI itself — instant and of higher quality) |
+| **fanfics.me** | Own parser, markup **unverified** — see "Honest limitations" |
+| **fanfiction.net** | Own parser against the known markup, not verified live |
+| **wattpad.com** | Own parser, the text comes from the site's internal endpoint |
+| **royalroad.com** | Own parser |
+| **any other** | Generic reading: finds the most text-like block on the page, then either a table of contents or the "next chapter" links |
 
-Универсальный разбор включается и как запасной вариант: если сайт из списка
-переверстают и свой парсер промахнётся, расширение молча перейдёт на него.
+The generic reading is also the fallback: if a listed site is restyled and its
+own parser misses, the extension moves over to it silently.
 
-## Честные ограничения
+## Honest limitations
 
-Стоит знать до 2 октября, а не после:
+Worth knowing before you rely on it:
 
-- **MOBI не проверен на живом Kindle 11.** Формат собран по спецификации и
-  разбирается обратно в тестах (заголовки, оглавление, смещения `filepos`), но
-  устройства у меня нет. Amazon числит MOBI среди поддерживаемых при заливке по
-  кабелю; если вдруг не откроется — рабочий путь EPUB + Send to Kindle.
-  **Проверить это лучше заранее, на одном фанфике.**
-- **fanfics.me не проверен.** Сайт отдаёт «произведение недоступно в вашей стране»
-  за пределами РФ, снять разметку не вышло. Селекторы записаны предположительно,
-  подстраховка — универсальный разбор. Из России проверяется за минуту.
-- **fanfiction.net и Wattpad** написаны по известной структуре, вживую не
-  прогонялись: у первого антибот-защита, у второго текст живёт за внутренним API.
-- **Картинки в книгу не попадают** — только текст. Для фанфиков это почти всегда
-  то, что нужно, и файл выходит легче.
-- **Платные и закрытые главы** скачиваются только если открыты в браузере: запросы
-  идут с её куками, то есть ровно то, что она и так видит на экране.
+- **MOBI has not been verified on a live Kindle 11.** The format is built to
+  spec and is parsed back in the tests (headers, table of contents, `filepos`
+  offsets), but I do not own the device. Amazon lists MOBI among the formats
+  supported for a cable upload; if it does not open, the working route is EPUB +
+  Send to Kindle. **Best to check that in advance, on a single book.**
+- **fanfics.me is unverified.** The site answers "unavailable in your country"
+  outside Russia, so the markup could not be captured. The selectors are written
+  speculatively, with the generic parser as the safety net. From Russia this
+  takes a minute to check.
+- **fanfiction.net and Wattpad** are written against the known structure and
+  were not exercised live: the first has bot protection, the second keeps its
+  text behind an internal API.
+- **Images do not make it into the book** — text only. For most books that is
+  what you want, and the file comes out lighter.
+- **Paid and restricted chapters** download only if they are open in the
+  browser: requests carry the reader's own cookies, that is, exactly what is
+  already on their screen.
 
-## Если что-то сломалось
+## If something breaks
 
-Сайты переверстывают разметку — это нормально и чинится точечно.
+Sites get restyled — that is normal and is fixed one file at a time.
 
-- Кнопка не появилась → значок расширения → «Показать кнопку на этой странице».
-- «Не нашёл текста» → почти всегда помогает открыть страницу **работы целиком**
-  (карточку фанфика), а не отдельную главу.
-- Скачалось пусто или обрезано → сменился селектор тела главы. Чинится в
-  `src/adapters/<сайт>.js`, там же список кандидатов — обычно достаточно
-  дописать в него новый класс.
+- No button appeared → extension icon → "Show the button on this page".
+- "No text found" → it almost always helps to open the page of the **whole
+  work** rather than a single chapter.
+- Downloaded empty or truncated → the chapter body selector changed. Fixed in
+  `src/adapters/<site>.ts`, which holds a list of candidates — usually adding
+  one new class is enough.
 
-## Стекло
+## The glass
 
-Панель расширения сделана материалом **VireGlass** из монорепо vire: причины материала
-(`ior`, толщина, фаска, шероховатость, `legibility`, `presence`) задаёт ядро, а следствия —
-преломление, Френель, кромку, блик и тень — считают его шейдеры в WebGL2.
+The extension's panel is made of the **VireGlass** material from the vire
+monorepo: the causes of the material (`ior`, thickness, bevel, roughness,
+`legibility`, `presence`) are set by the core, and the consequences —
+refraction, Fresnel, rim, highlight and shadow — are computed by its WebGL2
+shaders.
 
-Что стоит знать, прежде чем тут что-то менять:
+What is worth knowing before changing anything here:
 
-- **Преломление идёт по живому DOM, а не по снимку.** Шейдерная линза ядра сэмплирует
-  сцену, которую рендерер нарисовал сам, — растра чужой страницы у расширения нет. Взять
-  его можно только через `captureVisibleTab`, а это `<all_urls>`, два кадра в секунду,
-  съёмка вместе с виджетом и устаревание фона на любом скролле. Поэтому проход линзы
-  выключен (`lens: false`), а преломляет `backdrop-filter: url(#vg-refract)` —
-  `feDisplacementMap` по карте, которую строит `src/glass/entry.ts` из формы детали и
-  величин оптики (`bevelDp × refraction`). Живое, без разрешений, никогда не устаревает.
+- **The refraction is of the live DOM, not of a snapshot.** The core's shader
+  lens samples a scene the renderer drew itself — the extension has no raster of
+  somebody else's page. The only way to get one is `captureVisibleTab`, which
+  means `<all_urls>`, two frames a second, capturing the widget along with the
+  page and going stale on any scroll. So the lens pass is off (`lens: false`) and
+  the refraction is done by `backdrop-filter: url(#vg-refract)` —
+  `feDisplacementMap` over a map built by `src/glass/entry.ts` out of the pane's
+  shape and the optics values (`bevelDp × refraction`). Live, permission-free,
+  never stale.
 
-- **У фильтра обязан быть `color-interpolation-filters="sRGB"`.** По умолчанию SVG
-  считает фильтр в linearRGB, и это ломает обе его половины сразу. Нейтральная середина
-  карты (128) приезжает в `feDisplacementMap` как 55 — сдвиг на треть шкалы, то есть
-  **весь** задник под плашкой уезжает по диагонали на ~9 px и у кромки затягивает то, что
-  лежит снаружи. Тот же linearRGB высветляет рассеяние: над тёмной страницей плашка
-  начинает светиться, а не лежать. Убрать атрибут — вернуть ровно те артефакты у кромки,
-  ради которых он появился.
+- **The filter must carry `color-interpolation-filters="sRGB"`.** By default SVG
+  computes a filter in linearRGB, and that breaks both of its halves at once. The
+  neutral middle of the map (128) reaches `feDisplacementMap` as 55 — a shift of
+  a third of the scale, which means the **whole** backdrop under the pane slides
+  diagonally by ~9 px and the rim drags in whatever lies outside it. The same
+  linearRGB washes out the scattering: over a dark page the pane starts glowing
+  instead of lying there. Remove the attribute and you get back exactly the rim
+  artefacts it exists to prevent.
 
-- **Слой преломления живёт во вложенном клипе** (`.shell > .clip > .refract`), а не на
-  самой оболочке. Он шире листа на запас (`--slack`): гауссу и смещению нужно, что
-  собирать под краем. Запас к области фильтра добавлять нельзя — тогда `backdrop-filter`
-  выплёскивает отфильтрованный фон за границы элемента и мимо скруглённой формы виден
-  прямоугольник; здесь выплеск срезает `overflow`. Своя обёртка `.clip` нужна отдельно:
-  пока `backdrop-filter` лежит прямо в оболочке, чья высота едет морфингом, а лист прижат
-  **верхом**, Chromium перестаёт пересчитывать положение соседних слоёв — содержимое
-  панели так и остаётся поднятым на пару десятков пикселей.
+- **The refraction layer lives in a nested clip** (`.shell > .clip > .refract`)
+  rather than on the shell itself. It is wider than the sheet by `--slack`: the
+  blur and the displacement need something to gather under the edge. The slack
+  must not be added to the filter *region* — then `backdrop-filter` spills the
+  filtered background past the element's bounds and a rectangle shows around the
+  rounded shape; here the spill is cut off by `overflow`. The separate `.clip` is
+  needed for its own reason: while `backdrop-filter` sits directly in the shell,
+  whose height is moving through a morph, and the sheet is pinned by its **top**,
+  Chromium stops recomputing the position of the neighbouring layers — the
+  panel's content stays lifted by a couple of dozen pixels.
 
-- **Материал — лист, а не прозрачное стекло.** Шероховатость взята на потолке модели
-  (`MATERIAL_RANGES.roughness[1]`): лист лежит поверх ЖИВОГО экрана, и прозрачным ему быть
-  нельзя — сквозь него читается страница и спорит с его же подписями. Причина именно в
-  шероховатости, а не в затемнении. Остальные причины — от `VIREGLASS_CONTROL_MATERIAL`:
-  это всё-таки орган управления, ему нужны толщина, фаска и `presence`.
+- **The material is a sheet, not clear glass.** Roughness is taken at the
+  ceiling of the model (`MATERIAL_RANGES.roughness[1]`): the sheet lies over a
+  LIVE screen and must not be transparent — the page reads through it and argues
+  with its own labels. The cause is roughness, not darkening. The rest of the
+  causes come from `VIREGLASS_CONTROL_MATERIAL`: it is a control after all, and
+  needs thickness, a bevel and presence.
 
-  Плотность тела считает ядро (`bodyDensityFor`/`bodyLuma`), CSS её только красит: линза
-  выключена, а «адаптация у поверхности невозможна — фона она не видит»
-  (`packages/vireglass/src/adapters.ts`). Пестроту фона, которую зонд снял бы со сцены,
-  оценивает обход точек под панелью в `src/ui.js`.
-- **Полярность надписи решает приложение**, а не шейдер: `shouldInkBeLight()` из ядра по
-  замеру фона. Без этого над светлой страницей деталь становится серой плашкой с
-  нечитаемым текстом. Переключение ждёт `CONFIRMATIONS` кадров, поэтому цикл рисования
-  идёт, пока `settled()` не скажет, что доехали и плотность, и цвет тела, и полярность:
-  остановиться раньше — замереть недоделанным на слабой машине.
-- **Отклик на курсор — часть материала.** Пружины нажатия, тяги и волны считает
-  `createDeform()` ядра; отсюда приходит только жест.
+  Body density is computed by the core (`bodyDensityFor`/`bodyLuma`) and CSS only
+  paints it: the lens is off, and "adaptation is impossible at the surface — it
+  does not see the background" (`packages/vireglass/src/adapters.ts`). The
+  busyness of the background, which the probe would have read off the scene, is
+  estimated by walking sample points under the panel in `src/ui.ts`.
 
-Если WebGL2 недоступен, панель падает на плоский материал и остаётся рабочей — просто
-без стекла.
+- **Ink polarity is the application's decision**, not the shader's:
+  `shouldInkBeLight()` from the core, over a measurement of the background.
+  Without it, over a light page the pane becomes a grey slab with unreadable
+  text. The switch waits `CONFIRMATIONS` frames, so the paint loop keeps running
+  until `settled()` says that density, body colour and polarity have all
+  arrived: stopping earlier means freezing half-done on a slow machine.
 
-## Разработка
+- **The cursor response is part of the material.** The springs for press, pull
+  and wave are computed by the core's `createDeform()`; only the gesture comes
+  from here.
+
+If WebGL2 is unavailable the panel falls back to a flat material and stays
+usable — just without the glass.
+
+## Development
 
 ```bash
-npm install         # для тестов и сборки стекла; в рантайме зависимостей нет
-npm test            # форматы + адаптеры
-npm run build:glass # пересобрать src/lib/glass.js из ядра VireGlass
-npm run icons       # перерисовать иконки
-npm run demo        # поднять test/ui-demo.html на localhost:5599 — посмотреть панель
+npm install         # for tests and the build; there are no runtime dependencies
+npm run build       # bundle src/ → dist/ (this is what the browser loads)
+npm run typecheck   # tsc --noEmit, strict
+npm test            # formats + adapters
+npm run check       # all three of the above, in the order CI runs them
+npm run demo        # serve test/ui-demo.html on localhost:5599 to look at the panel
+npm run build:glass # rebuild the glass from the VireGlass core (needs the monorepo)
+npm run icons       # redraw the icons
 ```
 
-Виджет смотрят на `test/ui-demo.html`: подделка страницы фанфика с тремя фонами
-(светлый, тёмный, клетка). Стекло обязано читаться на всех трёх, и плашка — уезжать
-во все четыре угла.
+The whole source tree is TypeScript under `strict`. Node 24 runs the sources and
+the tests directly by stripping types, so there is no compile step for testing;
+`tsc` is only ever asked whether we are wrong. The browser gets bundles from
+esbuild.
 
-> **Про `src/lib/glass.js`.** Это собранный артефакт: расширение грузит его обычным
-> content-script'ом и потому в рантайме ни от чего не зависит. Собирается он из пакета
-> `@vire/vireglass`, который живёт в монорепо vire и **не опубликован**. Поэтому файл
-> лежит в репозитории готовым: без него расширение работает (см. запасной путь выше),
-> пересобрать его без монорепо нельзя.
+The widget is looked at on `test/ui-demo.html`: a stand-in book page with three
+backgrounds (light, dark, grid). The glass has to read on all three, and the
+pane has to travel to all four corners.
+
+> **About `dist/`.** It is committed on purpose. Installing should be "load
+> unpacked and you are done" — the readers this is for should not need node and
+> npm to get a button on a page. CI rebuilds `dist/` and fails if the result
+> differs from what is committed, so a stale bundle cannot slip through. After
+> changing anything in `src/`, run `npm run build` and commit the result.
+
+> **About `src/glass/vireglass.bundle.js`.** This is a generated artefact, built
+> from the `@vire/vireglass` package, which lives in the vire monorepo and is
+> **not published**. That is why the file is committed ready-made: without it
+> the extension still works (see the fallback above), and it cannot be rebuilt
+> without the monorepo. Its types are hand-written next to it, in
+> `vireglass.bundle.d.ts`, and those are type-checked.
 >
 > ```bash
-> VIRE_REPO=/путь/к/vire npm run build:glass   # по умолчанию ищет ../vire
+> VIRE_REPO=/path/to/vire npm run build:glass   # defaults to ../vire
 > ```
 
-Тесты не верят «файл собрался»: EPUB распаковывается и проверяется на
-корректность XML, MOBI разбирается по записям PalmDB и разжимается обратно,
-смещения оглавления сверяются с якорями. Адаптеры гоняются на фикстурах,
-снятых со структуры живых страниц (текст в них — свой, не авторский).
+The tests do not take "the file was built" for an answer: EPUB is unpacked and
+checked for well-formed XML, MOBI is taken apart by PalmDB record and
+decompressed again, table-of-contents offsets are verified against the anchors.
+Adapters run against fixtures captured from the structure of live pages (the
+prose in them is ours, not anybody else's).
 
-### Устройство
+### Layout
 
 ```
-manifest.json          — MV3, список скриптов и сайтов
-src/lib/               — форматы и утилиты, без зависимостей
-  zip.js               — ZIP (store + deflate-raw) под EPUB
-  html.js              — чистка главы и сериализация в XHTML
-  epub.js  mobi.js     — сборка книги
-  fb2.js   txt.js
-  util.js              — темп запросов, бэкофф, имена файлов
-  glass.js             — СБОРКА ядра VireGlass (не править руками)
-src/glass/entry.ts     — исходник этой сборки: мост к @vire/vireglass
-src/adapters/          — по файлу на сайт + base.js и generic.js
-src/core.js            — выбор адаптера, загрузка глав, сохранение файла
-src/ui.js              — плавающая панель (shadow DOM + канвас стекла)
-src/content.js         — точка входа на странице
-src/background.js      — дефолтный формат при установке
+manifest.json          — MV3; points at dist/
+src/types.ts           — Book, Chapter, Adapter, ParseContext: the shared vocabulary
+src/chrome.d.ts        — the slice of the extension API we use, hand-written
+src/lib/               — formats and utilities
+  zip.ts               — ZIP (store + deflate-raw) for EPUB
+  html.ts              — chapter cleanup and XHTML serialisation
+  epub.ts  mobi.ts     — assembling the book
+  fb2.ts   txt.ts
+  util.ts              — pacing, backoff, filenames
+src/adapters/          — one file per site, plus base.ts, generic.ts and the registry
+src/glass/entry.ts     — source of the glass bundle: the bridge to @vire/vireglass
+src/glass/*.bundle.*   — the GENERATED bundle and its hand-written types
+src/core.ts            — choosing an adapter, fetching chapters, saving the file
+src/ui.ts              — the floating panel (shadow DOM + the glass canvas)
+src/content.ts         — the entry point on a page
+src/popup.ts           — the toolbar popup
+src/background.ts      — the default format on install
+dist/                  — the bundles the browser loads (committed, built by CI too)
 ```
 
-## Как помочь
+## Contributing
 
-Основная точка приложения сил — **адаптеры сайтов**: сайты переверстывают разметку, и это
-чинится точечно, одним файлом, без знания остального кода. Как починить сломавшийся сайт и
-как добавить новый — в [CONTRIBUTING.md](CONTRIBUTING.md). Сломался сайт или хочется ещё
-один — [заведите issue](https://github.com/pruffit/VireBook/issues/new/choose).
+The main place effort pays off is the **site adapters**: sites get restyled, and
+that is fixed one file at a time, without knowing the rest of the code. How to
+fix a broken site and how to add a new one is in [CONTRIBUTING.md](CONTRIBUTING.md).
+Something broken, or a site you want added —
+[open an issue](https://github.com/pruffit/VireBook/issues/new/choose).
 
-История версий — в [CHANGELOG.md](CHANGELOG.md).
+Version history is in [CHANGELOG.md](CHANGELOG.md).
 
-## Приватность
+## Privacy
 
-Расширение берёт ровно те страницы, которые и так открыты в браузере, и **никуда ничего
-не отправляет**: и сборка книги, и сам файл не покидают машину. Сетевых вызовов наружу нет
-вовсе — проверяется поиском по `fetch` и `XMLHttpRequest`. Скачивание — для личного чтения.
+The extension reads exactly the pages that are already open in the browser and
+**sends nothing anywhere**: neither the assembly nor the file leaves the machine.
+There are no outbound network calls at all — verifiable by searching for `fetch`
+and `XMLHttpRequest`. Downloading is for personal reading.
 
-Разрешений минимум: `storage` (формат по умолчанию и угол, в котором висит плашка),
-`activeTab` и `scripting` (кнопка «показать на этой странице»). Ни `<all_urls>`, ни
-снимков экрана — стекло обходится живым DOM.
+Permissions are the minimum: `storage` (the default format and the corner the
+pane sits in), `activeTab` and `scripting` (the "show the button on this page"
+action). No `<all_urls>`, no screenshots — the glass makes do with the live DOM.
 
-## Лицензия
+## Licence
 
-MIT, см. [LICENSE](LICENSE).
+MIT, see [LICENSE](LICENSE).

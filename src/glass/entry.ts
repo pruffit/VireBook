@@ -1,16 +1,20 @@
-// Мост между расширением и ядром VireGlass. Собирается esbuild'ом в src/lib/glass.js
-// (IIFE, глобальная VireBookGlass) — расширение в рантайме остаётся без зависимостей.
+// The bridge between the extension and the VireGlass core. esbuild compiles this
+// into src/glass/vireglass.bundle.js (an ES module, committed) so the extension
+// can be built without access to the private monorepo.
 //
-// Деталь лежит поверх ЧУЖОГО живого DOM, растра которого нет: снимок вкладки требует
-// <all_urls>, троттлится, снимает вместе с виджетом и устаревает на любом скролле.
-// Поэтому проход линзы выключен, а её обязанности разнесены:
+// The pane lies over SOMEONE ELSE'S live DOM, of which we have no raster: a tab
+// snapshot needs <all_urls>, is throttled, captures the widget along with the
+// page and goes stale on any scroll. So the lens pass is off and its duties are
+// split up:
 //
-//   пропускание  — backdrop-filter браузера, живое и никогда не устаревает;
-//   фаска и свет — проход ПОВЕРХНОСТИ ядра;
-//   читаемость   — bodyDensityFor/bodyLuma ядра: плотность приходит числом, CSS её
-//                  только красит. Без неё подписи панели сталкиваются с текстом страницы.
+//   transmission  — the browser's backdrop-filter, live and never stale;
+//   bevel & light — the core's SURFACE pass;
+//   legibility    — the core's bodyDensityFor/bodyLuma: density arrives as a
+//                   number and CSS only paints it. Without it the panel's own
+//                   labels collide with the text of the page.
 //
-// Сцена остаётся источником замера для зонда: её заливает локальный цвет страницы.
+// The scene stays as the probe's source of measurement: it is flooded with the
+// local colour of the page.
 import {
   CONFIRMATIONS,
   MATERIAL_RANGES,
@@ -31,33 +35,40 @@ import {
 } from '@vire/vireglass';
 import { createVireGlassRenderer } from '@vire/vireglass/web';
 
-// Деталь — орган управления (отсюда толщина, фаска и presence CONTROL-материала),
-// но лежит она поверх ЖИВОГО экрана, а такому листу прозрачным быть нельзя: сквозь
-// него читается страница и спорит с его собственными подписями. Лечится это не
-// затемнением, а шероховатостью — её и берём у листового материала ядра.
+// The pane is a control (hence the thickness, bevel and presence of the CONTROL
+// material), but it lies over a LIVE screen, and such a sheet must not be
+// transparent: the page reads through it and argues with its own labels. The
+// cure is not darkening but roughness — which we take at the model's ceiling.
 const MATERIAL = materialForInk(
-  // Шероховатость — на потолке модели: у листового материала 0.85, и сквозь него всё
-  // ещё пролезают светлые пятна от текста страницы. Деталь лежит поверх живого текста,
-  // мутность здесь работает на читаемость, а не на красоту.
+  // Roughness at the ceiling of the model: the sheet material sits at 0.85 and
+  // bright patches of page text still push through. The pane lies over live
+  // text, so here haze works for legibility, not for looks.
   { ...VIREGLASS_CONTROL_MATERIAL, roughness: MATERIAL_RANGES.roughness[1] },
   true,
 );
 
-/** Доля нового замера на кадр — тот же порядок, что SETTLE рендерера: параметры
- *  материала обязаны подъезжать к новым, а не прыгать. */
+/** Share of a new measurement per frame — the same order as the renderer's
+ *  SETTLE: material parameters must ease towards new values, not jump. */
 const SETTLE = 0.12;
 
-/** Настоящая плотность экрана — та же, что подаёт стенд. */
+/** The real screen density, the same one the reference harness feeds in. */
 const density = () => window.devicePixelRatio || 1;
 
 /**
- * Карта смещений для feDisplacementMap: R/G — сдвиг выборки по x/y.
+ * The displacement map for feDisplacementMap: R/G are the sample shift in x/y.
  *
- * Это и есть преломление ЖИВОГО DOM. Форма — тот же скруглённый прямоугольник, что у
- * ядра, величины — из его оптики: ширина фаски задаёт полосу, где поверхность наклонена,
- * `edgePushDp` — насколько уводится луч. Снимок страницы для этого не нужен.
+ * This is the refraction of the LIVE DOM. The shape is the same rounded
+ * rectangle the core uses, the magnitudes come from its optics: the bevel width
+ * sets the band where the surface is tilted, `edgePushDp` how far the ray is
+ * bent. No page snapshot is needed for any of it.
  */
-function displacementMap(width: number, height: number, radius: number, bevel: number, push: number): string {
+function displacementMap(
+  width: number,
+  height: number,
+  radius: number,
+  bevel: number,
+  push: number,
+): string {
   const w = Math.max(1, Math.round(width));
   const h = Math.max(1, Math.round(height));
   const c = document.createElement('canvas');
@@ -84,7 +95,7 @@ function displacementMap(width: number, height: number, radius: number, bevel: n
       let nx = 0;
       let ny = 0;
       if (d < 0) {
-        // Наклон поверхности растёт к контуру и сходит на нет вглубь фаски.
+        // The surface tilt grows towards the contour and fades away into the bevel.
         const t = Math.min(1, Math.max(0, 1 + d / band));
         if (t > 0) {
           if (mx > 0 && my > 0) {
@@ -96,7 +107,7 @@ function displacementMap(width: number, height: number, radius: number, bevel: n
           } else {
             ny = Math.sign(py);
           }
-          // Луч уводится ВНУТРЬ детали: у кромки видно сжатие, как в линзе.
+          // The ray is bent INWARDS: you see the squeeze at the rim, as in a lens.
           const k = -(t * t);
           nx *= k;
           ny *= k;
@@ -113,16 +124,27 @@ function displacementMap(width: number, height: number, radius: number, bevel: n
   return c.toDataURL();
 }
 
-/** Угол окна, к которому прижата деталь. Канвас неподвижен и рассчитан на самую
- *  крупную форму — переезжает внутри него сама деталь. */
+/** The window corner the pane is pinned to. The canvas is fixed and sized for
+ *  the largest shape — it is the pane that moves around inside it. */
 export type GlassAnchor = 'br' | 'bl' | 'tr' | 'tl';
+
+export interface Refraction {
+  map: string;
+  scale: number;
+  blur: number;
+}
+
+export interface GlassPaint {
+  inkLight: boolean;
+  body: string;
+}
 
 export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, maxHeight: number) {
   const renderer = createVireGlassRenderer(canvas, { alpha: true });
   const deform = createDeform();
 
-  // Запас считаем по самой крупной форме и держим канвас неподвижным: resize
-  // пересоздаёт текстуры, а во время морфинга габарит меняется каждый кадр.
+  // The margin is computed from the largest shape and the canvas is kept still:
+  // resize recreates textures, and during a morph the size changes every frame.
   const widest = roundedRectGeometry(maxWidth, maxHeight, 28);
   const pad = Math.ceil(lensPadDp(widest, resolveOptics(MATERIAL)) + surfacePadDp(widest));
 
@@ -131,10 +153,10 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
   canvas.style.width = boxW + 'px';
   canvas.style.height = boxH + 'px';
 
-  // Плотность может смениться на ходу (окно уехало на другой монитор), а resize
-  // пересоздаёт текстуры — потому только при реальной смене, не каждый кадр.
+  // Density can change mid-flight (the window moved to another monitor), and
+  // resize recreates textures — hence only on a real change, not every frame.
   let scale = 0;
-  function fit(next: number) {
+  function fit(next: number): void {
     if (next === scale) return;
     scale = next;
     renderer.resize(Math.ceil(boxW * scale), Math.ceil(boxH * scale));
@@ -152,7 +174,7 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
   let confirmations = 0;
   let last: unknown = null;
   let prev = 0;
-  /** Текущая форма детали — от неё стенд считает ход тяги и радиус пальца. */
+  /** The pane's current shape — the pull travel and finger radius come off it. */
   let shape = widest;
 
   const scene = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
@@ -161,31 +183,36 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
   };
 
   return {
-    /** Отступ канваса за габарит детали: тень, фаска и сбор света уходят наружу формы. */
+    /** How far the canvas reaches past the pane: shadow, bevel and light gathering
+     *  all fall outside the shape. */
     pad,
+
     setBackdropColor(color: string) {
       backdrop = color;
     },
-    /** Разнородность фона под деталью, 0…1 — параметр `spread` модели. Зонд снимает её
-     *  с нарисованной сцены, а наша сцена ровная: пестроту живой страницы туда не подать.
-     *  Без неё модель считает фон однородным и плотности не требует — тогда подписи
-     *  панели ложатся прямо на текст страницы. */
+
+    /** Busyness of the background under the pane, 0…1 — the model's `spread`.
+     *  The probe reads it off the drawn scene, and our scene is flat: the
+     *  variegation of a live page cannot be fed in there. Without it the model
+     *  considers the background uniform and asks for no density — and then the
+     *  panel's labels land straight on the page's text. */
     setSpread(value: number) {
       spreadTarget = Math.min(1, Math.max(0, value));
     },
-    /** Доехали ли параметры материала до цели — по этому решают, рисовать ли дальше.
-     *  Спрашивать только про пестроту мало: плотность и цвет тела подъезжают своим
-     *  SETTLE, а полярность надписи ждёт CONFIRMATIONS кадров. Остановись раньше —
-     *  и на медленной машине панель замирает недоехавшей: тело вполсилы, надпись
-     *  прежней полярности. Ровно так это и выглядит на слабом GPU. */
+
+    /** Whether the material has arrived — this decides whether to keep drawing.
+     *  Asking about busyness alone is not enough: body density and colour ease in
+     *  on their own SETTLE, and ink polarity waits CONFIRMATIONS frames. Stop
+     *  earlier and on a slow machine the panel freezes half-arrived: the body at
+     *  half strength, the ink still the old polarity. */
     settled: () =>
       Math.abs(spread - spreadTarget) < 0.005 &&
       confirmations === 0 &&
       (aimAlpha < 0 || Math.abs(settledAlpha - aimAlpha) < 0.002) &&
       (aimLevel < 0 || Math.abs(settledLevel - aimLevel) < 0.5),
 
-    /** Отклик на курсор — пружины ядра и его же пропорции, что на стенде:
-     *  ход тяги и радиус пальца берутся от полуразмера детали, не «на глаз». */
+    /** Response to the cursor — the core's springs and its own proportions:
+     *  pull travel and finger radius come off the pane's half-size, not guesswork. */
     grab: (x: number, y: number) => deform.grab(x, y, 3.2),
     drag(dx: number, dy: number) {
       deform.drag(dx, dy, 0.14 * halfMinDp(shape));
@@ -194,16 +221,18 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
     idle: () => deform.idle(),
 
     /**
-     * Преломление живого DOM: карта смещений под feDisplacementMap плюс величина
-     * сдвига и мутность — всё из оптики ядра. Пересчитывается только на смену формы:
-     * это растр, и гонять его каждый кадр морфинга незачем.
+     * Refraction of the live DOM: the map for feDisplacementMap plus the shift
+     * magnitude and the haze, all out of the core's optics. Recomputed only when
+     * the shape changes: it is a raster, and re-rasterising it every morph frame
+     * would be pointless.
      */
-    refraction(width: number, height: number, cornerRadius: number) {
+    refraction(width: number, height: number, cornerRadius: number): Refraction {
       const geometry = roundedRectGeometry(width, height, cornerRadius);
       const optics = resolveOptics(MATERIAL);
       const bevel = bevelDp(geometry, optics);
-      // Насколько фаска гнёт луч. edgePushDp сюда не годится: он задаёт выборку внутри
-      // шейдера с его запасом вьюхи, и в CSS-карте даёт десятки пикселей на мелкой детали.
+      // How hard the bevel bends the ray. edgePushDp will not do here: it drives
+      // sampling inside the shader with its own view margin, and in a CSS map it
+      // yields tens of pixels on a small pane.
       const push = bevel * optics.refraction;
       return {
         map: displacementMap(width, height, cornerRadius, bevel, push),
@@ -212,8 +241,8 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
       };
     },
 
-    /** Возвращает, должна ли надпись поверх стекла быть светлой. */
-    draw(width: number, height: number, cornerRadius: number, anchor: GlassAnchor = 'br') {
+    /** Returns whether the lettering over the glass should be light. */
+    draw(width: number, height: number, cornerRadius: number, anchor: GlassAnchor = 'br'): GlassPaint {
       fit(density());
       const now = performance.now();
       deform.step(prev ? Math.min((now - prev) / 1000, 0.25) : 0);
@@ -222,16 +251,17 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
       const geometry = roundedRectGeometry(width, height, cornerRadius);
       shape = geometry;
       const d = deform.sample();
-      // Активность — состояние СРЕДЫ: плотнее и чище стекло, а не подсветка поверх.
-      // Ровно так собирает материал кнопки стенд.
+      // Activity is a state of the MEDIUM: denser, cleaner glass, not a glow laid
+      // on top. This is exactly how the reference harness builds a button material.
       const material = { ...activeMaterial(MATERIAL, d.active), ink: inkLight ? 1 : 0 };
-      // Тело поверхность не красит: единственное тело — адаптивное, ниже из
-      // bodyDensityFor. Две заливки дали бы двойную плотность (adapters.ts, u_tint).
+      // The surface does not paint the body: the only body is the adaptive one,
+      // from bodyDensityFor below. Two fills would give double density
+      // (adapters.ts, u_tint).
       const optics = applyToggles(resolveOptics(material), { tint: false });
-      // Координаты детали — от левого верхнего угла канваса (шейдеры получают
-      // перевёрнутый Y транспайлером, см. targets/glsl.ts). Деталь прижата к тому же
-      // углу канваса, к какому виджет прижат в окне: канвас пересоздавать нельзя,
-      // а переезд в другой угол — обычное дело.
+      // Pane coordinates run from the canvas's top-left corner (the shaders get a
+      // flipped Y from the transpiler, see targets/glsl.ts). The pane is pinned to
+      // the same canvas corner the widget is pinned to in the window: the canvas
+      // must not be recreated, and moving to another corner is routine.
       const left = anchor === 'bl' || anchor === 'tl' ? pad : boxW - pad - width;
       const top = anchor === 'tl' || anchor === 'tr' ? pad : boxH - pad - height;
       const centerX = (left + width / 2) * scale;
@@ -251,9 +281,10 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
             lens: false,
             press: d.press,
             active: d.active,
-            // Успокоившаяся деталь — ровно нейтральный материал. Точка касания живёт
-            // дольше самой деформации, и на сменившей габарит форме она остаётся
-            // продавленной в устаревшем месте — видно пятном на пустом месте.
+            // A settled pane is exactly the neutral material. The touch point
+            // outlives the deformation itself, and on a shape that has changed
+            // size it stays pressed in at a stale spot — visible as a blob on
+            // empty ground.
             touch: deform.idle()
               ? undefined
               : {
@@ -270,8 +301,8 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
         ],
       });
 
-      // Полярность надписи решает приложение, а не шейдер: без этого над светлой
-      // страницей деталь становится ровной серой плашкой с нечитаемым текстом.
+      // The application decides ink polarity, not the shader: without this, over
+      // a light page the pane becomes a flat grey slab with unreadable text.
       const stats = probes[0];
       last = stats;
       if (stats) {
@@ -284,11 +315,13 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
         }
       }
 
-      // Плотность, которую тело обязано набрать над этим фоном, чтобы надпись читалась.
-      // Считает ядро, CSS только красит. Цвет тинта выводим из bodyLuma, чтобы не
-      // дублировать его константы: итог = local + (tint - local) × density.
-      // Пестрота подъезжает к новой оценке, а не прыгает к ней: скачок плотности
-      // читается вспышкой по телу — ровно то, от чего в рендерере сделан SETTLE.
+      // The density the body must reach over this background for the lettering to
+      // read. The core computes it, CSS only paints. The tint colour is derived
+      // from bodyLuma so its constants are not duplicated:
+      // result = local + (tint - local) × density.
+      // Busyness eases towards a new estimate rather than jumping to it: a jump in
+      // density reads as a flash across the body — exactly what SETTLE exists for
+      // in the renderer.
       spread += (spreadTarget - spread) * SETTLE;
 
       const local = stats ? stats.luma : 1;
@@ -296,7 +329,7 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
       const aim = bodyLuma(local, material.legibility, optics.bodyDensity, material.ink, spread);
       const tint = alpha > 1e-3 ? (aim - local * (1 - alpha)) / alpha : material.ink > 0.5 ? 0 : 1;
       const level = Math.round(Math.min(1, Math.max(0, tint)) * 255);
-      // Полярность переключается ступенькой, поэтому цвет тинта тоже подводим.
+      // Polarity switches in a step, so the tint colour is eased in as well.
       aimAlpha = alpha;
       aimLevel = level;
       settledAlpha = settledAlpha < 0 ? alpha : settledAlpha + (alpha - settledAlpha) * SETTLE;
@@ -308,8 +341,10 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
       };
     },
 
-    /** Последний замер фона и решение по надписи — для отладки материала. */
+    /** The last background measurement and ink decision — for debugging the material. */
     probe: () => ({ stats: last, inkLight, backdrop }),
     destroy: () => renderer.destroy(),
   };
 }
+
+export type GlassSurface = ReturnType<typeof createGlassSurface>;

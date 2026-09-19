@@ -12,10 +12,23 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # Node 24 runs the TypeScript sources and tests directly, by stripping types.
+          node-version: 24
           cache: npm
       - run: npm ci
-      # Стеклянный слой (src/lib/glass.js) собирается из приватного пакета и лежит
-      # в репозитории готовым — в CI не пересобирается, только проверяется наличие.
-      - run: test -s src/lib/glass.js
+
+      # The glass layer (src/glass/vireglass.bundle.js) is built from a private
+      # package and is committed ready-made — CI does not rebuild it, only
+      # checks that it is there.
+      - run: test -s src/glass/vireglass.bundle.js
+
+      - run: npm run typecheck
+
+      # dist/ is committed so that "load unpacked" works straight from a clone.
+      # Rebuild it and demand that nothing changed: a stale bundle is a bundle
+      # that ships behaviour nobody reviewed.
+      - run: npm run build
+      - name: dist/ is in step with the sources
+        run: git diff --exit-code -- dist/
+
       - run: npm test

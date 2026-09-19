@@ -1,34 +1,66 @@
-# История изменений
+# Changelog
 
-Формат — [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/),
-нумерация — [SemVer](https://semver.org/lang/ru/).
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+the numbering [SemVer](https://semver.org/).
+
+## [1.1.0] — 2026-09-19
+
+The whole project rewritten in TypeScript and switched to English.
+
+### Changed
+
+- **TypeScript throughout, under `strict`.** The UMD wrappers and the shared
+  `VireBook` global are gone; modules import each other. Node 24 runs the
+  sources and the tests directly by stripping types, `tsc --noEmit` is the type
+  check, and esbuild produces the bundles the browser loads.
+- **New layout**: `src/` holds the TypeScript, `dist/` the three bundles
+  (`content.js`, `popup.js`, `background.js`). `dist/` is committed so that
+  "load unpacked" still works straight from a clone, and CI fails if it drifts
+  out of step with the sources.
+- **The interface is in English** and speaks of a **book** rather than any
+  narrower genre — the extension was never limited to one kind of site.
+- The glass core is now a generated ES module,
+  `src/glass/vireglass.bundle.js`, with hand-written types beside it, instead of
+  an IIFE hanging a global off the window.
+- `src/chrome.d.ts` describes the slice of the extension API actually used, so
+  the "no dependencies" promise holds for types too.
+
+### Added
+
+- `npm run check` — typecheck, build and tests in the order CI runs them.
+- A test that `dist/` and the sources agree, and one that every adapter's domain
+  is present in the manifest's `matches`.
 
 ## [1.0.0] — 2026-09-19
 
-Первый публичный выпуск.
+The first public release.
 
-### Умеет
+### Features
 
-- Собирает фанфик целиком в **EPUB, MOBI, FB2 или TXT** прямо в браузере: обходит главы,
-  вынимает текст из HTML и склеивает файл локально. Сервер сайта ничего не генерирует.
-- Свои парсеры для **ficbook.net, archiveofourown.org, fanfics.me, fanfiction.net,
-  wattpad.com, royalroad.com** плюс универсальный разбор для всех остальных сайтов —
-  он же запасной путь, если знакомый сайт переверстают.
-- У AO3 берёт **готовый файл сайта**: быстрее и качеством выше, чем пересобирать.
-- Панель из материала **VireGlass**: преломление живого DOM через `backdrop-filter`,
-  плотность тела и полярность надписи — по замеру фона, отклик на курсор — на пружинах ядра.
-- **Плашку можно перебросить** в любой из четырёх углов окна: перетаскиванием или
-  Alt+стрелками. Выбранный угол запоминается.
-- Ничего никуда не отправляет: ни `<all_urls>`, ни снимков экрана, ни сетевых вызовов
-  наружу. Разрешений — `storage`, `activeTab`, `scripting`.
+- Assembles a whole book into **EPUB, MOBI, FB2 or TXT** right in the browser:
+  walks the chapters, pulls the text out of the HTML and glues the file together
+  locally. The site's server generates nothing, so there is nothing to wait for.
+- Own parsers for **ficbook.net, archiveofourown.org, fanfics.me,
+  fanfiction.net, wattpad.com, royalroad.com**, plus a generic reading for every
+  other site — which doubles as the fallback if a known site is restyled.
+- For AO3 it takes the **site's own ready-made file**: faster and of higher
+  quality than reassembling it.
+- A panel made of the **VireGlass** material: refraction of the live DOM through
+  `backdrop-filter`, with body density and ink polarity following a measurement
+  of the background, and the cursor response on the core's springs.
+- **The pane can be thrown** into any of the four corners of the window, by
+  dragging or with Alt+arrows. The chosen corner is remembered.
+- Sends nothing outwards: no `<all_urls>`, no screenshots, no outbound network
+  calls. Permissions: `storage`, `activeTab`, `scripting`.
 
-### Известные ограничения
+### Known limitations
 
-Подробно — в разделе «Честные ограничения» README.
+In full under "Honest limitations" in the README.
 
-- MOBI собран по спецификации и разбирается обратно в тестах, но на живом Kindle 11 не проверен.
-- Разметка fanfics.me, fanfiction.net и wattpad.com записана по известной структуре, вживую
-  не прогонялась.
-- Картинки в книгу не попадают — только текст.
+- MOBI is built to spec and parsed back in the tests, but unverified on a live Kindle 11.
+- The markup for fanfics.me, fanfiction.net and wattpad.com is written against
+  the known structure and was not exercised live.
+- Images do not make it into the book — text only.
 
+[1.1.0]: https://github.com/pruffit/VireBook/releases/tag/v1.1.0
 [1.0.0]: https://github.com/pruffit/VireBook/releases/tag/v1.0.0

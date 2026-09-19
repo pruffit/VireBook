@@ -1,30 +1,30 @@
-name: Добавить сайт
-description: Хочется свой парсер под ещё один сайт с фанфиками.
-title: '[новый сайт] '
-labels: [новый сайт]
+name: Add a site
+description: You would like a dedicated parser for one more site with books.
+title: '[new site] '
+labels: [new site]
 body:
   - type: markdown
     attributes:
       value: |
-        Универсальный разбор работает на любом сайте, но свой парсер точнее:
-        он знает оглавление, автора и число глав. См. CONTRIBUTING.md — адаптер
-        это один небольшой файл.
+        The generic reading works on any site, but a dedicated parser is more
+        precise: it knows the table of contents, the author and the chapter
+        count. See CONTRIBUTING.md — an adapter is one small file.
   - type: input
     id: site
     attributes:
-      label: Домен
+      label: Domain
       placeholder: example.com
     validations:
       required: true
   - type: input
     id: work
     attributes:
-      label: Ссылка на любую работу с несколькими главами
-      description: По ней снимается разметка и делается фикстура для тестов.
+      label: Link to any work with several chapters
+      description: The markup is captured from it and turned into a test fixture.
     validations:
       required: true
   - type: textarea
     id: notes
     attributes:
-      label: Что важно знать
-      description: Нужна ли авторизация, есть ли антибот, отдаёт ли сайт готовые файлы сам, доступен ли он из вашей страны.
+      label: What is worth knowing
+      description: Whether it needs a login, whether it has bot protection, whether the site serves ready-made files itself, whether it is reachable from your country.

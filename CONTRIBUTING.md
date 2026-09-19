@@ -1,41 +1,53 @@
-# Как участвовать
+# Contributing
 
-Основная точка приложения сил — **адаптеры сайтов**: сайты переверстывают разметку, и
-это чинится точечно, без знания остального кода.
+The main place effort pays off is the **site adapters**: sites get restyled, and
+that is fixed one file at a time, without knowing the rest of the code.
 
-## Починить сломавшийся сайт
+## Fix a broken site
 
-Селекторы каждого сайта лежат в `src/adapters/<сайт>.js` списками кандидатов, а не
-одиночными значениями: обычно достаточно дописать в список новый класс. Проверять —
-`npm test` и живой страницей.
+Each site's selectors live in `src/adapters/<site>.ts` as lists of candidates
+rather than single values: usually it is enough to add one new class to a list.
+Check with `npm run check` and against the live page.
 
-## Добавить сайт
+## Add a site
 
-1. Скопировать `src/adapters/royalroad.js` — он самый короткий.
-2. Поменять `match`, `isWorkPage`, селекторы и разбор главы.
-3. Дописать файл **в двух местах**: `manifest.json` (`content_scripts[0].js` и `matches`)
-   и `src/popup.js` (`SCRIPTS`). Списки обязаны совпадать, на это есть тест.
-4. Добавить фикстуру в `test/fixtures/` и проверку в `test/adapters.mjs`. Текст в
-   фикстурах — свой, не авторский: нам нужна структура, а не чужое произведение.
+1. Copy `src/adapters/royalroad.ts` — it is the shortest.
+2. Change `match`, `isWorkPage`, the selectors and the chapter parsing.
+3. Register it **in two places**: `src/adapters/index.ts` (the `SITE_ADAPTERS`
+   list) and `manifest.json` (`content_scripts[0].matches`). A test insists that
+   every adapter's domain is present in `matches` — otherwise the button never
+   appears by itself.
+4. Add a fixture to `test/fixtures/` and a check to `test/adapters.ts`. The prose
+   in fixtures is our own, not an author's: what we need is the structure, not
+   somebody else's work.
 
-Адаптер обязан возвращать `expectedChapters`: по нему ядро ловит молча потерянные главы.
+An adapter must return `expectedChapters`: the core uses it to catch chapters
+that went missing silently.
 
-## Правила, которые сэкономят ревью
+## House rules that will save a review round
 
-- **Зависимостей в рантайме нет** и не появляется. Всё, что нужно расширению, лежит в
-  репозитории готовым.
-- **Комментарии — только «почему».** Пересказ кода не нужен; неочевидный инвариант или
-  обход чужого бага — нужен, в одну-две строки.
-- **`src/lib/glass.js` руками не правится** — это сборка, см. README.
-- Запросы к сайтам идут только через `ctx.fetchDoc`/`fetchText`: там живут темп,
-  `Retry-After` и бэкофф. Свой `fetch` в адаптере обойдёт их и поймает 429.
+- **There are no runtime dependencies** and none are being added. Everything the
+  extension needs is in the repository, ready to run.
+- **TypeScript under `strict`.** `npm run typecheck` must be clean. No `any`; if
+  a type is genuinely unknown, `unknown` plus a narrowing check.
+- **Comments say *why*.** Restating the code is not needed; a non-obvious
+  invariant or a way around somebody else's bug is, in a line or two.
+- **`dist/` is a build artefact**, but it is committed: run `npm run build` and
+  commit the result along with the source. CI fails if the two disagree.
+- **`src/glass/vireglass.bundle.js` is not edited by hand** — it is generated,
+  see the README.
+- Requests to sites go only through `ctx.fetchDoc` / `fetchText`: that is where
+  the pacing, `Retry-After` and backoff live. A bare `fetch` in an adapter walks
+  straight past them and into a 429.
+- The interface is in English, and it says **book**, not anything narrower: the
+  extension is not limited to one genre of site.
 
-## Проверки
+## Checks
 
 ```bash
-npm test
+npm run check   # typecheck + build + tests, the same order CI uses
 ```
 
-Тесты не верят «файл собрался»: EPUB распаковывается и проверяется на корректность XML,
-MOBI разбирается по записям PalmDB и разжимается обратно, смещения оглавления сверяются
-с якорями.
+The tests do not take "the file was built" for an answer: EPUB is unpacked and
+checked for well-formed XML, MOBI is taken apart by PalmDB record and
+decompressed again, table-of-contents offsets are verified against the anchors.

@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+
+    "strict": true,
+    "noUncheckedIndexedAccess": false,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": false,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+
+    // Node 24 runs .ts directly by stripping types, and it wants the real
+    // extension in the specifier. esbuild is fine with it too, so imports look
+    // the same whether a file is bundled or run straight from source.
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+
+    // esbuild does the transpiling; tsc is here only to tell us we are wrong.
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  // src/glass/entry.ts is left out on purpose: it imports @vire/vireglass, a
+  // private package that is not part of this repository and is resolved by an
+  // esbuild alias in scripts/build-glass.mjs. What the rest of the code sees is
+  // src/glass/vireglass.bundle.d.ts, and that IS checked.
+  "exclude": ["node_modules", "dist", "src/glass/entry.ts", "src/glass/vireglass.bundle.js"]
+}

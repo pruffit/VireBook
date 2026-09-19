@@ -5,3 +5,6 @@ Thumbs.db
 .vscode/
 .idea/
 .claude/
+
+# The demo bundle: built by `npm run demo`, not part of the extension.
+dist/ui-demo.js

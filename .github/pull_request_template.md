@@ -1,18 +1,21 @@
-## Что меняется
+## What changes
 
-<!-- Одной фразой. Если чинится сайт — какой и что именно у него переехало. -->
+<!-- One sentence. If a site is being fixed — which one, and what moved on it. -->
 
-## Проверено
+## Checked
 
-- [ ] `npm test` зелёный
-- [ ] проверено на живой странице (ссылка: )
-- [ ] если трогался адаптер — добавлена фикстура в `test/fixtures/` и проверка в `test/adapters.mjs`
-- [ ] если трогалась панель — посмотрено на `npm run demo` на всех трёх фонах
+- [ ] `npm run check` is green (typecheck + build + tests)
+- [ ] `dist/` rebuilt and committed
+- [ ] checked against the live page (link: )
+- [ ] if an adapter was touched — a fixture was added to `test/fixtures/` and a check to `test/adapters.ts`
+- [ ] if the panel was touched — looked at via `npm run demo` on all three backgrounds
 
 <!--
-Правила, которые сэкономят ревью (подробнее в CONTRIBUTING.md):
-  · зависимостей в рантайме нет;
-  · комментарии — только «почему»;
-  · src/lib/glass.js руками не правится, это сборка;
-  · запросы к сайтам — только через ctx.fetchDoc / fetchText.
+House rules that save a review round (more in CONTRIBUTING.md):
+  · no runtime dependencies;
+  · TypeScript under strict, no `any`;
+  · comments say why;
+  · src/glass/vireglass.bundle.js is generated, not hand-edited;
+  · requests to sites go only through ctx.fetchDoc / fetchText;
+  · the interface is in English and says "book".
 -->
