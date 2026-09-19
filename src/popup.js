@@ -41,7 +41,7 @@ document.getElementById('force').addEventListener('click', async () => {
     // даже там, где страница не опознана как фанфик.
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      func: () => { window.__FK_FORCED__ = true; },
+      func: () => { window.__VIREBOOK_FORCED__ = true; },
     });
     await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: SCRIPTS });
     setStatus('Кнопка на странице, справа внизу');

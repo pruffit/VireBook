@@ -2,12 +2,12 @@
 // Три стратегии по убыванию надёжности — список глав на странице, обход по
 // «следующей главе», одиночная страница.
 (function (root, factory) {
-  const FK = (root.FK = root.FK || {});
-  FK.adapters = FK.adapters || {};
-  factory(FK);
-  if (typeof module !== 'undefined' && module.exports) module.exports = FK;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (FK) {
-  const B = FK.adapters.base;
+  const VireBook = (root.VireBook = root.VireBook || {});
+  VireBook.adapters = VireBook.adapters || {};
+  factory(VireBook);
+  if (typeof module !== 'undefined' && module.exports) module.exports = VireBook;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (VireBook) {
+  const B = VireBook.adapters.base;
   const MAX_CHAPTERS = 400;
 
   const CHAPTER_TEXT = /^\s*(глава|глава\s*№|часть|раздел|chapter|ch\.?|part|episode|эпизод)\s*[.:№-]?\s*\d+/i;
@@ -21,7 +21,7 @@
     for (const a of anchors) {
       const href = a.getAttribute('href');
       if (!href || /^(javascript:|mailto:|#)/i.test(href)) continue;
-      const url = FK.html.absolutize(href, baseUrl);
+      const url = VireBook.html.absolutize(href, baseUrl);
       if (!url) continue;
       if (new URL(url).hostname !== new URL(baseUrl).hostname) continue;
       const text = B.norm(a.textContent);
@@ -84,7 +84,7 @@
       const aria = a.getAttribute('title') || a.getAttribute('aria-label') || '';
       const hay = `${text} ${rel} ${aria}`;
       if (!NEXT_TEXT.test(hay) || PREV_TEXT.test(text)) continue;
-      const url = FK.html.absolutize(a.getAttribute('href'), baseUrl);
+      const url = VireBook.html.absolutize(a.getAttribute('href'), baseUrl);
       if (!url || url.split('#')[0] === baseUrl.split('#')[0]) continue;
       if (new URL(url).hostname !== new URL(baseUrl).hostname) continue;
       return url.split('#')[0];
@@ -95,7 +95,7 @@
   function extract(doc, url, fallbackTitle) {
     const body = B.findMainContent(doc);
     if (!body) return null;
-    const { xhtml } = FK.html.sanitize(body, { baseUrl: url, keepImages: false });
+    const { xhtml } = VireBook.html.sanitize(body, { baseUrl: url, keepImages: false });
     if (!xhtml || xhtml.replace(/<[^>]+>/g, '').trim().length < 200) return null;
     const heading = B.pickText(doc, ['h1', 'h2', '.chapter-title', '[class*="chapter"] h2'], 200);
     return { title: heading || fallbackTitle || 'Глава', xhtml };
@@ -118,7 +118,7 @@
     if (links && links.length > 1) {
       expected = links.length;
       ctx.progress(`Похоже на список глав: ${links.length}`, 5);
-      const parsed = await FK.util.mapLimit(
+      const parsed = await VireBook.util.mapLimit(
         links,
         3,
         async (link) => {
@@ -163,12 +163,12 @@
     });
   }
 
-  FK.adapters.generic = {
+  VireBook.adapters.generic = {
     id: 'generic',
     name: 'Любой сайт',
     match: () => true,
     isWorkPage: () => true,
     parse,
   };
-  return FK;
+  return VireBook;
 });

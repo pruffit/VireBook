@@ -2,12 +2,12 @@
 // «недоступно в вашей стране» за пределами РФ. Селекторы заданы списком
 // кандидатов, а при промахе подхватывает универсальный парсер.
 (function (root, factory) {
-  const FK = (root.FK = root.FK || {});
-  FK.adapters = FK.adapters || {};
-  factory(FK);
-  if (typeof module !== 'undefined' && module.exports) module.exports = FK;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (FK) {
-  const B = FK.adapters.base;
+  const VireBook = (root.VireBook = root.VireBook || {});
+  VireBook.adapters = VireBook.adapters || {};
+  factory(VireBook);
+  if (typeof module !== 'undefined' && module.exports) module.exports = VireBook;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (VireBook) {
+  const B = VireBook.adapters.base;
   const DROP = ['.Sidebar_NativeAd', '[class*="NativeAd"]', '.adv', '.banner', '#comments', '.comments'];
 
   const BODY = [
@@ -23,7 +23,7 @@
     const seen = new Set();
     const out = [];
     for (const a of nodes) {
-      const url = FK.html.absolutize(a.getAttribute('href'), baseUrl);
+      const url = VireBook.html.absolutize(a.getAttribute('href'), baseUrl);
       if (!url) continue;
       const clean = url.split('#')[0];
       if (seen.has(clean) || clean === baseUrl.split('#')[0]) continue;
@@ -36,7 +36,7 @@
   function extract(doc, url, fallbackTitle) {
     const body = B.pick(doc, BODY) || B.findMainContent(doc);
     if (!body) return null;
-    const { xhtml } = FK.html.sanitize(body, { baseUrl: url, keepImages: false, dropSelectors: DROP });
+    const { xhtml } = VireBook.html.sanitize(body, { baseUrl: url, keepImages: false, dropSelectors: DROP });
     if (xhtml.replace(/<[^>]+>/g, '').trim().length < 150) return null;
     const heading = B.pickText(doc, ['.FicPart_Title', '[class*="PartTitle"]', 'h2'], 200);
     return { title: heading || fallbackTitle || 'Глава', xhtml };
@@ -56,7 +56,7 @@
 
     if (links.length > 1) {
       ctx.progress(`Найдено глав: ${links.length}`, 5);
-      const parsed = await FK.util.mapLimit(
+      const parsed = await VireBook.util.mapLimit(
         links,
         3,
         async (link) => extract(await ctx.fetchDoc(link.url), link.url, link.title),
@@ -80,12 +80,12 @@
     });
   }
 
-  FK.adapters.fanficsme = {
+  VireBook.adapters.fanficsme = {
     id: 'fanficsme',
     name: 'Fanfics.me',
     match: (url) => /(^|\.)fanfics\.me$/i.test(new URL(url).hostname),
     isWorkPage: (url) => /\/fic\d+|\/read/.test(url),
     parse,
   };
-  return FK;
+  return VireBook;
 });

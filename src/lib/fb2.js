@@ -1,10 +1,10 @@
 // FB2 — стандарт де-факто в СНГ: читают все местные читалки и PocketBook.
 (function (root, factory) {
-  const FK = (root.FK = root.FK || {});
-  factory(FK);
-  if (typeof module !== 'undefined' && module.exports) module.exports = FK;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (FK) {
-  const esc = (s) => FK.html.escapeText(String(s == null ? '' : s));
+  const VireBook = (root.VireBook = root.VireBook || {});
+  factory(VireBook);
+  if (typeof module !== 'undefined' && module.exports) module.exports = VireBook;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (VireBook) {
+  const esc = (s) => VireBook.html.escapeText(String(s == null ? '' : s));
 
   // FB2 не знает про HTML-теги: всё, что не отображается в его словарь, снимаем.
   function toFb2Body(xhtml) {
@@ -66,7 +66,7 @@ ${keywords ? `<keywords>${esc(keywords)}</keywords>` : ''}
 <author><nickname>VireBook</nickname></author>
 <date value="${new Date().toISOString().slice(0, 10)}">${new Date().toLocaleDateString('ru-RU')}</date>
 ${book.sourceUrl ? `<src-url>${esc(book.sourceUrl)}</src-url>` : ''}
-<id>${esc(book.uuid || FK.util.uuid())}</id>
+<id>${esc(book.uuid || VireBook.util.uuid())}</id>
 <version>1.0</version>
 </document-info>
 </description>
@@ -79,6 +79,6 @@ ${bodySections}
     return new Blob([xml], { type: 'application/x-fictionbook+xml' });
   }
 
-  FK.fb2 = { build, toFb2Body };
-  return FK;
+  VireBook.fb2 = { build, toFb2Body };
+  return VireBook;
 });

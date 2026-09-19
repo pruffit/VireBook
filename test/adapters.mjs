@@ -21,7 +21,7 @@ for (const f of ['base', 'ficbook', 'ao3', 'fanficsme', 'ffnet', 'wattpad', 'roy
   require(join(ROOT, 'src', 'adapters', `${f}.js`));
 }
 require(join(ROOT, 'src', 'core.js'));
-const FK = globalThis.FK;
+const VireBook = globalThis.VireBook;
 
 let passed = 0;
 const failures = [];
@@ -96,7 +96,7 @@ await test('sanitize выкидывает скрипты, рекламу и ск
     </div>`,
     'https://example.org/a'
   );
-  const { xhtml } = FK.html.sanitize(doc.getElementById('c'), {
+  const { xhtml } = VireBook.html.sanitize(doc.getElementById('c'), {
     baseUrl: 'https://example.org/a',
     dropSelectors: ['.fanfic-text-promo'],
   });
@@ -110,7 +110,7 @@ await test('sanitize даёт валидный XHTML и абсолютные с�
      <img src="/pic.jpg" alt="картинка"></div>`,
     'https://example.org/dir/page'
   );
-  const { xhtml } = FK.html.sanitize(doc.getElementById('c'), { baseUrl: 'https://example.org/dir/page' });
+  const { xhtml } = VireBook.html.sanitize(doc.getElementById('c'), { baseUrl: 'https://example.org/dir/page' });
   assert(xhtml.includes('<br/>'), 'br должен быть самозакрытым');
   assert(xhtml.includes('href="https://example.org/rel"'), `ссылка не абсолютная: ${xhtml}`);
   assert(xhtml.includes('&amp;'), 'амперсанд не экранирован');
@@ -119,7 +119,7 @@ await test('sanitize даёт валидный XHTML и абсолютные с�
 
 await test('sanitize разворачивает якоря на тот же сайт в обычный текст', async () => {
   const doc = docOf('<div id="c"><p>До <a href="#part_content">якорь</a> после.</p></div>', 'https://ficbook.net/readfic/1');
-  const { xhtml } = FK.html.sanitize(doc.getElementById('c'), { baseUrl: 'https://ficbook.net/readfic/1' });
+  const { xhtml } = VireBook.html.sanitize(doc.getElementById('c'), { baseUrl: 'https://ficbook.net/readfic/1' });
   assert(xhtml.includes('якорь'), 'текст ссылки потерян');
   assert(!xhtml.includes('<a'), `якорь остался ссылкой: ${xhtml}`);
 });
@@ -135,7 +135,7 @@ const FICBOOK_ROUTES = {
 
 await test('ficbook: со страницы работы собираются все части', async () => {
   const url = 'https://ficbook.net/readfic/10709016';
-  const book = await FK.adapters.ficbook.parse(docOf(fixture('ficbook-work.html'), url), url, makeCtx(FICBOOK_ROUTES));
+  const book = await VireBook.adapters.ficbook.parse(docOf(fixture('ficbook-work.html'), url), url, makeCtx(FICBOOK_ROUTES));
 
   assertEq(book.title, 'Дом у реки', 'заголовок');
   assertEq(book.author, 'Тестовый Автор', 'автор');
@@ -146,7 +146,7 @@ await test('ficbook: со страницы работы собираются в�
 
 await test('ficbook: метаданные шапки разобраны', async () => {
   const url = 'https://ficbook.net/readfic/10709016';
-  const book = await FK.adapters.ficbook.parse(docOf(fixture('ficbook-work.html'), url), url, makeCtx(FICBOOK_ROUTES));
+  const book = await VireBook.adapters.ficbook.parse(docOf(fixture('ficbook-work.html'), url), url, makeCtx(FICBOOK_ROUTES));
 
   assertEq(book.fandom, 'Гарри Поттер', 'фэндом');
   assertEq(book.pairing, 'Анна и Борис', 'пейринг');
@@ -158,7 +158,7 @@ await test('ficbook: метаданные шапки разобраны', async 
 
 await test('ficbook: рекламный блок в тело главы не попадает', async () => {
   const url = 'https://ficbook.net/readfic/10709016';
-  const book = await FK.adapters.ficbook.parse(docOf(fixture('ficbook-work.html'), url), url, makeCtx(FICBOOK_ROUTES));
+  const book = await VireBook.adapters.ficbook.parse(docOf(fixture('ficbook-work.html'), url), url, makeCtx(FICBOOK_ROUTES));
   const first = book.chapters[0];
   assertEq(first.title, 'Пилот', 'название главы берётся со страницы главы');
   assert(!/Фикбук Плюс|premium/i.test(first.xhtml), `промо просочилось: ${first.xhtml.slice(0, 200)}`);
@@ -169,7 +169,7 @@ await test('ficbook: рекламный блок в тело главы не п�
 await test('ficbook: со страницы главы адаптер идёт за оглавлением на карточку', async () => {
   const url = 'https://ficbook.net/readfic/10709016/27552317';
   const ctx = makeCtx(FICBOOK_ROUTES);
-  const book = await FK.adapters.ficbook.parse(docOf(fixture('ficbook-chapter.html'), url), url, ctx);
+  const book = await VireBook.adapters.ficbook.parse(docOf(fixture('ficbook-chapter.html'), url), url, ctx);
 
   assertEq(book.chapters.length, 3, 'должны собраться все части, а не одна');
   assert(ctx.fetched.some((u) => u.endsWith('/readfic/10709016')), 'карточка работы не запрошена');
@@ -179,7 +179,7 @@ await test('ficbook: со страницы главы адаптер идёт з
 await test('ficbook: открытая глава повторно не скачивается', async () => {
   const url = 'https://ficbook.net/readfic/10709016/27552317';
   const ctx = makeCtx(FICBOOK_ROUTES);
-  await FK.adapters.ficbook.parse(docOf(fixture('ficbook-chapter.html'), url), url, ctx);
+  await VireBook.adapters.ficbook.parse(docOf(fixture('ficbook-chapter.html'), url), url, ctx);
   const repeats = ctx.fetched.filter((u) => u.includes('27552317')).length;
   assertEq(repeats, 0, 'текущая глава берётся из открытого документа');
 });
@@ -188,7 +188,7 @@ await test('ficbook: открытая глава повторно не скач�
 
 await test('AO3: готовые ссылки сайта найдены', async () => {
   const url = 'https://archiveofourown.org/works/85129446';
-  const links = FK.adapters.ao3.native(docOf(fixture('ao3-full.html'), url));
+  const links = VireBook.adapters.ao3.native(docOf(fixture('ao3-full.html'), url));
   const formats = links.map((l) => l.format);
   for (const f of ['azw3', 'epub', 'mobi']) assert(formats.includes(f), `нет формата ${f}`);
   const epub = links.find((l) => l.format === 'epub');
@@ -197,7 +197,7 @@ await test('AO3: готовые ссылки сайта найдены', async (
 
 await test('AO3: главы, примечания и метаданные', async () => {
   const url = 'https://archiveofourown.org/works/85129446?view_full_work=true';
-  const book = await FK.adapters.ao3.parse(docOf(fixture('ao3-full.html'), url), url, makeCtx({}));
+  const book = await VireBook.adapters.ao3.parse(docOf(fixture('ao3-full.html'), url), url, makeCtx({}));
 
   assertEq(book.title, 'River House', 'заголовок');
   assertEq(book.author, 'TestAuthor', 'автор');
@@ -212,14 +212,14 @@ await test('AO3: главы, примечания и метаданные', asyn
 
 await test('AO3: служебный заголовок landmark вычищен', async () => {
   const url = 'https://archiveofourown.org/works/85129446?view_full_work=true';
-  const book = await FK.adapters.ao3.parse(docOf(fixture('ao3-full.html'), url), url, makeCtx({}));
+  const book = await VireBook.adapters.ao3.parse(docOf(fixture('ao3-full.html'), url), url, makeCtx({}));
   assert(!/Chapter Text/.test(book.chapters[0].xhtml), `landmark остался: ${book.chapters[0].xhtml.slice(0, 160)}`);
 });
 
 await test('AO3: без view_full_work адаптер запрашивает полную версию', async () => {
   const url = 'https://archiveofourown.org/works/85129446';
   const ctx = makeCtx({ 'view_full_work=true': fixture('ao3-full.html') });
-  const book = await FK.adapters.ao3.parse(docOf(fixture('ao3-full.html'), url), url, ctx);
+  const book = await VireBook.adapters.ao3.parse(docOf(fixture('ao3-full.html'), url), url, ctx);
   assertEq(ctx.fetched.length, 1, 'должен быть ровно один запрос за всеми главами');
   assert(ctx.fetched[0].includes('view_full_work=true'), 'запрошен не полный вид');
   assertEq(book.chapters.length, 2, 'главы');
@@ -239,7 +239,7 @@ await test('адаптер выбирается по домену', async () => 
     ['https://notficbook.net.evil.com/x', 'generic'],
   ];
   for (const [url, expected] of cases) {
-    assertEq(FK.core.resolveAdapter(url).id, expected, `для ${url}`);
+    assertEq(VireBook.core.resolveAdapter(url).id, expected, `для ${url}`);
   }
 });
 
@@ -272,7 +272,7 @@ await test('generic: список глав распознаётся и обхо�
     '/chapter/2': GENERIC_CHAPTER(2),
     '/chapter/3': GENERIC_CHAPTER(3),
   });
-  const book = await FK.adapters.generic.parse(docOf(index, url), url, ctx);
+  const book = await VireBook.adapters.generic.parse(docOf(index, url), url, ctx);
 
   assertEq(book.chapters.length, 3, 'число глав');
   assertEq(book.title, 'Повесть о доме', 'заголовок');
@@ -296,7 +296,7 @@ await test('generic: без списка идёт по ссылке «следу
     '/read/2': withNext(2, '/read/3'),
     '/read/3': withNext(3, null),
   });
-  const book = await FK.adapters.generic.parse(docOf(withNext(1, '/read/2'), url), url, ctx);
+  const book = await VireBook.adapters.generic.parse(docOf(withNext(1, '/read/2'), url), url, ctx);
   assertEq(book.chapters.length, 3, 'должен пройти по цепочке до конца');
 });
 
@@ -306,7 +306,7 @@ await test('generic: меню и футер за текст главы не пр
   <nav class="menu">${Array.from({ length: 40 }, (_, i) => `<a href="/l${i}">Ссылка номер ${i}</a>`).join(' ')}</nav>
   <div class="chapter-content"><p>${'Настоящий связный текст главы. '.repeat(30)}</p></div>
   </body></html>`;
-  const book = await FK.adapters.generic.parse(docOf(html, url), url, makeCtx({}));
+  const book = await VireBook.adapters.generic.parse(docOf(html, url), url, makeCtx({}));
   assert(book.chapters[0].xhtml.includes('Настоящий связный текст'), 'взят не тот блок');
   assert(!book.chapters[0].xhtml.includes('Ссылка номер'), 'в главу попало меню');
 });
@@ -315,8 +315,8 @@ await test('generic: меню и футер за текст главы не пр
 
 await test('сквозь: ficbook → EPUB содержит текст всех глав', async () => {
   const url = 'https://ficbook.net/readfic/10709016';
-  const book = await FK.adapters.ficbook.parse(docOf(fixture('ficbook-work.html'), url), url, makeCtx(FICBOOK_ROUTES));
-  const buf = Buffer.from(await (await FK.epub.build(book)).arrayBuffer());
+  const book = await VireBook.adapters.ficbook.parse(docOf(fixture('ficbook-work.html'), url), url, makeCtx(FICBOOK_ROUTES));
+  const buf = Buffer.from(await (await VireBook.epub.build(book)).arrayBuffer());
   const files = readZip(buf);
 
   assertEq(files.get('mimetype').toString(), 'application/epub+zip', 'mimetype');
@@ -333,8 +333,8 @@ await test('сквозь: ficbook → EPUB содержит текст всех 
 
 await test('сквозь: ficbook → MOBI собирается и текст восстановим', async () => {
   const url = 'https://ficbook.net/readfic/10709016';
-  const book = await FK.adapters.ficbook.parse(docOf(fixture('ficbook-work.html'), url), url, makeCtx(FICBOOK_ROUTES));
-  const buf = Buffer.from(await FK.mobi.build(book).arrayBuffer());
+  const book = await VireBook.adapters.ficbook.parse(docOf(fixture('ficbook-work.html'), url), url, makeCtx(FICBOOK_ROUTES));
+  const buf = Buffer.from(await VireBook.mobi.build(book).arrayBuffer());
 
   assertEq(buf.slice(60, 68).toString('latin1'), 'BOOKMOBI', 'сигнатура');
   const count = buf.readUInt16BE(76);
@@ -347,8 +347,8 @@ await test('сквозь: ficbook → MOBI собирается и текст в
 
 await test('сквозь: AO3 → FB2 без остатков HTML', async () => {
   const url = 'https://archiveofourown.org/works/85129446?view_full_work=true';
-  const book = await FK.adapters.ao3.parse(docOf(fixture('ao3-full.html'), url), url, makeCtx({}));
-  const xml = Buffer.from(await FK.fb2.build(book).arrayBuffer()).toString('utf8');
+  const book = await VireBook.adapters.ao3.parse(docOf(fixture('ao3-full.html'), url), url, makeCtx({}));
+  const xml = Buffer.from(await VireBook.fb2.build(book).arrayBuffer()).toString('utf8');
 
   assertEq((xml.match(/<section>/g) || []).length, 2, 'секций по числу глав');
   assert(xml.includes('<book-title>River House</book-title>'), 'заголовок');

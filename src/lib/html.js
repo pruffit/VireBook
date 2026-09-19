@@ -1,10 +1,10 @@
 // Чистка глав и сериализация в XHTML. EPUB — это XML: невалидная разметка
 // роняет книгу целиком, поэтому сериализуем обходом DOM, а не регулярками.
 (function (root, factory) {
-  const FK = (root.FK = root.FK || {});
-  factory(FK);
-  if (typeof module !== 'undefined' && module.exports) module.exports = FK;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (FK) {
+  const VireBook = (root.VireBook = root.VireBook || {});
+  factory(VireBook);
+  if (typeof module !== 'undefined' && module.exports) module.exports = VireBook;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (VireBook) {
   const KEEP = new Set([
     'p', 'br', 'hr', 'div', 'span', 'section', 'article', 'blockquote', 'pre',
     'em', 'i', 'strong', 'b', 'u', 's', 'strike', 'del', 'ins', 'mark', 'small',
@@ -193,6 +193,6 @@
     return lines.join('\n\n');
   }
 
-  FK.html = { sanitize, toPlainText, escapeText, escapeAttr, absolutize, stripControl, isNoise };
-  return FK;
+  VireBook.html = { sanitize, toPlainText, escapeText, escapeAttr, absolutize, stripControl, isNoise };
+  return VireBook;
 });

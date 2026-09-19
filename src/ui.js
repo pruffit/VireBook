@@ -5,10 +5,13 @@
 // WebGL не видит DOM и преломлять живую страницу под собой не умеет, а весь
 // смысл стекла здесь именно в ней. backdrop-filter это умеет, поэтому причины
 // материала выражены им: матовость листа, плотность тела, фаска, кромка.
+//
+// Плашка живёт в одном из четырёх углов окна и перетаскивается в любой другой:
+// под ней текст главы, и место, где она не мешает, знает только читатель.
 (function (root, factory) {
-  const FK = (root.FK = root.FK || {});
-  factory(FK);
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (FK) {
+  const VireBook = (root.VireBook = root.VireBook || {});
+  factory(VireBook);
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (VireBook) {
   const CSS = `
 :host {
   all: initial;
@@ -26,10 +29,23 @@
   --r-sheet: 26px;
   --pad: 6px;
   --r-item: 20px;
+  /* Отступ от края окна. */
+  --edge: 18px;
+  /* Запас слоя преломления за габарит листа — см. .refract. */
+  --slack: 40px;
 }
 * { box-sizing: border-box; font-family: -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif; }
 
-.root { position: fixed; right: 18px; bottom: 18px; z-index: 2147483000; }
+.root { position: fixed; z-index: 2147483000; }
+/* Угол задаётся классами: из прижатого угла панель и растёт. */
+.root.x-right { right: var(--edge); }
+.root.x-left { left: var(--edge); }
+.root.y-bottom { bottom: var(--edge); }
+.root.y-top { top: var(--edge); }
+/* Бросок в другой угол — доводка того же движения, которым плашку вели. */
+.root.gliding { transition: transform 0.38s var(--ease); }
+.root.dragging { transition: none; }
+.root.dragging, .root.dragging * { cursor: grabbing !important; user-select: none; }
 /* Полярность надписи идёт за фоном: над очень светлой страницей тело стекла не
    может уйти достаточно тёмным, и светлый текст на нём нечитаем. */
 .root.ink-dark {
@@ -52,6 +68,11 @@
   z-index: 1;
   overflow: hidden;
   border-radius: var(--r-sheet);
+  /* Плашку водят пальцем — браузер не должен вместо этого скроллить страницу,
+     а протяжка по ней не должна выделять её же подписи. */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 .shell.ready {
   transition:
@@ -59,8 +80,32 @@
     height var(--morph) var(--ease),
     border-radius var(--morph) var(--ease);
 }
-/* Своего фона у оболочки нет: страницу под деталью показывает линза, преломляя
-   снимок вкладки. Здесь только клип содержимого по форме. */
+
+/* Преломление живого DOM. Слой ШИРЕ листа и лежит внутри оболочки, а не на ней
+   самой, по двум причинам сразу:
+     запас — у гаусса и смещения под кромкой должно быть что собирать, иначе
+             край тянет пустоту за областью фильтра;
+     клип  — с запасом backdrop-filter выплёскивает отфильтрованный фон за
+             границы своего элемента, и мимо скруглённой формы виден
+             прямоугольник. Здесь выплеск срезает overflow.
+   Отдельный .clip не украшение: пока backdrop-filter лежит прямо в оболочке,
+   её высота едет морфингом, а лист прижат ВЕРХОМ, Chromium перестаёт
+   пересчитывать положение соседних слоёв — содержимое панели так и остаётся
+   поднятым на десяток-другой пикселей и вылезает за клип. Своя обёртка с
+   overflow это развязывает. */
+.clip {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.refract { position: absolute; inset: calc(var(--slack) * -1); }
+/* Тело — ПОВЕРХ преломления. Будь оно фоном оболочки, преломление затянуло бы
+   его в себя: фон родителя входит в задник его же ребёнка. */
+.tint { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+
 /* Запасной материал, когда WebGL2 недоступен: расширение обязано работать и без стекла. */
 .shell.flat {
   background: color-mix(in oklch, var(--vg-body) 90%, transparent);
@@ -73,10 +118,17 @@
 }
 
 .view {
-  position: absolute; right: 0; bottom: 0;
+  position: absolute;
+  z-index: 2;
   opacity: 0;
   transition: opacity .19s var(--ease);
 }
+/* Содержимое приколото к тому же углу, из которого растёт лист: иначе во время
+   морфинга оно уезжает от края. */
+.root.x-right .view { right: 0; }
+.root.x-left .view { left: 0; }
+.root.y-bottom .view { bottom: 0; }
+.root.y-top .view { top: 0; }
 .view.in { opacity: 1; }
 
 .fab {
@@ -89,9 +141,12 @@
 
 .panel { width: 260px; padding: var(--pad); }
 .head {
+  display: flex; align-items: center; gap: 8px;
   padding: 8px 10px 9px; font-size: 12px; letter-spacing: .02em; color: var(--vg-dim);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  cursor: grab;
 }
+.head .site { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.head .grip { flex: none; margin-left: auto; opacity: .55; }
 .fmt { display: flex; flex-direction: column; }
 /* Концентрично: радиус листа 20 = радиус пункта 14 + отступ 6. */
 .fmt button {
@@ -125,10 +180,12 @@
 @media (prefers-reduced-motion: reduce) {
   .shell.ready { transition: none; }
   .view { transition: none; }
+  .root.gliding { transition: none; }
 }
 `;
 
   const ICON = '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.8v8.4M4.6 7l3.4 3.4L11.4 7M2.2 13.4h11.6"/></svg>';
+  const GRIP = '<svg class="grip" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><circle cx="3" cy="2.5" r="1"/><circle cx="9" cy="2.5" r="1"/><circle cx="3" cy="6" r="1"/><circle cx="9" cy="6" r="1"/><circle cx="3" cy="9.5" r="1"/><circle cx="9" cy="9.5" r="1"/></svg>';
 
   const FORMATS = [
     { id: 'epub', label: 'EPUB', hint: 'для Send to Kindle' },
@@ -137,7 +194,18 @@
     { id: 'txt', label: 'TXT', hint: 'просто текст' },
   ];
 
-  function create({ siteName, defaultFormat, onDownload }) {
+  /** Углы окна: первая буква — верх/низ, вторая — лево/право. */
+  const CORNERS = ['br', 'bl', 'tr', 'tl'];
+  /** Сколько нужно увести палец, чтобы это считалось переносом, а не нажатием. */
+  const DRAG_START = 7;
+  /** Плашка не уезжает за край окна: столько её краю остаётся до границы. */
+  const KEEP_IN = 8;
+
+  function normalizeCorner(value) {
+    return CORNERS.indexOf(value) >= 0 ? value : 'br';
+  }
+
+  function create({ siteName, defaultFormat, corner, onCornerChange, onDownload }) {
     const host = document.createElement('div');
     host.id = 'virebook-root';
     const shadow = host.attachShadow({ mode: 'open' });
@@ -150,6 +218,14 @@
     canvas.className = 'glass';
     const shell = document.createElement('div');
     shell.className = 'shell';
+    const clipEl = document.createElement('div');
+    clipEl.className = 'clip';
+    const refractEl = document.createElement('div');
+    refractEl.className = 'refract';
+    clipEl.append(refractEl);
+    const tintEl = document.createElement('div');
+    tintEl.className = 'tint';
+    shell.append(clipEl, tintEl);
     rootEl.append(canvas, shell);
 
     // Фильтр преломления живёт в теневом дереве: url(#…) в backdrop-filter
@@ -161,9 +237,15 @@
     svg.style.position = 'absolute';
     const filterEl = document.createElementNS(SVGNS, 'filter');
     filterEl.setAttribute('id', 'vg-refract');
-    // Область — ровно по боксу. С запасом backdrop-filter выплёскивает отфильтрованный
-    // фон за границы элемента, и мимо скруглённой формы виден прямоугольный ореол.
-    // Полосу нетронутого края закрывает нейтральная заливка ниже, а не запас области.
+    // sRGB обязателен. По умолчанию SVG считает фильтр в linearRGB, и тогда
+    // нейтральная середина карты (128) приезжает в шейдер как 55 — а это сдвиг
+    // на треть шкалы, то есть ВЕСЬ задник под плашкой уезжает по диагонали на
+    // ~9 px и у кромки затягивает то, что лежит снаружи. Тот же linearRGB
+    // высветляет рассеяние: над тёмной страницей плашка светилась.
+    filterEl.setAttribute('color-interpolation-filters', 'sRGB');
+    // Область — ровно по боксу СЛОЯ преломления, а он шире листа на --slack.
+    // Запас нужен гауссу и смещению, а прямоугольный выплеск за форму срезает
+    // клип оболочки (см. .refract в CSS).
     filterEl.setAttribute('filterUnits', 'objectBoundingBox');
     filterEl.setAttribute('x', '0');
     filterEl.setAttribute('y', '0');
@@ -177,8 +259,6 @@
     const feImage = document.createElementNS(SVGNS, 'feImage');
     feImage.setAttribute('result', 'shape');
     feImage.setAttribute('preserveAspectRatio', 'none');
-    feImage.setAttribute('x', '0');
-    feImage.setAttribute('y', '0');
     const merge = document.createElementNS(SVGNS, 'feMerge');
     merge.setAttribute('result', 'map');
     for (const src of ['flat', 'shape']) {
@@ -202,25 +282,59 @@
     svg.append(filterEl);
     shadow.append(style, svg, rootEl);
 
+    /** Запас слоя преломления, тот же, что в токене --slack. */
+    const SLACK = 40;
     // Габарит самой крупной формы: канвас ставится под неё один раз и дальше не
     // пересоздаётся — во время морфинга размер меняется каждый кадр.
     const MAX_W = 280;
     const MAX_H = 240;
     let glass = null;
     try {
-      if (typeof FKGlass !== 'undefined') {
-        glass = FKGlass.createGlassSurface(canvas, MAX_W, MAX_H);
-        canvas.style.right = -glass.pad + 'px';
-        canvas.style.bottom = -glass.pad + 'px';
+      if (typeof VireBookGlass !== 'undefined') {
+        glass = VireBookGlass.createGlassSurface(canvas, MAX_W, MAX_H);
       }
     } catch {
       glass = null;
     }
     if (!glass) {
       canvas.remove();
+      clipEl.remove();
+      tintEl.remove();
       shell.classList.add('flat');
     }
-    if (glass) window.__FK_GLASS__ = glass;
+    if (glass) window.__VIREBOOK_GLASS__ = glass;
+
+    let at = normalizeCorner(corner);
+
+    /** Канвас прижат к тому же углу, что и сам виджет: деталь в нём переезжает,
+     *  а он остаётся на месте — resize пересоздаёт текстуры. */
+    function placeCanvas() {
+      if (!glass) return;
+      const off = -glass.pad + 'px';
+      canvas.style.left = at[1] === 'l' ? off : '';
+      canvas.style.right = at[1] === 'r' ? off : '';
+      canvas.style.top = at[0] === 't' ? off : '';
+      canvas.style.bottom = at[0] === 'b' ? off : '';
+    }
+
+    function applyCorner() {
+      rootEl.classList.toggle('x-right', at[1] === 'r');
+      rootEl.classList.toggle('x-left', at[1] === 'l');
+      rootEl.classList.toggle('y-bottom', at[0] === 'b');
+      rootEl.classList.toggle('y-top', at[0] === 't');
+      placeCanvas();
+      // Канвас переехал сразу, а деталь в нём — только со следующим кадром:
+      // без этого одного кадра тень и фаска видны сдвинутыми от листа.
+      if (glass && shell.offsetWidth) {
+        glass.draw(
+          shell.offsetWidth,
+          shell.offsetHeight,
+          parseFloat(getComputedStyle(shell).borderTopLeftRadius) || 0,
+          at
+        );
+      }
+    }
+    applyCorner();
 
     /** Материал разводит свою светлоту со светлотой фона, поэтому ему нужен цвет
      *  страницы под виджетом, а не «чёрное по умолчанию». */
@@ -234,6 +348,7 @@
     }
 
     let painting = 0;
+    let paintUntil = 0;
     let lastSpread = -1;
     /** Радиус листа — тот же, что в токене --r-sheet. */
     const SHEET_RADIUS = 26;
@@ -241,35 +356,39 @@
      *  покадрово, поэтому цикл один: идёт до срока и пока деталь не успокоится. */
     function paintGlass(until) {
       if (!glass) return;
-      const deadline = until || performance.now();
+      // Срок только отодвигается: короткий вызов посреди длинного не должен
+      // обрывать уже начатую доводку.
+      paintUntil = Math.max(paintUntil, until || performance.now());
+      if (painting) return;
       const frame = () => {
+        painting = 0;
         const w = shell.offsetWidth;
         const h = shell.offsetHeight;
         if (w && h) {
           const r = parseFloat(getComputedStyle(shell).borderTopLeftRadius) || 0;
-          const out = glass.draw(w, h, r);
+          const out = glass.draw(w, h, r, at);
           rootEl.classList.toggle('ink-dark', !out.inkLight);
-          shell.style.background = out.body;
+          tintEl.style.background = out.body;
+          // Карта — растр под целевую форму, но лист во время морфинга ещё едет.
+          // Тянем её за живым габаритом: поле гладкое, растяжение незаметно, зато
+          // фаска всё время приклеена к настоящей кромке.
+          fitMap(w, h);
         }
-        if (performance.now() < deadline || !glass.idle() || !glass.settled()) {
+        if (performance.now() < paintUntil || !glass.idle() || !glass.settled()) {
           painting = requestAnimationFrame(frame);
-        } else {
-          painting = 0;
-          if (w && h) {
-            // Карта смещений — растр: строим её на устоявшейся форме, а не каждый кадр.
-            refract(w, h, parseFloat(getComputedStyle(shell).borderTopLeftRadius) || 0);
-            // Пестрота считается обходом точек — тоже по устоявшейся форме. Перерисовка
-            // только если она заметно изменилась, иначе цикл сам себя будит.
-            const next = pageSpread();
-            if (Math.abs(next - lastSpread) > 0.05) {
-              lastSpread = next;
-              glass.setSpread(next);
-              paintGlass(performance.now() + 500);
-            }
+        } else if (w && h) {
+          // Карта смещений — растр: строим её на устоявшейся форме, а не каждый кадр.
+          refract(w, h, parseFloat(getComputedStyle(shell).borderTopLeftRadius) || 0);
+          // Пестрота считается обходом точек — тоже по устоявшейся форме. Перерисовка
+          // только если она заметно изменилась, иначе цикл сам себя будит.
+          const next = pageSpread();
+          if (Math.abs(next - lastSpread) > 0.05) {
+            lastSpread = next;
+            glass.setSpread(next);
+            paintGlass(performance.now() + 500);
           }
         }
       };
-      if (painting) cancelAnimationFrame(painting);
       painting = requestAnimationFrame(frame);
     }
 
@@ -315,7 +434,8 @@
     function refreshBackdrop() {
       if (!glass) return;
       glass.setBackdropColor(pageBackdrop());
-      glass.setSpread(pageSpread());
+      lastSpread = pageSpread();
+      glass.setSpread(lastSpread);
       paintGlass(performance.now() + 900);
     }
 
@@ -323,26 +443,36 @@
     // Построение карты — это цикл по пикселям плюс кодирование PNG, и оно
     // синхронное. Формы у виджета наперечёт, поэтому считаем каждую один раз.
     const mapCache = new Map();
+    /** Карта лежит в системе координат слоя преломления, а он шире листа на запас:
+     *  сам лист начинается на SLACK от его угла. */
+    function fitMap(w, h) {
+      feImage.setAttribute('x', String(SLACK));
+      feImage.setAttribute('y', String(SLACK));
+      feImage.setAttribute('width', String(w));
+      feImage.setAttribute('height', String(h));
+    }
     /** Преломление живого DOM: карту и величину сдвига считает ядро, применяет
      *  backdrop-filter. Пересчёт только на смену формы — это растр. */
     function refract(w, h, r) {
-      if (!glass || !filterEl) return;
+      if (!glass) return;
       const key = w + 'x' + h + 'r' + Math.round(r);
       if (key === mapFor) return;
       mapFor = key;
       let out = mapCache.get(key);
       if (!out) {
         out = glass.refraction(w, h, r);
+        // Форм у виджета единицы, но у страницы бывает свой зум и своя ширина:
+        // кэш не должен расти без края.
+        if (mapCache.size > 24) mapCache.clear();
         mapCache.set(key, out);
       }
       if (!out.map) return;
       feImage.setAttribute('href', out.map);
-      feImage.setAttribute('width', String(w));
-      feImage.setAttribute('height', String(h));
+      fitMap(w, h);
       feDisp.setAttribute('scale', out.scale.toFixed(2));
       blurEl.setAttribute('stdDeviation', (out.blur / 2).toFixed(2));
-      shell.style.backdropFilter = 'url(#vg-refract)';
-      shell.style.webkitBackdropFilter = 'url(#vg-refract)';
+      refractEl.style.backdropFilter = 'url(#vg-refract)';
+      refractEl.style.webkitBackdropFilter = 'url(#vg-refract)';
     }
 
     let controller = null;
@@ -365,6 +495,131 @@
       return size;
     }
 
+    // ── Перенос плашки ───────────────────────────────────────────────────────
+    // Под виджетом лежит текст главы, и какой угол свободен — знает только
+    // читатель. Плашку ведут пальцем и отпускают: она уходит в ближайший угол.
+
+    /** Ближайший угол — по тому, в какой четверти окна оказалась середина листа. */
+    function nearestCorner(box) {
+      const cx = box.left + box.width / 2;
+      const cy = box.top + box.height / 2;
+      return (cy < innerHeight / 2 ? 't' : 'b') + (cx < innerWidth / 2 ? 'l' : 'r');
+    }
+
+    /** Переезд в угол. Лист уже нарисован там, где его отпустили, поэтому сначала
+     *  меняем угол, а потом сдвигом возвращаем его на прежнее место и отпускаем
+     *  сдвиг: иначе он телепортируется. */
+    function moveTo(next, animate) {
+      const target = normalizeCorner(next);
+      const before = shell.getBoundingClientRect();
+      at = target;
+      applyCorner();
+      rootEl.classList.remove('gliding');
+      rootEl.style.transform = '';
+      const after = shell.getBoundingClientRect();
+      const dx = before.left - after.left;
+      const dy = before.top - after.top;
+      if (animate && (dx || dy)) {
+        rootEl.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+        requestAnimationFrame(() => {
+          rootEl.classList.add('gliding');
+          rootEl.style.transform = '';
+        });
+      }
+      if (onCornerChange) onCornerChange(at);
+      // Под новым углом другой фон: и плотность тела, и полярность надписи.
+      refreshBackdrop();
+    }
+
+    /** Соседний угол в заданную сторону; если в эту сторону ехать некуда — остаёмся. */
+    function step(dir) {
+      const y = at[0];
+      const x = at[1];
+      if (dir === 'left') return moveTo(y + 'l', true);
+      if (dir === 'right') return moveTo(y + 'r', true);
+      if (dir === 'up') return moveTo('t' + x, true);
+      return moveTo('b' + x, true);
+    }
+
+    let drag = null;
+    let dragged = false;
+
+    shell.addEventListener('pointerdown', (e) => {
+      if (e.button !== undefined && e.button !== 0) return;
+      // Прошлый бросок мог закончиться без клика — флаг не должен дожить до
+      // следующего нажатия и съесть его.
+      dragged = false;
+      const box = shell.getBoundingClientRect();
+      drag = { x: e.clientX, y: e.clientY, box, moving: false };
+      if (glass) {
+        glass.grab(e.clientX - (box.left + box.width / 2), e.clientY - (box.top + box.height / 2));
+        paintGlass();
+      }
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      const dx = e.clientX - drag.x;
+      const dy = e.clientY - drag.y;
+      if (!drag.moving) {
+        if (Math.hypot(dx, dy) < DRAG_START) {
+          // Ещё нажатие, а не перенос: стекло тянется за пальцем, но не едет.
+          if (glass) glass.drag(dx, dy);
+          return;
+        }
+        drag.moving = true;
+        dragged = true;
+        rootEl.classList.remove('gliding');
+        rootEl.classList.add('dragging');
+        // Плашка оторвалась от пальца как орган управления и поехала как
+        // предмет — деформацию на это время отпускаем.
+        if (glass) glass.release();
+      }
+      const b = drag.box;
+      const mx = Math.min(Math.max(dx, KEEP_IN - b.left), innerWidth - KEEP_IN - b.right);
+      const my = Math.min(Math.max(dy, KEEP_IN - b.top), innerHeight - KEEP_IN - b.bottom);
+      rootEl.style.transform = 'translate(' + mx + 'px,' + my + 'px)';
+      if (glass) paintGlass();
+    });
+
+    const letGo = () => {
+      if (!drag) return;
+      const moving = drag.moving;
+      drag = null;
+      if (glass) glass.release();
+      if (moving) {
+        rootEl.classList.remove('dragging');
+        moveTo(nearestCorner(shell.getBoundingClientRect()), true);
+      } else if (glass) {
+        paintGlass();
+      }
+    };
+    window.addEventListener('pointerup', letGo);
+    window.addEventListener('pointercancel', letGo);
+
+    // Отпустили после переноса — это не нажатие: иначе бросок плашки открывал
+    // бы меню, а бросок из меню начинал бы скачивание.
+    rootEl.addEventListener(
+      'click',
+      (e) => {
+        if (!dragged) return;
+        dragged = false;
+        e.stopPropagation();
+        e.preventDefault();
+      },
+      true
+    );
+
+    // Alt+стрелки — то же самое с клавиатуры. Простые стрелки заняты списком
+    // форматов, и отнимать их у него нельзя.
+    rootEl.addEventListener('keydown', (e) => {
+      if (!e.altKey) return;
+      const dir = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' }[e.key];
+      if (!dir) return;
+      e.preventDefault();
+      step(dir);
+    });
+
     // Материал снимает фон только когда рисует, а рисует он во время морфинга.
     // Смена темы или размера окна меняет фон под деталью вне этих окон.
     if (glass) {
@@ -380,27 +635,6 @@
       } catch {
         /* старый Safari-стиль API — не критично, виджет живёт в Chromium */
       }
-
-      // Деформация — часть материала: пружины считает ядро, отсюда только жест.
-      let from = null;
-      shell.addEventListener('pointerdown', (e) => {
-        const box = shell.getBoundingClientRect();
-        glass.grab(e.clientX - (box.left + box.width / 2), e.clientY - (box.top + box.height / 2));
-        from = { x: e.clientX, y: e.clientY };
-        paintGlass();
-      });
-      window.addEventListener('pointermove', (e) => {
-        if (!from) return;
-        glass.drag(e.clientX - from.x, e.clientY - from.y);
-      });
-      const letGo = () => {
-        if (!from) return;
-        from = null;
-        glass.release();
-        paintGlass();
-      };
-      window.addEventListener('pointerup', letGo);
-      window.addEventListener('pointercancel', letGo);
     }
 
     // Панель закрывается кликом мимо и Escape. Во время скачивания не закрываем:
@@ -416,19 +650,21 @@
       true
     );
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && closable()) renderIdle();
+      if (e.key === 'Escape' && closable()) renderIdle(true);
     });
 
-    let mountFrames = 0;
+    let mountTries = 0;
     /** create() зовут до вставки в документ, а габарит меряется только в
-     *  разложенном дереве: до вставки он нулевой и панель схлопывается. */
+     *  разложенном дереве: до вставки он нулевой и панель схлопывается.
+     *  Ждём таймером, а не кадром: во вкладке, открытой в фоне, кадров нет
+     *  вовсе — по rAF виджет не появлялся бы до первого показа. */
     function firstRender() {
       if (host.isConnected) {
         renderIdle();
         refreshBackdrop();
         return;
       }
-      if (mountFrames++ < 240) requestAnimationFrame(firstRender);
+      if (mountTries++ < 120) setTimeout(firstRender, 32);
     }
 
     /** Морфинг: форма одна и та же, она меняет габарит и радиус, а содержимое
@@ -451,10 +687,10 @@
       // после — это и читается как «сначала не то, потом дёрнулось».
       if (glass) {
         const now = shell.getBoundingClientRect();
-        const right = now.right || window.innerWidth - 18;
-        const bottom = now.bottom || window.innerHeight - 18;
-        const target = { left: right - w, top: bottom - h, width: w, height: h };
-        lastSpread = pageSpread(target);
+        // Лист растёт из прижатого угла — от него и считаем целевой прямоугольник.
+        const left = at[1] === 'l' ? now.left : (now.right || innerWidth - 18) - w;
+        const top = at[0] === 't' ? now.top : (now.bottom || innerHeight - 18) - h;
+        lastSpread = pageSpread({ left, top, width: w, height: h });
         glass.setSpread(lastSpread);
         refract(w, h, pill ? h / 2 : SHEET_RADIUS);
       }
@@ -476,14 +712,20 @@
       return next;
     }
 
-    function renderIdle() {
+    function renderIdle(focus) {
       settled = true;
       mode = 'idle';
       const fab = document.createElement('button');
       fab.className = 'fab';
+      fab.type = 'button';
+      fab.title = 'Скачать книгу. Перетащить — в любой угол, Alt+стрелки — то же с клавиатуры';
+      fab.setAttribute('aria-haspopup', 'menu');
+      fab.setAttribute('aria-expanded', 'false');
       fab.innerHTML = ICON + '<span>Скачать книгу</span>';
-      fab.addEventListener('click', renderMenu);
+      fab.addEventListener('click', () => renderMenu());
       setView(fab, true);
+      // Возврат по Escape не должен терять фокус посреди страницы.
+      if (focus) fab.focus();
     }
 
     function renderMenu() {
@@ -493,9 +735,15 @@
       panel.className = 'panel';
       const head = document.createElement('div');
       head.className = 'head';
-      head.textContent = siteName;
+      head.title = 'Потянуть — перенести плашку в другой угол';
+      const site = document.createElement('span');
+      site.className = 'site';
+      site.textContent = siteName;
+      head.append(site);
+      head.insertAdjacentHTML('beforeend', GRIP);
       const list = document.createElement('div');
       list.className = 'fmt';
+      list.setAttribute('role', 'menu');
 
       const ordered = FORMATS.slice().sort((a, b) => {
         if (a.id === defaultFormat) return -1;
@@ -504,10 +752,22 @@
       });
       for (const f of ordered) {
         const b = document.createElement('button');
+        b.type = 'button';
+        b.setAttribute('role', 'menuitem');
         b.innerHTML = '<span>' + f.label + '</span><span class="hint">' + f.hint + '</span>';
         b.addEventListener('click', () => start(f.id));
         list.append(b);
       }
+      // Список — меню: стрелки ходят по пунктам, а не скроллят страницу под ним.
+      list.addEventListener('keydown', (e) => {
+        if (e.altKey) return;
+        const delta = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
+        if (!delta) return;
+        e.preventDefault();
+        const items = [...list.querySelectorAll('button')];
+        const i = items.indexOf(shadow.activeElement);
+        items[(i + delta + items.length) % items.length].focus();
+      });
       panel.append(head, list);
       setView(panel, false);
       const first = list.querySelector('button');
@@ -521,6 +781,7 @@
       wrap.className = 'pad';
       const label = document.createElement('div');
       label.className = 'label';
+      label.setAttribute('role', 'status');
       label.textContent = 'Начинаю…';
       const bar = document.createElement('div');
       bar.className = 'bar';
@@ -530,10 +791,11 @@
       row.className = 'row';
       const cancel = document.createElement('button');
       cancel.className = 'link';
+      cancel.type = 'button';
       cancel.textContent = 'Отменить';
       cancel.addEventListener('click', () => {
         if (controller) controller.abort();
-        renderIdle();
+        renderIdle(true);
       });
       row.append(cancel);
       wrap.append(label, bar, row);
@@ -548,6 +810,7 @@
       wrap.className = 'pad';
       const msg = document.createElement('div');
       msg.className = error ? 'err' : 'label ok';
+      msg.setAttribute('role', 'status');
       msg.textContent = error ? 'Не получилось: ' + error : 'Готово: ' + filename;
       if (!error && note) {
         const warn = document.createElement('span');
@@ -559,8 +822,9 @@
       row.className = 'row';
       const again = document.createElement('button');
       again.className = 'link';
+      again.type = 'button';
       again.textContent = error ? 'Попробовать другой формат' : 'Скачать ещё';
-      again.addEventListener('click', renderMenu);
+      again.addEventListener('click', () => renderMenu());
       row.append(again);
       wrap.append(msg, row);
       setView(wrap, false);
@@ -590,9 +854,9 @@
     }
 
     firstRender();
-    return { host, renderMenu, start };
+    return { host, renderMenu, start, moveTo: (next) => moveTo(next, true), corner: () => at };
   }
 
-  FK.ui = { create, FORMATS };
-  return FK;
+  VireBook.ui = { create, FORMATS, CORNERS };
+  return VireBook;
 });

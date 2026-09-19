@@ -4,13 +4,13 @@
 // сперва с плейсхолдерами фиксированной ширины, потом они заменяются на смещения
 // (длина не меняется, так что сами смещения остаются верными).
 (function (root, factory) {
-  const FK = (root.FK = root.FK || {});
-  factory(FK);
-  if (typeof module !== 'undefined' && module.exports) module.exports = FK;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (FK) {
+  const VireBook = (root.VireBook = root.VireBook || {});
+  factory(VireBook);
+  if (typeof module !== 'undefined' && module.exports) module.exports = VireBook;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (VireBook) {
   const RECORD_SIZE = 4096;
   const enc = new TextEncoder();
-  const esc = (s) => FK.html.escapeText(String(s == null ? '' : s));
+  const esc = (s) => VireBook.html.escapeText(String(s == null ? '' : s));
 
   class Writer {
     constructor(size) {
@@ -333,6 +333,6 @@
     return new Blob([header.buf, ...records], { type: 'application/x-mobipocket-ebook' });
   }
 
-  FK.mobi = { build: buildMobi, palmDocCompress, buildHtml, patchFilepos };
-  return FK;
+  VireBook.mobi = { build: buildMobi, palmDocCompress, buildHtml, patchFilepos };
+  return VireBook;
 });

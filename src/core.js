@@ -1,14 +1,14 @@
 // Оркестратор: выбрать адаптер, собрать книгу, отдать файл.
 (function (root, factory) {
-  const FK = (root.FK = root.FK || {});
-  factory(FK);
-  if (typeof module !== 'undefined' && module.exports) module.exports = FK;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (FK) {
+  const VireBook = (root.VireBook = root.VireBook || {});
+  factory(VireBook);
+  if (typeof module !== 'undefined' && module.exports) module.exports = VireBook;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (VireBook) {
   const ORDER = ['ficbook', 'ao3', 'fanficsme', 'ffnet', 'wattpad', 'royalroad'];
 
   function resolveAdapter(url) {
     for (const id of ORDER) {
-      const a = FK.adapters[id];
+      const a = VireBook.adapters[id];
       if (!a) continue;
       try {
         if (a.match(url)) return a;
@@ -16,7 +16,7 @@
         /* битый URL — просто идём дальше */
       }
     }
-    return FK.adapters.generic;
+    return VireBook.adapters.generic;
   }
 
   const RETRY_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
@@ -42,7 +42,7 @@
   function makeContext({ progress, signal, pacing }) {
     const parser = new DOMParser();
     const report = progress || (() => {});
-    const limiter = FK.util.createRateLimiter({
+    const limiter = VireBook.util.createRateLimiter({
       interval: (pacing && pacing.interval) || 600,
       maxInterval: (pacing && pacing.maxInterval) || 15000,
     });
@@ -50,20 +50,20 @@
     const aborted = () => Boolean(signal && signal.aborted);
 
     async function pause(attempt, floor, status) {
-      const delay = FK.util.backoffDelay(attempt, { floor, max: MAX_WAIT });
+      const delay = VireBook.util.backoffDelay(attempt, { floor, max: MAX_WAIT });
       // Иначе на длинной паузе панель замирает на «Скачано глав: 3 из 40»
       // и выглядит зависшей.
       if (SLOW_DOWN.has(status)) {
         report(`Сайт просит сбавить темп — продолжу через ${Math.ceil(delay / 1000)} с…`);
       }
-      await FK.util.sleep(delay, signal);
+      await VireBook.util.sleep(delay, signal);
     }
 
     async function request(url) {
       let last = null;
       for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
         await limiter.acquire(signal);
-        if (aborted()) throw FK.util.abortError();
+        if (aborted()) throw VireBook.util.abortError();
 
         let res;
         try {
@@ -82,7 +82,7 @@
         }
         if (!RETRY_STATUS.has(res.status)) throw netError(httpMessage(res.status));
 
-        const floor = Math.min(MAX_WAIT, FK.util.parseRetryAfter(res.headers.get('Retry-After')));
+        const floor = Math.min(MAX_WAIT, VireBook.util.parseRetryAfter(res.headers.get('Retry-After')));
         last = netError(httpMessage(res.status));
         limiter.penalize(floor);
         if (attempt < MAX_ATTEMPTS - 1) await pause(attempt, floor, res.status);
@@ -110,10 +110,10 @@
   }
 
   const BUILDERS = {
-    epub: { build: (b) => FK.epub.build(b), ext: 'epub' },
-    mobi: { build: (b) => FK.mobi.build(b), ext: 'mobi' },
-    fb2: { build: (b) => FK.fb2.build(b), ext: 'fb2' },
-    txt: { build: (b) => FK.txt.build(b), ext: 'txt' },
+    epub: { build: (b) => VireBook.epub.build(b), ext: 'epub' },
+    mobi: { build: (b) => VireBook.mobi.build(b), ext: 'mobi' },
+    fb2: { build: (b) => VireBook.fb2.build(b), ext: 'fb2' },
+    txt: { build: (b) => VireBook.txt.build(b), ext: 'txt' },
   };
 
   async function buildBook({ doc, url, format, progress, signal }) {
@@ -130,7 +130,7 @@
       // внятное «сайт ограничил частоту» на «не нашёл текста».
       if (adapter.id === 'generic' || err.network || err.name === 'AbortError') throw err;
       progress('Разметка не совпала, пробую универсальный разбор…', 5);
-      book = await FK.adapters.generic.parse(doc, url, ctx);
+      book = await VireBook.adapters.generic.parse(doc, url, ctx);
     }
 
     if (!book.chapters.length) throw new Error('Не нашёл ни одной главы с текстом');
@@ -148,7 +148,7 @@
     const builder = BUILDERS[format] || BUILDERS.epub;
     progress(`Собираю ${builder.ext.toUpperCase()} (${book.chapters.length} гл.)…`, 90);
     const blob = await builder.build(book);
-    const filename = FK.util.safeFilename(
+    const filename = VireBook.util.safeFilename(
       book.author ? `${book.title} — ${book.author}` : book.title,
       builder.ext
     );
@@ -171,6 +171,6 @@
     }, 20000);
   }
 
-  FK.core = { resolveAdapter, buildBook, saveBlob, makeContext, BUILDERS };
-  return FK;
+  VireBook.core = { resolveAdapter, buildBook, saveBlob, makeContext, BUILDERS };
+  return VireBook;
 });

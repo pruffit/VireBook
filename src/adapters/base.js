@@ -1,12 +1,12 @@
 // Общее для адаптеров. Каждое поле берётся списком кандидатов, а не одним
 // селектором: сайты фанфиков переверстывают шапку чаще, чем тело главы.
 (function (root, factory) {
-  const FK = (root.FK = root.FK || {});
-  FK.adapters = FK.adapters || {};
-  factory(FK);
-  if (typeof module !== 'undefined' && module.exports) module.exports = FK;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (FK) {
-  const norm = (s) => FK.util.normalizeSpace(s);
+  const VireBook = (root.VireBook = root.VireBook || {});
+  VireBook.adapters = VireBook.adapters || {};
+  factory(VireBook);
+  if (typeof module !== 'undefined' && module.exports) module.exports = VireBook;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (VireBook) {
+  const norm = (s) => VireBook.util.normalizeSpace(s);
 
   function pick(doc, selectors) {
     for (const sel of selectors) {
@@ -69,7 +69,7 @@
     let best = null;
     let bestScore = 0;
     for (const el of candidates) {
-      if (FK.html.isNoise(el)) continue;
+      if (VireBook.html.isNoise(el)) continue;
       const text = el.textContent || '';
       if (text.length < 400) continue;
       const paragraphs = el.querySelectorAll('p, br').length;
@@ -98,16 +98,16 @@
         title: 'Фанфик',
         author: '',
         tags: [],
-        language: FK.util.detectLanguage(`${book.title || ''} ${sampleText}`),
-        uuid: FK.util.uuid(),
+        language: VireBook.util.detectLanguage(`${book.title || ''} ${sampleText}`),
+        uuid: VireBook.util.uuid(),
       },
       book,
       { chapters }
     );
   }
 
-  FK.adapters.base = {
+  VireBook.adapters.base = {
     pick, pickText, pickAll, textList, metaContent, linkDensity, findMainContent, finalize, norm,
   };
-  return FK;
+  return VireBook;
 });

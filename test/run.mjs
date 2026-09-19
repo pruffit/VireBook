@@ -12,7 +12,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 for (const f of ['util', 'zip', 'html', 'epub', 'mobi', 'fb2', 'txt']) {
   require(join(ROOT, 'src', 'lib', `${f}.js`));
 }
-const FK = globalThis.FK;
+const VireBook = globalThis.VireBook;
 
 let passed = 0;
 const failures = [];
@@ -150,19 +150,19 @@ const toBuf = async (blob) => Buffer.from(await blob.arrayBuffer());
 // ================= тесты =================
 
 check('util.safeFilename убирает запрещённые символы', () => {
-  const name = FK.util.safeFilename('Имя: с/плохими\\символами?*', 'epub');
+  const name = VireBook.util.safeFilename('Имя: с/плохими\\символами?*', 'epub');
   assert(!/[\\/:*?"<>|]/.test(name), `осталось запрещённое: ${name}`);
   assert(name.endsWith('.epub'), 'нет расширения');
 });
 
 check('util.detectLanguage различает ru и en', () => {
-  assertEq(FK.util.detectLanguage('Привет, это русский текст'), 'ru', 'ru');
-  assertEq(FK.util.detectLanguage('Hello this is english text'), 'en', 'en');
+  assertEq(VireBook.util.detectLanguage('Привет, это русский текст'), 'ru', 'ru');
+  assertEq(VireBook.util.detectLanguage('Hello this is english text'), 'en', 'en');
 });
 
 await checkAsync('ограничитель разносит параллельные запросы, а не пускает пачкой', async () => {
   const STEP = 50;
-  const limiter = FK.util.createRateLimiter({ interval: STEP });
+  const limiter = VireBook.util.createRateLimiter({ interval: STEP });
   const at = [];
   // Именно этот случай ломал прежний throttle: воркеры читали «время прошлого
   // запроса» в одном тике, все видели одно значение и стартовали разом.
@@ -183,7 +183,7 @@ await checkAsync('ограничитель разносит параллельн
 });
 
 check('ограничитель растягивает шаг после 429 и возвращается после серии удач', () => {
-  const limiter = FK.util.createRateLimiter({ interval: 100, maxInterval: 800 });
+  const limiter = VireBook.util.createRateLimiter({ interval: 100, maxInterval: 800 });
   assertEq(limiter.interval, 100, 'стартовый шаг');
   limiter.penalize(0);
   assertEq(limiter.interval, 200, 'после первого 429 шаг должен удвоиться');
@@ -199,24 +199,24 @@ check('ограничитель растягивает шаг после 429 и 
 
 check('parseRetryAfter понимает и секунды, и HTTP-дату', () => {
   const now = Date.parse('2026-09-15T12:00:00Z');
-  assertEq(FK.util.parseRetryAfter('30', now), 30000, 'секунды');
-  assertEq(FK.util.parseRetryAfter('  7 ', now), 7000, 'секунды с пробелами');
-  assertEq(FK.util.parseRetryAfter('Tue, 15 Sep 2026 12:00:45 GMT', now), 45000, 'HTTP-дата');
-  assertEq(FK.util.parseRetryAfter('Tue, 15 Sep 2026 11:59:00 GMT', now), 0, 'дата в прошлом — без ожидания');
-  assertEq(FK.util.parseRetryAfter('', now), 0, 'пусто');
-  assertEq(FK.util.parseRetryAfter(null, now), 0, 'нет заголовка');
-  assertEq(FK.util.parseRetryAfter('скоро', now), 0, 'мусор не ломает разбор');
+  assertEq(VireBook.util.parseRetryAfter('30', now), 30000, 'секунды');
+  assertEq(VireBook.util.parseRetryAfter('  7 ', now), 7000, 'секунды с пробелами');
+  assertEq(VireBook.util.parseRetryAfter('Tue, 15 Sep 2026 12:00:45 GMT', now), 45000, 'HTTP-дата');
+  assertEq(VireBook.util.parseRetryAfter('Tue, 15 Sep 2026 11:59:00 GMT', now), 0, 'дата в прошлом — без ожидания');
+  assertEq(VireBook.util.parseRetryAfter('', now), 0, 'пусто');
+  assertEq(VireBook.util.parseRetryAfter(null, now), 0, 'нет заголовка');
+  assertEq(VireBook.util.parseRetryAfter('скоро', now), 0, 'мусор не ломает разбор');
 });
 
 check('backoffDelay растёт с джиттером, уважает Retry-After и потолок', () => {
   const lo = { random: () => 0 };
   const hi = { random: () => 1 };
-  assertEq(FK.util.backoffDelay(0, { base: 1000, ...lo }), 500, 'нижняя граница джиттера');
-  assertEq(FK.util.backoffDelay(0, { base: 1000, ...hi }), 1000, 'верхняя граница джиттера');
-  assertEq(FK.util.backoffDelay(3, { base: 1000, ...hi }), 8000, 'экспонента');
-  assertEq(FK.util.backoffDelay(9, { base: 1000, max: 4000, ...hi }), 4000, 'потолок');
-  assertEq(FK.util.backoffDelay(0, { base: 1000, floor: 9000, ...hi }), 9000, 'Retry-After как нижняя граница');
-  const spread = new Set([0.1, 0.4, 0.9].map((r) => FK.util.backoffDelay(2, { base: 1000, random: () => r })));
+  assertEq(VireBook.util.backoffDelay(0, { base: 1000, ...lo }), 500, 'нижняя граница джиттера');
+  assertEq(VireBook.util.backoffDelay(0, { base: 1000, ...hi }), 1000, 'верхняя граница джиттера');
+  assertEq(VireBook.util.backoffDelay(3, { base: 1000, ...hi }), 8000, 'экспонента');
+  assertEq(VireBook.util.backoffDelay(9, { base: 1000, max: 4000, ...hi }), 4000, 'потолок');
+  assertEq(VireBook.util.backoffDelay(0, { base: 1000, floor: 9000, ...hi }), 9000, 'Retry-After как нижняя граница');
+  const spread = new Set([0.1, 0.4, 0.9].map((r) => VireBook.util.backoffDelay(2, { base: 1000, random: () => r })));
   assertEq(spread.size, 3, 'джиттер обязан разносить воркеров');
 });
 
@@ -226,7 +226,7 @@ await checkAsync('sleep прерывается по сигналу отмены'
   setTimeout(() => ac.abort(), 20);
   let name = '';
   try {
-    await FK.util.sleep(5000, ac.signal);
+    await VireBook.util.sleep(5000, ac.signal);
   } catch (err) {
     name = err.name;
   }
@@ -236,14 +236,14 @@ await checkAsync('sleep прерывается по сигналу отмены'
 
 check('palmDoc round-trip на кириллице', () => {
   const text = Buffer.from(('Дождь шёл третий день подряд. ' + CH1).repeat(8), 'utf8');
-  const packed = FK.mobi.palmDocCompress(new Uint8Array(text));
+  const packed = VireBook.mobi.palmDocCompress(new Uint8Array(text));
   const back = palmDocDecompress(packed);
   assert(back.equals(text), 'распакованное не совпало с исходным');
 });
 
 check('palmDoc round-trip на латинице с повторами', () => {
   const text = Buffer.from('abcabcabc '.repeat(200) + 'the quick brown fox '.repeat(50), 'utf8');
-  const packed = FK.mobi.palmDocCompress(new Uint8Array(text));
+  const packed = VireBook.mobi.palmDocCompress(new Uint8Array(text));
   assert(packed.length < text.length / 2, `сжатие не сработало: ${packed.length} из ${text.length}`);
   assert(palmDocDecompress(packed).equals(text), 'round-trip сломан');
 });
@@ -251,12 +251,12 @@ check('palmDoc round-trip на латинице с повторами', () => {
 check('palmDoc round-trip на случайных байтах', () => {
   const text = Buffer.alloc(3000);
   for (let i = 0; i < text.length; i++) text[i] = (i * 2654435761) & 0xff;
-  const packed = FK.mobi.palmDocCompress(new Uint8Array(text));
+  const packed = VireBook.mobi.palmDocCompress(new Uint8Array(text));
   assert(palmDocDecompress(packed).equals(text), 'round-trip сломан на бинарных данных');
 });
 
 await checkAsync('EPUB: структура и обязательные файлы', async () => {
-  const buf = await toBuf(await FK.epub.build(makeBook(3)));
+  const buf = await toBuf(await VireBook.epub.build(makeBook(3)));
   const files = readZip(buf);
 
   const first = [...files.keys()][0];
@@ -273,7 +273,7 @@ await checkAsync('EPUB: структура и обязательные файл�
 });
 
 await checkAsync('EPUB: весь XML корректен и спец-символы экранированы', async () => {
-  const buf = await toBuf(await FK.epub.build(makeBook(2)));
+  const buf = await toBuf(await VireBook.epub.build(makeBook(2)));
   const files = readZip(buf);
   for (const [name, entry] of files) {
     if (!/\.(xhtml|opf|ncx|xml)$/.test(name)) continue;
@@ -285,7 +285,7 @@ await checkAsync('EPUB: весь XML корректен и спец-символ
 });
 
 await checkAsync('EPUB: оглавление перечисляет все главы', async () => {
-  const buf = await toBuf(await FK.epub.build(makeBook(5)));
+  const buf = await toBuf(await VireBook.epub.build(makeBook(5)));
   const files = readZip(buf);
   const nav = files.get('OEBPS/nav.xhtml').bytes.toString('utf8');
   const ncx = files.get('OEBPS/toc.ncx').bytes.toString('utf8');
@@ -298,7 +298,7 @@ await checkAsync('EPUB: оглавление перечисляет все гл�
 
 await checkAsync('MOBI: PalmDB читается и текст восстанавливается', async () => {
   const book = makeBook(4);
-  const buf = await toBuf(FK.mobi.build(book));
+  const buf = await toBuf(VireBook.mobi.build(book));
   const db = readPalmDb(buf);
 
   assertEq(buf.slice(60, 68).toString('latin1'), 'BOOKMOBI', 'сигнатура типа/создателя');
@@ -320,7 +320,7 @@ await checkAsync('MOBI: PalmDB читается и текст восстанав
 });
 
 await checkAsync('MOBI: EXTH и служебные записи на месте', async () => {
-  const buf = await toBuf(FK.mobi.build(makeBook(2)));
+  const buf = await toBuf(VireBook.mobi.build(makeBook(2)));
   const db = readPalmDb(buf);
   const r0 = db.records[0];
 
@@ -349,8 +349,8 @@ await checkAsync('MOBI: EXTH и служебные записи на месте'
 
 check('MOBI: filepos указывает ровно на начало главы', () => {
   const book = makeBook(3);
-  const html = FK.mobi.buildHtml(book);
-  const bytes = FK.mobi.patchFilepos(html, 3);
+  const html = VireBook.mobi.buildHtml(book);
+  const bytes = VireBook.mobi.patchFilepos(html, 3);
   const text = Buffer.from(bytes);
   const str = text.toString('utf8');
 
@@ -374,7 +374,7 @@ check('MOBI: filepos указывает ровно на начало главы'
 });
 
 check('MOBI: самозакрытых тегов в разметке не остаётся', () => {
-  const html = FK.mobi.buildHtml({
+  const html = VireBook.mobi.buildHtml({
     ...makeBook(1),
     chapters: [{ title: 'Глава', xhtml: '<p>Текст<br/>строка</p><hr/><img src="x.jpg" alt=""/>' }],
   });
@@ -384,7 +384,7 @@ check('MOBI: самозакрытых тегов в разметке не ост
 });
 
 await checkAsync('FB2: XML корректен, главы на месте', async () => {
-  const blob = FK.fb2.build(makeBook(3));
+  const blob = VireBook.fb2.build(makeBook(3));
   const xml = (await toBuf(blob)).toString('utf8');
   assertWellFormed(xml, 'fb2');
   assertEq((xml.match(/<section>/g) || []).length, 3, 'секций по числу глав');
@@ -394,7 +394,7 @@ await checkAsync('FB2: XML корректен, главы на месте', asyn
 });
 
 await checkAsync('TXT: BOM, заголовки и текст глав', async () => {
-  const buf = await toBuf(FK.txt.build(makeBook(2)));
+  const buf = await toBuf(VireBook.txt.build(makeBook(2)));
   assertEq(buf.slice(0, 3).toString('hex'), 'efbbbf', 'нет BOM');
   const text = buf.toString('utf8');
   assert(text.includes('Глава 1'), 'нет первой главы');
@@ -405,7 +405,7 @@ await checkAsync('TXT: BOM, заголовки и текст глав', async ()
 
 await checkAsync('ZIP: deflate реально сжимает и CRC считается', async () => {
   const payload = 'повторяющийся текст '.repeat(500);
-  const blob = await FK.zip([{ name: 'a.txt', data: payload }]);
+  const blob = await VireBook.zip([{ name: 'a.txt', data: payload }]);
   const buf = await toBuf(blob);
   const files = readZip(buf);
   assertEq(files.get('a.txt').method, 8, 'должно быть deflate');
@@ -415,8 +415,8 @@ await checkAsync('ZIP: deflate реально сжимает и CRC считае
 
 await checkAsync('Книга на 60 глав собирается во все форматы', async () => {
   const book = makeBook(60);
-  const epub = await toBuf(await FK.epub.build(book));
-  const mobi = await toBuf(FK.mobi.build(book));
+  const epub = await toBuf(await VireBook.epub.build(book));
+  const mobi = await toBuf(VireBook.mobi.build(book));
   assert(epub.length > 5000, 'подозрительно маленький EPUB');
   assert(mobi.length > 5000, 'подозрительно маленький MOBI');
 
@@ -447,6 +447,15 @@ check('manifest и popup грузят один и тот же набор скр�
     'списки разошлись — ручной запуск на незнакомом сайте сломается'
   );
   assertEq(fromManifest[fromManifest.length - 1], 'src/content.js', 'content.js должен грузиться последним');
+});
+
+check('версия в manifest и package.json одна и та же', () => {
+  // Расходятся они молча: npm version правит package.json, а в браузер уезжает
+  // manifest — и релиз оказывается подписан не тем номером.
+  const manifest = JSON.parse(readFileSync(join(ROOT, 'manifest.json'), 'utf8'));
+  const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
+  assertEq(manifest.version, pkg.version, 'версии разошлись');
+  assert(/^\d+\.\d+\.\d+$/.test(manifest.version), `версия не вида X.Y.Z: ${manifest.version}`);
 });
 
 check('все файлы из manifest существуют', () => {

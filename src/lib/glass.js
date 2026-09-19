@@ -1,5 +1,5 @@
 // Сгенерировано: npm run build:glass. Источник — src/glass/entry.ts + @vire/vireglass.
-var FKGlass = (() => {
+var VireBookGlass = (() => {
   var __create = Object.create;
   var __defProp = Object.defineProperty;
   var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -3320,6 +3320,8 @@ void main() {
     let spread = 0;
     let settledAlpha = -1;
     let settledLevel = -1;
+    let aimAlpha = -1;
+    let aimLevel = -1;
     let inkLight = true;
     let confirmations = 0;
     let last = null;
@@ -3342,8 +3344,12 @@ void main() {
       setSpread(value) {
         spreadTarget = Math.min(1, Math.max(0, value));
       },
-      /** Доехали ли параметры материала до цели — по этому решают, рисовать ли дальше. */
-      settled: () => Math.abs(spread - spreadTarget) < 5e-3,
+      /** Доехали ли параметры материала до цели — по этому решают, рисовать ли дальше.
+       *  Спрашивать только про пестроту мало: плотность и цвет тела подъезжают своим
+       *  SETTLE, а полярность надписи ждёт CONFIRMATIONS кадров. Остановись раньше —
+       *  и на медленной машине панель замирает недоехавшей: тело вполсилы, надпись
+       *  прежней полярности. Ровно так это и выглядит на слабом GPU. */
+      settled: () => Math.abs(spread - spreadTarget) < 5e-3 && confirmations === 0 && (aimAlpha < 0 || Math.abs(settledAlpha - aimAlpha) < 2e-3) && (aimLevel < 0 || Math.abs(settledLevel - aimLevel) < 0.5),
       /** Отклик на курсор — пружины ядра и его же пропорции, что на стенде:
        *  ход тяги и радиус пальца берутся от полуразмера детали, не «на глаз». */
       grab: (x, y) => deform.grab(x, y, 3.2),
@@ -3369,7 +3375,7 @@ void main() {
         };
       },
       /** Возвращает, должна ли надпись поверх стекла быть светлой. */
-      draw(width, height, cornerRadius) {
+      draw(width, height, cornerRadius, anchor = "br") {
         fit(density());
         const now = performance.now();
         deform.step(prev ? Math.min((now - prev) / 1e3, 0.25) : 0);
@@ -3379,8 +3385,10 @@ void main() {
         const d = deform.sample();
         const material = { ...activeMaterial(MATERIAL, d.active), ink: inkLight ? 1 : 0 };
         const optics = applyToggles(resolveOptics(material), { tint: false });
-        const centerX = (boxW - pad - width / 2) * scale;
-        const centerY = (boxH - pad - height / 2) * scale;
+        const left = anchor === "bl" || anchor === "tl" ? pad : boxW - pad - width;
+        const top = anchor === "tl" || anchor === "tr" ? pad : boxH - pad - height;
+        const centerX = (left + width / 2) * scale;
+        const centerY = (top + height / 2) * scale;
         const { probes } = renderer.render({
           density: scale,
           debug: "normal",
@@ -3428,6 +3436,8 @@ void main() {
         const aim = bodyLuma(local, material.legibility, optics.bodyDensity, material.ink, spread);
         const tint = alpha > 1e-3 ? (aim - local * (1 - alpha)) / alpha : material.ink > 0.5 ? 0 : 1;
         const level = Math.round(Math.min(1, Math.max(0, tint)) * 255);
+        aimAlpha = alpha;
+        aimLevel = level;
         settledAlpha = settledAlpha < 0 ? alpha : settledAlpha + (alpha - settledAlpha) * SETTLE;
         settledLevel = settledLevel < 0 ? level : settledLevel + (level - settledLevel) * SETTLE;
         return {

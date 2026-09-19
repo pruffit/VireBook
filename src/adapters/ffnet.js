@@ -1,12 +1,12 @@
 // fanfiction.net — разметка проверена по известной структуре, не на живой
 // странице: сайт стоит за антибот-защитой. Селекторы там не менялись годами.
 (function (root, factory) {
-  const FK = (root.FK = root.FK || {});
-  FK.adapters = FK.adapters || {};
-  factory(FK);
-  if (typeof module !== 'undefined' && module.exports) module.exports = FK;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (FK) {
-  const B = FK.adapters.base;
+  const VireBook = (root.VireBook = root.VireBook || {});
+  VireBook.adapters = VireBook.adapters || {};
+  factory(VireBook);
+  if (typeof module !== 'undefined' && module.exports) module.exports = VireBook;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (VireBook) {
+  const B = VireBook.adapters.base;
   const DROP = ['.a-d', '#storytextp .lazy', 'ins', '.ad'];
 
   function storyId(url) {
@@ -25,7 +25,7 @@
   function extract(doc, url, fallbackTitle) {
     const body = B.pick(doc, ['#storytext', '#storytextp']) || B.findMainContent(doc);
     if (!body) return null;
-    const { xhtml } = FK.html.sanitize(body, { baseUrl: url, keepImages: false, dropSelectors: DROP });
+    const { xhtml } = VireBook.html.sanitize(body, { baseUrl: url, keepImages: false, dropSelectors: DROP });
     if (xhtml.replace(/<[^>]+>/g, '').trim().length < 150) return null;
     return { title: fallbackTitle || 'Chapter', xhtml };
   }
@@ -43,7 +43,7 @@
     ctx.progress(`Глав в работе: ${count}`, 5);
 
     const indices = Array.from({ length: count }, (_, i) => i + 1);
-    const parsed = await FK.util.mapLimit(
+    const parsed = await VireBook.util.mapLimit(
       indices,
       2,
       async (n) => {
@@ -67,12 +67,12 @@
     });
   }
 
-  FK.adapters.ffnet = {
+  VireBook.adapters.ffnet = {
     id: 'ffnet',
     name: 'FanFiction.net',
     match: (url) => /(^|\.)fanfiction\.net$/i.test(new URL(url).hostname),
     isWorkPage: (url) => /\/s\/\d+/.test(url),
     parse,
   };
-  return FK;
+  return VireBook;
 });

@@ -1,8 +1,8 @@
 (function (root, factory) {
-  const FK = (root.FK = root.FK || {});
-  factory(FK);
-  if (typeof module !== 'undefined' && module.exports) module.exports = FK;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (FK) {
+  const VireBook = (root.VireBook = root.VireBook || {});
+  factory(VireBook);
+  if (typeof module !== 'undefined' && module.exports) module.exports = VireBook;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (VireBook) {
   function uuid() {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
     const b = new Uint8Array(16);
@@ -150,9 +150,9 @@
     return String(s || '').replace(/\s+/g, ' ').trim();
   }
 
-  FK.util = {
+  VireBook.util = {
     uuid, translit, safeFilename, sleep, mapLimit, detectLanguage, normalizeSpace,
     abortError, parseRetryAfter, backoffDelay, createRateLimiter,
   };
-  return FK;
+  return VireBook;
 });

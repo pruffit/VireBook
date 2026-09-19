@@ -20,7 +20,7 @@ await build({
   outfile: join(ROOT, 'src', 'lib', 'glass.js'),
   bundle: true,
   format: 'iife',
-  globalName: 'FKGlass',
+  globalName: 'VireBookGlass',
   target: 'chrome111',
   legalComments: 'none',
   alias: {

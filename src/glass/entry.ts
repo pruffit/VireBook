@@ -1,5 +1,5 @@
 // Мост между расширением и ядром VireGlass. Собирается esbuild'ом в src/lib/glass.js
-// (IIFE, глобальная FKGlass) — расширение в рантайме остаётся без зависимостей.
+// (IIFE, глобальная VireBookGlass) — расширение в рантайме остаётся без зависимостей.
 //
 // Деталь лежит поверх ЧУЖОГО живого DOM, растра которого нет: снимок вкладки требует
 // <all_urls>, троттлится, снимает вместе с виджетом и устаревает на любом скролле.
@@ -113,6 +113,10 @@ function displacementMap(width: number, height: number, radius: number, bevel: n
   return c.toDataURL();
 }
 
+/** Угол окна, к которому прижата деталь. Канвас неподвижен и рассчитан на самую
+ *  крупную форму — переезжает внутри него сама деталь. */
+export type GlassAnchor = 'br' | 'bl' | 'tr' | 'tl';
+
 export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, maxHeight: number) {
   const renderer = createVireGlassRenderer(canvas, { alpha: true });
   const deform = createDeform();
@@ -142,6 +146,8 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
   let spread = 0;
   let settledAlpha = -1;
   let settledLevel = -1;
+  let aimAlpha = -1;
+  let aimLevel = -1;
   let inkLight = true;
   let confirmations = 0;
   let last: unknown = null;
@@ -167,8 +173,16 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
     setSpread(value: number) {
       spreadTarget = Math.min(1, Math.max(0, value));
     },
-    /** Доехали ли параметры материала до цели — по этому решают, рисовать ли дальше. */
-    settled: () => Math.abs(spread - spreadTarget) < 0.005,
+    /** Доехали ли параметры материала до цели — по этому решают, рисовать ли дальше.
+     *  Спрашивать только про пестроту мало: плотность и цвет тела подъезжают своим
+     *  SETTLE, а полярность надписи ждёт CONFIRMATIONS кадров. Остановись раньше —
+     *  и на медленной машине панель замирает недоехавшей: тело вполсилы, надпись
+     *  прежней полярности. Ровно так это и выглядит на слабом GPU. */
+    settled: () =>
+      Math.abs(spread - spreadTarget) < 0.005 &&
+      confirmations === 0 &&
+      (aimAlpha < 0 || Math.abs(settledAlpha - aimAlpha) < 0.002) &&
+      (aimLevel < 0 || Math.abs(settledLevel - aimLevel) < 0.5),
 
     /** Отклик на курсор — пружины ядра и его же пропорции, что на стенде:
      *  ход тяги и радиус пальца берутся от полуразмера детали, не «на глаз». */
@@ -199,7 +213,7 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
     },
 
     /** Возвращает, должна ли надпись поверх стекла быть светлой. */
-    draw(width: number, height: number, cornerRadius: number) {
+    draw(width: number, height: number, cornerRadius: number, anchor: GlassAnchor = 'br') {
       fit(density());
       const now = performance.now();
       deform.step(prev ? Math.min((now - prev) / 1000, 0.25) : 0);
@@ -215,9 +229,13 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
       // bodyDensityFor. Две заливки дали бы двойную плотность (adapters.ts, u_tint).
       const optics = applyToggles(resolveOptics(material), { tint: false });
       // Координаты детали — от левого верхнего угла канваса (шейдеры получают
-      // перевёрнутый Y транспайлером, см. targets/glsl.ts).
-      const centerX = (boxW - pad - width / 2) * scale;
-      const centerY = (boxH - pad - height / 2) * scale;
+      // перевёрнутый Y транспайлером, см. targets/glsl.ts). Деталь прижата к тому же
+      // углу канваса, к какому виджет прижат в окне: канвас пересоздавать нельзя,
+      // а переезд в другой угол — обычное дело.
+      const left = anchor === 'bl' || anchor === 'tl' ? pad : boxW - pad - width;
+      const top = anchor === 'tl' || anchor === 'tr' ? pad : boxH - pad - height;
+      const centerX = (left + width / 2) * scale;
+      const centerY = (top + height / 2) * scale;
 
       const { probes } = renderer.render({
         density: scale,
@@ -279,6 +297,8 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
       const tint = alpha > 1e-3 ? (aim - local * (1 - alpha)) / alpha : material.ink > 0.5 ? 0 : 1;
       const level = Math.round(Math.min(1, Math.max(0, tint)) * 255);
       // Полярность переключается ступенькой, поэтому цвет тинта тоже подводим.
+      aimAlpha = alpha;
+      aimLevel = level;
       settledAlpha = settledAlpha < 0 ? alpha : settledAlpha + (alpha - settledAlpha) * SETTLE;
       settledLevel = settledLevel < 0 ? level : settledLevel + (level - settledLevel) * SETTLE;
 

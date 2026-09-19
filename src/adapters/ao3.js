@@ -3,12 +3,12 @@
 // собирает EPUB/AZW3/MOBI сам, и делает это лучше нас (kindlegen). Поэтому
 // адаптер сначала предлагает готовый файл и только потом собирает свой.
 (function (root, factory) {
-  const FK = (root.FK = root.FK || {});
-  FK.adapters = FK.adapters || {};
-  factory(FK);
-  if (typeof module !== 'undefined' && module.exports) module.exports = FK;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (FK) {
-  const B = FK.adapters.base;
+  const VireBook = (root.VireBook = root.VireBook || {});
+  VireBook.adapters = VireBook.adapters || {};
+  factory(VireBook);
+  if (typeof module !== 'undefined' && module.exports) module.exports = VireBook;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (VireBook) {
+  const B = VireBook.adapters.base;
   const DROP = ['h3.landmark', '.landmark', '#work-skin ~ *', '.kudos', '.comments'];
 
   function workId(url) {
@@ -24,7 +24,7 @@
       // превратиться в формат, с которым потом ничего не сойдётся.
       const format = (B.norm(a.textContent).toLowerCase().match(/epub|azw3|mobi|pdf|html/) || [])[0];
       if (!href || !format) return;
-      out.push({ format, url: FK.html.absolutize(href, 'https://archiveofourown.org/') });
+      out.push({ format, url: VireBook.html.absolutize(href, 'https://archiveofourown.org/') });
     });
     return out;
   }
@@ -55,10 +55,10 @@
     if (!body) return null;
     const titleEl = node.querySelector('h3.title');
     const title = titleEl ? B.norm(titleEl.textContent) : `Chapter ${index + 1}`;
-    const { xhtml } = FK.html.sanitize(body, { baseUrl: url, keepImages: false, dropSelectors: DROP });
+    const { xhtml } = VireBook.html.sanitize(body, { baseUrl: url, keepImages: false, dropSelectors: DROP });
     const notesEl = node.querySelector('.notes .userstuff, .end.notes .userstuff');
     const notes = notesEl
-      ? FK.html.sanitize(notesEl, { baseUrl: url, keepImages: false, dropSelectors: DROP }).xhtml
+      ? VireBook.html.sanitize(notesEl, { baseUrl: url, keepImages: false, dropSelectors: DROP }).xhtml
       : '';
     return { title: title || `Chapter ${index + 1}`, xhtml, notesXhtml: notes };
   }
@@ -80,9 +80,9 @@
 
     const summaryEl = B.pick(fullDoc, ['div.summary.module blockquote.userstuff', 'div.summary blockquote']);
     const summaryXhtml = summaryEl
-      ? FK.html.sanitize(summaryEl, { baseUrl: fullUrl, keepImages: false }).xhtml
+      ? VireBook.html.sanitize(summaryEl, { baseUrl: fullUrl, keepImages: false }).xhtml
       : '';
-    const summaryText = summaryEl ? FK.html.toPlainText(summaryEl).slice(0, 1200) : '';
+    const summaryText = summaryEl ? VireBook.html.toPlainText(summaryEl).slice(0, 1200) : '';
 
     const nodes = Array.from(fullDoc.querySelectorAll('#chapters > div.chapter'));
     let chapters;
@@ -91,7 +91,7 @@
     } else {
       const solo = B.pick(fullDoc, ['#chapters div.userstuff', 'div#workskin div.userstuff', 'div.userstuff']);
       if (!solo) throw new Error('Не нашёл текст работы на странице AO3');
-      const { xhtml } = FK.html.sanitize(solo, { baseUrl: fullUrl, keepImages: false, dropSelectors: DROP });
+      const { xhtml } = VireBook.html.sanitize(solo, { baseUrl: fullUrl, keepImages: false, dropSelectors: DROP });
       chapters = [{ title: title || 'Работа', xhtml }];
     }
 
@@ -110,7 +110,7 @@
     });
   }
 
-  FK.adapters.ao3 = {
+  VireBook.adapters.ao3 = {
     id: 'ao3',
     name: 'Archive of Our Own',
     match: (url) => /(^|\.)archiveofourown\.org$/i.test(new URL(url).hostname),
@@ -118,5 +118,5 @@
     native,
     parse,
   };
-  return FK;
+  return VireBook;
 });

@@ -1,9 +1,9 @@
 // ZIP writer: ровно столько, сколько нужно EPUB (store + deflate-raw).
 (function (root, factory) {
-  const FK = (root.FK = root.FK || {});
-  factory(FK);
-  if (typeof module !== 'undefined' && module.exports) module.exports = FK;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (FK) {
+  const VireBook = (root.VireBook = root.VireBook || {});
+  factory(VireBook);
+  if (typeof module !== 'undefined' && module.exports) module.exports = VireBook;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (VireBook) {
   const CRC_TABLE = (() => {
     const t = new Uint32Array(256);
     for (let i = 0; i < 256; i++) {
@@ -145,7 +145,7 @@
     return out.blob(mimetype);
   }
 
-  FK.zip = zip;
-  FK.crc32 = crc32;
-  return FK;
+  VireBook.zip = zip;
+  VireBook.crc32 = crc32;
+  return VireBook;
 });

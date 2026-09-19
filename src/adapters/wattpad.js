@@ -2,12 +2,12 @@
 // Запрос идёт из контент-скрипта, то есть с кукой читателя: приватные и
 // возрастные части так тоже открываются.
 (function (root, factory) {
-  const FK = (root.FK = root.FK || {});
-  FK.adapters = FK.adapters || {};
-  factory(FK);
-  if (typeof module !== 'undefined' && module.exports) module.exports = FK;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (FK) {
-  const B = FK.adapters.base;
+  const VireBook = (root.VireBook = root.VireBook || {});
+  VireBook.adapters = VireBook.adapters || {};
+  factory(VireBook);
+  if (typeof module !== 'undefined' && module.exports) module.exports = VireBook;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (VireBook) {
+  const B = VireBook.adapters.base;
 
   function partsFromNextData(doc) {
     const el = doc.getElementById('__NEXT_DATA__');
@@ -63,14 +63,14 @@
 
     ctx.progress(`Частей: ${parts.length}`, 5);
 
-    const parsed = await FK.util.mapLimit(
+    const parsed = await VireBook.util.mapLimit(
       parts,
       2,
       async (part) => {
         const html = await fetchPartHtml(part.id, ctx);
         if (!html) return null;
         const holder = ctx.parseFragment(html);
-        const { xhtml } = FK.html.sanitize(holder, { baseUrl: url, keepImages: false });
+        const { xhtml } = VireBook.html.sanitize(holder, { baseUrl: url, keepImages: false });
         if (xhtml.replace(/<[^>]+>/g, '').trim().length < 60) return null;
         return { title: part.title, xhtml };
       },
@@ -90,12 +90,12 @@
     });
   }
 
-  FK.adapters.wattpad = {
+  VireBook.adapters.wattpad = {
     id: 'wattpad',
     name: 'Wattpad',
     match: (url) => /(^|\.)wattpad\.com$/i.test(new URL(url).hostname),
     isWorkPage: (url) => /\/story\/\d+|\/\d{4,}-/.test(url),
     parse,
   };
-  return FK;
+  return VireBook;
 });

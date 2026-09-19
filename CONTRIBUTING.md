@@ -13,9 +13,8 @@
 
 1. Скопировать `src/adapters/royalroad.js` — он самый короткий.
 2. Поменять `match`, `isWorkPage`, селекторы и разбор главы.
-3. Дописать файл **в трёх местах**: `manifest.json` (`content_scripts[0].js` и `matches`),
-   `manifest.json` (`host_permissions` — без него не будет снимка для стекла) и
-   `src/popup.js` (`SCRIPTS`). Списки обязаны совпадать, на это есть тест.
+3. Дописать файл **в двух местах**: `manifest.json` (`content_scripts[0].js` и `matches`)
+   и `src/popup.js` (`SCRIPTS`). Списки обязаны совпадать, на это есть тест.
 4. Добавить фикстуру в `test/fixtures/` и проверку в `test/adapters.mjs`. Текст в
    фикстурах — свой, не авторский: нам нужна структура, а не чужое произведение.
 

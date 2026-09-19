@@ -1,11 +1,11 @@
 // EPUB 3 с NCX для обратной совместимости: Send to Kindle конвертирует именно его.
 (function (root, factory) {
-  const FK = (root.FK = root.FK || {});
-  factory(FK);
-  if (typeof module !== 'undefined' && module.exports) module.exports = FK;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (FK) {
-  const esc = (s) => FK.html.escapeText(String(s == null ? '' : s));
-  const escA = (s) => FK.html.escapeAttr(String(s == null ? '' : s));
+  const VireBook = (root.VireBook = root.VireBook || {});
+  factory(VireBook);
+  if (typeof module !== 'undefined' && module.exports) module.exports = VireBook;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (VireBook) {
+  const esc = (s) => VireBook.html.escapeText(String(s == null ? '' : s));
+  const escA = (s) => VireBook.html.escapeAttr(String(s == null ? '' : s));
   const pad = (n, w = 3) => String(n).padStart(w, '0');
 
   const STYLE = `@charset "utf-8";
@@ -182,7 +182,7 @@ ${spine.join('\n')}
 
   async function buildEpub(book) {
     const chapters = book.chapters || [];
-    const uid = `urn:uuid:${book.uuid || FK.util.uuid()}`;
+    const uid = `urn:uuid:${book.uuid || VireBook.util.uuid()}`;
     const lang = book.language || 'ru';
     const withLang = Object.assign({}, book, { language: lang });
 
@@ -225,9 +225,9 @@ ${spine.join('\n')}
 
     files.push({ name: 'OEBPS/content.opf', data: opf(withLang, chapters, uid, cover) });
 
-    return FK.zip(files, { mimetype: 'application/epub+zip' });
+    return VireBook.zip(files, { mimetype: 'application/epub+zip' });
   }
 
-  FK.epub = { build: buildEpub, STYLE };
-  return FK;
+  VireBook.epub = { build: buildEpub, STYLE };
+  return VireBook;
 });

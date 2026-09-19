@@ -1,8 +1,8 @@
 (function (root, factory) {
-  const FK = (root.FK = root.FK || {});
-  factory(FK);
-  if (typeof module !== 'undefined' && module.exports) module.exports = FK;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (FK) {
+  const VireBook = (root.VireBook = root.VireBook || {});
+  factory(VireBook);
+  if (typeof module !== 'undefined' && module.exports) module.exports = VireBook;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (VireBook) {
   function stripTags(xhtml) {
     return String(xhtml || '')
       .replace(/<(br|\/p|\/div|\/h[1-6]|hr)\s*\/?>/gi, '\n')
@@ -41,6 +41,6 @@
     return new Blob(['﻿', head, summary, body, '\n'], { type: 'text/plain;charset=utf-8' });
   }
 
-  FK.txt = { build, stripTags };
-  return FK;
+  VireBook.txt = { build, stripTags };
+  return VireBook;
 });

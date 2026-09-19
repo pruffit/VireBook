@@ -10,7 +10,8 @@
     "test:formats": "node test/run.mjs",
     "test:adapters": "node test/adapters.mjs",
     "build:glass": "node scripts/build-glass.mjs",
-    "icons": "node scripts/make-icons.mjs"
+    "icons": "node scripts/make-icons.mjs",
+    "demo": "node scripts/serve.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",

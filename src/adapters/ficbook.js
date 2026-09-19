@@ -1,11 +1,11 @@
 // ficbook.net — селекторы сверены с живой страницей 15.09.2026.
 (function (root, factory) {
-  const FK = (root.FK = root.FK || {});
-  FK.adapters = FK.adapters || {};
-  factory(FK);
-  if (typeof module !== 'undefined' && module.exports) module.exports = FK;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (FK) {
-  const B = FK.adapters.base;
+  const VireBook = (root.VireBook = root.VireBook || {});
+  VireBook.adapters = VireBook.adapters || {};
+  factory(VireBook);
+  if (typeof module !== 'undefined' && module.exports) module.exports = VireBook;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (VireBook) {
+  const B = VireBook.adapters.base;
 
   // Фикбук отсекает по частоте заметно раньше остальных: 429 прилетал уже на
   // середине книги. Шаг держим широкий, параллельность — только чтобы прятать
@@ -56,8 +56,8 @@
       '.fanfic-hat-body .description', '.description', '.fanfic-description',
     ]);
     if (!el) return { summaryXhtml: '', summaryText: '' };
-    const { xhtml } = FK.html.sanitize(el, { baseUrl: 'https://ficbook.net/', keepImages: false, dropSelectors: DROP });
-    const text = FK.html.toPlainText(el, DROP).slice(0, 1200);
+    const { xhtml } = VireBook.html.sanitize(el, { baseUrl: 'https://ficbook.net/', keepImages: false, dropSelectors: DROP });
+    const text = VireBook.html.toPlainText(el, DROP).slice(0, 1200);
     return { summaryXhtml: xhtml, summaryText: text };
   }
 
@@ -72,7 +72,7 @@
     for (const a of nodes) {
       const href = a.getAttribute('href');
       if (!href) continue;
-      const url = FK.html.absolutize(href, baseUrl);
+      const url = VireBook.html.absolutize(href, baseUrl);
       if (!url) continue;
       const clean = url.split('#')[0];
       if (seen.has(clean)) continue;
@@ -88,7 +88,7 @@
     const title =
       B.pickText(doc, ['#part_content .title-area h2', '.title-area h2', '#part_content h2'], 200) ||
       fallbackTitle;
-    const { xhtml } = FK.html.sanitize(body, { baseUrl: url, keepImages: false, dropSelectors: DROP });
+    const { xhtml } = VireBook.html.sanitize(body, { baseUrl: url, keepImages: false, dropSelectors: DROP });
     return { title: title || 'Глава', xhtml };
   }
 
@@ -130,7 +130,7 @@
 
     ctx.progress(`Найдено частей: ${links.length}`, 5);
 
-    const chapters = await FK.util.mapLimit(
+    const chapters = await VireBook.util.mapLimit(
       links,
       PACING.concurrency,
       async (link, i) => {
@@ -153,7 +153,7 @@
     });
   }
 
-  FK.adapters.ficbook = {
+  VireBook.adapters.ficbook = {
     id: 'ficbook',
     name: 'Книга Фанфиков',
     pacing: PACING,
@@ -161,5 +161,5 @@
     isWorkPage: (url) => /\/readfic\//.test(url),
     parse,
   };
-  return FK;
+  return VireBook;
 });
