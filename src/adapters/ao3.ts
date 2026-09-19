@@ -6,7 +6,6 @@ import type { Adapter, Book, Chapter, NativeDownload, ParseContext } from '../ty
 import { absolutize, sanitize, toPlainText } from '../lib/html.ts';
 import * as B from './base.ts';
 
-const SITE = 'Archive of Our Own';
 const DROP = ['h3.landmark', '.landmark', '#work-skin ~ *', '.kudos', '.comments'];
 
 function workId(url: string): string | null {
@@ -111,7 +110,7 @@ async function parse(doc: Document, url: string, ctx: ParseContext): Promise<Boo
     title: title || 'Work',
     author,
     sourceUrl: id ? `https://archiveofourown.org/works/${id}` : url,
-    siteName: SITE,
+    siteName: B.siteLabel(fullUrl),
     summaryXhtml,
     summaryText,
     ...readMeta(fullDoc),
@@ -122,7 +121,6 @@ async function parse(doc: Document, url: string, ctx: ParseContext): Promise<Boo
 
 export const ao3: Adapter = {
   id: 'ao3',
-  name: SITE,
   match: (url) => /(^|\.)archiveofourown\.org$/i.test(new URL(url).hostname),
   isWorkPage: (url) => /\/works\/\d+/.test(url),
   native,

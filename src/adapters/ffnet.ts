@@ -6,7 +6,6 @@ import { sanitize } from '../lib/html.ts';
 import { mapLimit } from '../lib/util.ts';
 import * as B from './base.ts';
 
-const SITE = 'FanFiction.net';
 const DROP = ['.a-d', '#storytextp .lazy', 'ins', '.ad'];
 
 function storyId(url: string): string | null {
@@ -64,7 +63,7 @@ async function parse(doc: Document, url: string, ctx: ParseContext): Promise<Boo
     title: title || 'Story',
     author, summaryText,
     sourceUrl: `https://www.fanfiction.net/s/${id}/`,
-    siteName: SITE,
+    siteName: B.siteLabel(url),
     expectedChapters: count,
     chapters,
   });
@@ -72,7 +71,6 @@ async function parse(doc: Document, url: string, ctx: ParseContext): Promise<Boo
 
 export const ffnet: Adapter = {
   id: 'ffnet',
-  name: SITE,
   match: (url) => /(^|\.)fanfiction\.net$/i.test(new URL(url).hostname),
   isWorkPage: (url) => /\/s\/\d+/.test(url),
   parse,

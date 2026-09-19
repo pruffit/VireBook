@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://github.com/pruffit/VireBook/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/pruffit/VireBook/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-informational"></a>
-  <a href="CHANGELOG.md"><img alt="Version 1.1.1" src="https://img.shields.io/badge/version-1.1.1-success"></a>
+  <a href="CHANGELOG.md"><img alt="Version 1.2.0" src="https://img.shields.io/badge/version-1.2.0-success"></a>
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-3178c6">
   <img alt="Manifest V3" src="https://img.shields.io/badge/Chrome-Manifest%20V3-blue">
   <img alt="No runtime dependencies" src="https://img.shields.io/badge/runtime%20dependencies-none-brightgreen">

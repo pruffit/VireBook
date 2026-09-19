@@ -3,7 +3,7 @@
 import type { DownloadRequest, DownloadResult } from './ui.ts';
 import type { Format } from './types.ts';
 import type { GlassAnchor } from './glass/vireglass.bundle.js';
-import { findMainContent } from './adapters/base.ts';
+import { findMainContent, siteLabel } from './adapters/base.ts';
 import { buildBook, resolveAdapter, saveBlob } from './core.ts';
 import { create } from './ui.ts';
 
@@ -71,7 +71,7 @@ function main(): void {
 
   function mount(prefs: { defaultFormat?: Format; widgetCorner?: string } | null): void {
     const widget = create({
-      siteName: adapter.name,
+      siteName: siteLabel(url),
       defaultFormat: prefs?.defaultFormat || 'epub',
       // The corner the reader threw the pane into last time: which spot does not
       // cover the text differs per site, and setting it again every time is the

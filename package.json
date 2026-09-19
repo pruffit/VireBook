@@ -1,6 +1,6 @@
 {
   "name": "virebook",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "private": true,
   "license": "MIT",
   "description": "Browser extension: a whole book as EPUB/MOBI/FB2/TXT in one press",

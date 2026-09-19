@@ -3,6 +3,23 @@
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 the numbering [SemVer](https://semver.org/).
 
+## [1.2.0] — 2026-09-19
+
+### Changed
+
+- **The site is named by its host everywhere, not by a hand-written label.**
+  Each adapter used to carry a display name — `Ficbook`, `Archive of Our Own`
+  and so on — which only ever existed for the six sites that have an adapter.
+  Everywhere else the panel said the useless `Any site`, while the book's own
+  metadata already recorded the real host. The extension runs on any site, so
+  the label now comes off the URL: `ficbook.net`, `royalroad.com`,
+  `some-novel-site.example.org`. It is right on every site, needs no upkeep
+  when one rebrands, and is what the reader recognises anyway.
+
+  This shows in the panel header, in the progress line and in the book's
+  metadata — `dc:publisher` in EPUB, EXTH 101 in MOBI, `Source:` in TXT.
+  `Adapter` no longer has a `name` field at all.
+
 ## [1.1.1] — 2026-09-19
 
 ### Fixed
@@ -75,6 +92,7 @@ In full under "Honest limitations" in the README.
   the known structure and was not exercised live.
 - Images do not make it into the book — text only.
 
+[1.2.0]: https://github.com/pruffit/VireBook/releases/tag/v1.2.0
 [1.1.1]: https://github.com/pruffit/VireBook/releases/tag/v1.1.1
 [1.1.0]: https://github.com/pruffit/VireBook/releases/tag/v1.1.0
 [1.0.0]: https://github.com/pruffit/VireBook/releases/tag/v1.0.0

@@ -6,7 +6,6 @@ import { sanitize } from '../lib/html.ts';
 import { mapLimit } from '../lib/util.ts';
 import * as B from './base.ts';
 
-const SITE = 'Wattpad';
 
 interface Part {
   id: string;
@@ -85,7 +84,7 @@ async function parse(doc: Document, url: string, ctx: ParseContext): Promise<Boo
     title: title || 'Story',
     author, summaryText,
     sourceUrl: url,
-    siteName: SITE,
+    siteName: B.siteLabel(url),
     expectedChapters: parts.length,
     chapters,
   });
@@ -93,7 +92,6 @@ async function parse(doc: Document, url: string, ctx: ParseContext): Promise<Boo
 
 export const wattpad: Adapter = {
   id: 'wattpad',
-  name: SITE,
   match: (url) => /(^|\.)wattpad\.com$/i.test(new URL(url).hostname),
   isWorkPage: (url) => /\/story\/\d+|\/\d{4,}-/.test(url),
   parse,

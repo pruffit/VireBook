@@ -7,6 +7,22 @@ import { detectLanguage, normalizeSpace, uuid } from '../lib/util.ts';
 
 export const norm = normalizeSpace;
 
+/**
+ * What to call the site a book came from. Always the host, never a name an
+ * adapter carries around: the extension runs on any site, and a hand-written
+ * display name only exists for the handful that have an adapter — everywhere
+ * else it degrades into something useless like "Any site". The host is right
+ * on every site, needs no upkeep when one rebrands, and is what the reader
+ * recognises anyway.
+ */
+export function siteLabel(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
 export function pick(doc: ParentNode, selectors: string[]): Element | null {
   for (const sel of selectors) {
     try {

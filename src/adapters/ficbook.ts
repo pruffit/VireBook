@@ -9,7 +9,6 @@ import * as B from './base.ts';
 // hide network latency, the limiter sets the pace regardless.
 const PACING: Pacing = { interval: 800, maxInterval: 20000, concurrency: 2 };
 
-const SITE = 'Ficbook';
 const BODY = ['#content', '.js-part-text', '.part_text', '#part_content .part_text'];
 const DROP = [
   '.fanfic-text-promo', '.js-part-text-promo', '.part-comment-form', '.ficbook-ad',
@@ -126,14 +125,14 @@ async function parse(doc: Document, url: string, ctx: ParseContext): Promise<Boo
     const single = parseChapter(doc, url, title);
     if (single) {
       return B.finalize({
-        title, author, sourceUrl: url, siteName: SITE,
+        title, author, sourceUrl: url, siteName: B.siteLabel(url),
         ...meta, ...summary, chapters: [{ ...single, title }],
       });
     }
     const onWork = parseChapter(workDoc, workUrl, title);
     if (onWork) {
       return B.finalize({
-        title, author, sourceUrl: workUrl, siteName: SITE,
+        title, author, sourceUrl: workUrl, siteName: B.siteLabel(workUrl),
         ...meta, ...summary, chapters: [{ ...onWork, title }],
       });
     }
@@ -157,7 +156,7 @@ async function parse(doc: Document, url: string, ctx: ParseContext): Promise<Boo
     title: title || 'Book',
     author,
     sourceUrl: workUrl,
-    siteName: SITE,
+    siteName: B.siteLabel(workUrl),
     ...meta,
     ...summary,
     expectedChapters: links.length,
@@ -167,7 +166,6 @@ async function parse(doc: Document, url: string, ctx: ParseContext): Promise<Boo
 
 export const ficbook: Adapter = {
   id: 'ficbook',
-  name: SITE,
   pacing: PACING,
   match: (url) => /(^|\.)ficbook\.net$/i.test(new URL(url).hostname),
   isWorkPage: (url) => /\/readfic\//.test(url),

@@ -1,5 +1,6 @@
 // The orchestrator: pick an adapter, assemble the book, hand over the file.
 import type { Book, Format, NetworkError, Pacing, ParseContext, ProgressFn } from './types.ts';
+import { siteLabel } from './adapters/base.ts';
 import { generic, resolveAdapter } from './adapters/index.ts';
 import * as epub from './lib/epub.ts';
 import * as fb2 from './lib/fb2.ts';
@@ -137,7 +138,7 @@ export async function buildBook({ doc, url, format, progress, signal }: BuildReq
   const adapter = resolveAdapter(url);
   const ctx = makeContext({ progress, signal, pacing: adapter.pacing });
 
-  progress(`Reading the page (${adapter.name})…`, 2);
+  progress(`Reading the page (${siteLabel(url)})…`, 2);
   let book: Book;
   try {
     book = await adapter.parse(doc, url, ctx);

@@ -76,8 +76,8 @@ export interface NativeDownload {
 }
 
 export interface Adapter {
+  /** Technical identifier, for logic and tests — never shown to anyone. */
   id: string;
-  name: string;
   pacing?: Pacing;
   match(url: string): boolean;
   isWorkPage(url: string): boolean;

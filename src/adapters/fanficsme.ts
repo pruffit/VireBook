@@ -6,7 +6,6 @@ import { absolutize, sanitize } from '../lib/html.ts';
 import { mapLimit } from '../lib/util.ts';
 import * as B from './base.ts';
 
-const SITE = 'Fanfics.me';
 const DROP = ['.Sidebar_NativeAd', '[class*="NativeAd"]', '.adv', '.banner', '#comments', '.comments'];
 
 const BODY = [
@@ -75,7 +74,7 @@ async function parse(doc: Document, url: string, ctx: ParseContext): Promise<Boo
     title: title || 'Book',
     author, summaryText, tags, fandom,
     sourceUrl: url,
-    siteName: SITE,
+    siteName: B.siteLabel(url),
     expectedChapters: links.length > 1 ? links.length : 0,
     chapters,
   });
@@ -83,7 +82,6 @@ async function parse(doc: Document, url: string, ctx: ParseContext): Promise<Boo
 
 export const fanficsme: Adapter = {
   id: 'fanficsme',
-  name: SITE,
   match: (url) => /(^|\.)fanfics\.me$/i.test(new URL(url).hostname),
   isWorkPage: (url) => /\/fic\d+|\/read/.test(url),
   parse,

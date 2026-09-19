@@ -151,7 +151,7 @@ function makeBook(n = 2): Book {
     tags: ['драма', 'AU & прочее'],
     language: 'ru',
     sourceUrl: 'https://example.org/readfic/1',
-    siteName: 'Test site',
+    siteName: 'example.org',
     uuid: '11111111-2222-3333-4444-555555555555',
     chapters,
   };

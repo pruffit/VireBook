@@ -169,7 +169,7 @@ async function parse(doc: Document, url: string, ctx: ParseContext): Promise<Boo
     author,
     summaryText,
     sourceUrl: url,
-    siteName: new URL(url).hostname.replace(/^www\./, ''),
+    siteName: B.siteLabel(url),
     expectedChapters: expected,
     chapters,
   });
@@ -177,7 +177,6 @@ async function parse(doc: Document, url: string, ctx: ParseContext): Promise<Boo
 
 export const generic: Adapter = {
   id: 'generic',
-  name: 'Any site',
   match: () => true,
   isWorkPage: () => true,
   parse,

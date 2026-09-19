@@ -345,6 +345,13 @@
 
   // src/adapters/base.ts
   var norm = normalizeSpace;
+  function siteLabel(url) {
+    try {
+      return new URL(url).hostname.replace(/^www\./, "");
+    } catch {
+      return "";
+    }
+  }
   function pick(doc, selectors) {
     for (const sel of selectors) {
       try {
@@ -429,7 +436,6 @@
   }
 
   // src/adapters/ao3.ts
-  var SITE = "Archive of Our Own";
   var DROP2 = ["h3.landmark", ".landmark", "#work-skin ~ *", ".kudos", ".comments"];
   function workId(url) {
     const m = url.match(/\/works\/(\d+)/);
@@ -513,7 +519,7 @@
       title: title || "Work",
       author,
       sourceUrl: id ? `https://archiveofourown.org/works/${id}` : url,
-      siteName: SITE,
+      siteName: siteLabel(fullUrl),
       summaryXhtml,
       summaryText,
       ...readMeta(fullDoc),
@@ -523,7 +529,6 @@
   }
   var ao3 = {
     id: "ao3",
-    name: SITE,
     match: (url) => /(^|\.)archiveofourown\.org$/i.test(new URL(url).hostname),
     isWorkPage: (url) => /\/works\/\d+/.test(url),
     native,
@@ -531,7 +536,6 @@
   };
 
   // src/adapters/fanficsme.ts
-  var SITE2 = "Fanfics.me";
   var DROP3 = [".Sidebar_NativeAd", '[class*="NativeAd"]', ".adv", ".banner", "#comments", ".comments"];
   var BODY = [
     "#content_text",
@@ -601,21 +605,19 @@
       tags,
       fandom,
       sourceUrl: url,
-      siteName: SITE2,
+      siteName: siteLabel(url),
       expectedChapters: links.length > 1 ? links.length : 0,
       chapters
     });
   }
   var fanficsme = {
     id: "fanficsme",
-    name: SITE2,
     match: (url) => /(^|\.)fanfics\.me$/i.test(new URL(url).hostname),
     isWorkPage: (url) => /\/fic\d+|\/read/.test(url),
     parse: parse2
   };
 
   // src/adapters/ffnet.ts
-  var SITE3 = "FanFiction.net";
   var DROP4 = [".a-d", "#storytextp .lazy", "ins", ".ad"];
   function storyId(url) {
     const m = url.match(/\/s\/(\d+)/);
@@ -665,14 +667,13 @@
       author,
       summaryText,
       sourceUrl: `https://www.fanfiction.net/s/${id}/`,
-      siteName: SITE3,
+      siteName: siteLabel(url),
       expectedChapters: count,
       chapters
     });
   }
   var ffnet = {
     id: "ffnet",
-    name: SITE3,
     match: (url) => /(^|\.)fanfiction\.net$/i.test(new URL(url).hostname),
     isWorkPage: (url) => /\/s\/\d+/.test(url),
     parse: parse3
@@ -680,7 +681,6 @@
 
   // src/adapters/ficbook.ts
   var PACING = { interval: 800, maxInterval: 2e4, concurrency: 2 };
-  var SITE4 = "Ficbook";
   var BODY2 = ["#content", ".js-part-text", ".part_text", "#part_content .part_text"];
   var DROP5 = [
     ".fanfic-text-promo",
@@ -789,7 +789,7 @@
           title,
           author,
           sourceUrl: url,
-          siteName: SITE4,
+          siteName: siteLabel(url),
           ...meta,
           ...summary,
           chapters: [{ ...single, title }]
@@ -801,7 +801,7 @@
           title,
           author,
           sourceUrl: workUrl,
-          siteName: SITE4,
+          siteName: siteLabel(workUrl),
           ...meta,
           ...summary,
           chapters: [{ ...onWork, title }]
@@ -824,7 +824,7 @@
       title: title || "Book",
       author,
       sourceUrl: workUrl,
-      siteName: SITE4,
+      siteName: siteLabel(workUrl),
       ...meta,
       ...summary,
       expectedChapters: links.length,
@@ -833,7 +833,6 @@
   }
   var ficbook = {
     id: "ficbook",
-    name: SITE4,
     pacing: PACING,
     match: (url) => /(^|\.)ficbook\.net$/i.test(new URL(url).hostname),
     isWorkPage: (url) => /\/readfic\//.test(url),
@@ -969,21 +968,19 @@
       author,
       summaryText,
       sourceUrl: url,
-      siteName: new URL(url).hostname.replace(/^www\./, ""),
+      siteName: siteLabel(url),
       expectedChapters: expected,
       chapters
     });
   }
   var generic = {
     id: "generic",
-    name: "Any site",
     match: () => true,
     isWorkPage: () => true,
     parse: parse5
   };
 
   // src/adapters/royalroad.ts
-  var SITE5 = "Royal Road";
   var DROP6 = [".portlet", ".ad", ".hidden", "style", ".author-note-portlet"];
   function chapterLinks3(doc, baseUrl) {
     const rows = pickAll(doc, ["#chapters tbody tr td a[href]", "table#chapters a[href]"], 2e3);
@@ -1030,7 +1027,7 @@
         summaryText,
         tags,
         sourceUrl: url,
-        siteName: SITE5,
+        siteName: siteLabel(url),
         chapters: [solo]
       });
     }
@@ -1048,21 +1045,19 @@
       summaryText,
       tags,
       sourceUrl: workUrl,
-      siteName: SITE5,
+      siteName: siteLabel(workUrl),
       expectedChapters: links.length,
       chapters
     });
   }
   var royalroad = {
     id: "royalroad",
-    name: SITE5,
     match: (url) => /(^|\.)royalroad\.com$/i.test(new URL(url).hostname),
     isWorkPage: (url) => /\/fiction\/\d+/.test(url),
     parse: parse6
   };
 
   // src/adapters/wattpad.ts
-  var SITE6 = "Wattpad";
   function partsFromNextData(doc) {
     const el = doc.getElementById("__NEXT_DATA__");
     if (!el) return null;
@@ -1126,14 +1121,13 @@
       author,
       summaryText,
       sourceUrl: url,
-      siteName: SITE6,
+      siteName: siteLabel(url),
       expectedChapters: parts.length,
       chapters
     });
   }
   var wattpad = {
     id: "wattpad",
-    name: SITE6,
     match: (url) => /(^|\.)wattpad\.com$/i.test(new URL(url).hostname),
     isWorkPage: (url) => /\/story\/\d+|\/\d{4,}-/.test(url),
     parse: parse7
@@ -1949,7 +1943,7 @@ ${stripTags(c.xhtml)}`).join("\n");
   async function buildBook({ doc, url, format, progress, signal }) {
     const adapter = resolveAdapter(url);
     const ctx = makeContext({ progress, signal, pacing: adapter.pacing });
-    progress(`Reading the page (${adapter.name})\u2026`, 2);
+    progress(`Reading the page (${siteLabel(url)})\u2026`, 2);
     let book;
     try {
       book = await adapter.parse(doc, url, ctx);
@@ -6179,7 +6173,7 @@ void main() {
     }
     function mount(prefs) {
       const widget = create({
-        siteName: adapter.name,
+        siteName: siteLabel(url),
         defaultFormat: prefs?.defaultFormat || "epub",
         // The corner the reader threw the pane into last time: which spot does not
         // cover the text differs per site, and setting it again every time is the

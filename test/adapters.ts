@@ -155,7 +155,7 @@ await test('ficbook: every part is collected from the work page', async () => {
   assertEq(book.author, 'Тестовый Автор', 'author');
   assertEq(book.chapters.length, 3, 'chapter count');
   assertEq(book.language, 'ru', 'language');
-  assertEq(book.siteName, 'Ficbook', 'source');
+  assertEq(book.siteName, 'ficbook.net', 'source');
 });
 
 await test('ficbook: the header metadata is parsed', async () => {

@@ -49,7 +49,8 @@
   }
 
   const widget = VireBookUI.create({
-    siteName: 'Ficbook',
+    // Same as the extension does: the host of the page you are on, whatever it is.
+    siteName: location.hostname.replace(/^www\./, ''),
     defaultFormat: 'epub',
     // In the extension the corner is kept by chrome.storage; on this stand-in, localStorage.
     corner: localStorage.getItem('virebook-corner'),

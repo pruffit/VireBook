@@ -4,7 +4,6 @@ import { absolutize, sanitize, toPlainText } from '../lib/html.ts';
 import { mapLimit } from '../lib/util.ts';
 import * as B from './base.ts';
 
-const SITE = 'Royal Road';
 const DROP = ['.portlet', '.ad', '.hidden', 'style', '.author-note-portlet'];
 
 function chapterLinks(doc: Document, baseUrl: string): { url: string; title: string }[] {
@@ -51,7 +50,7 @@ async function parse(doc: Document, url: string, ctx: ParseContext): Promise<Boo
     const solo = extract(doc, url, title);
     if (!solo) throw new Error('Found neither a chapter list nor any text on RoyalRoad');
     return B.finalize({
-      title, author, summaryText, tags, sourceUrl: url, siteName: SITE, chapters: [solo],
+      title, author, summaryText, tags, sourceUrl: url, siteName: B.siteLabel(url), chapters: [solo],
     });
   }
 
@@ -69,7 +68,7 @@ async function parse(doc: Document, url: string, ctx: ParseContext): Promise<Boo
     title: title || 'Fiction',
     author, summaryText, tags,
     sourceUrl: workUrl,
-    siteName: SITE,
+    siteName: B.siteLabel(workUrl),
     expectedChapters: links.length,
     chapters,
   });
@@ -77,7 +76,6 @@ async function parse(doc: Document, url: string, ctx: ParseContext): Promise<Boo
 
 export const royalroad: Adapter = {
   id: 'royalroad',
-  name: SITE,
   match: (url) => /(^|\.)royalroad\.com$/i.test(new URL(url).hostname),
   isWorkPage: (url) => /\/fiction\/\d+/.test(url),
   parse,
