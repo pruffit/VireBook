@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://github.com/pruffit/VireBook/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/pruffit/VireBook/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-informational"></a>
-  <a href="CHANGELOG.md"><img alt="Version 1.2.0" src="https://img.shields.io/badge/version-1.2.0-success"></a>
+  <a href="CHANGELOG.md"><img alt="Version 1.3.0" src="https://img.shields.io/badge/version-1.3.0-success"></a>
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-3178c6">
   <img alt="Manifest V3" src="https://img.shields.io/badge/Chrome-Manifest%20V3-blue">
   <img alt="No runtime dependencies" src="https://img.shields.io/badge/runtime%20dependencies-none-brightgreen">
@@ -187,9 +187,18 @@ What is worth knowing before changing anything here:
   until `settled()` says that density, body colour and polarity have all
   arrived: stopping earlier means freezing half-done on a slow machine.
 
-- **The cursor response is part of the material.** The springs for press, pull
-  and wave are computed by the core's `createDeform()`; only the gesture comes
-  from here.
+- **The cursor response is part of the material, and it has to be let out.**
+  The springs for press, pull and wave are computed by the core's
+  `createDeform()`; only the gesture comes from here. But the core bends the
+  field for the LENS pass, which is off, and for the SURFACE pass, which is
+  about a tenth of what you see — so all eight values it produces are carried
+  out to the CSS layers every frame instead. A press clears the medium and
+  deepens its refraction (that is `activeMaterial`: three quarters less
+  roughness, more ior and bevel), the pull makes the pane lag behind the finger,
+  the wave rings through the depth of the refraction, and the contact point
+  blooms at the radius the core gives it. Bake the optics into the filter once
+  per shape, as this used to, and the whole response is thrown away: the springs
+  run and nothing on screen moves.
 
 If WebGL2 is unavailable the panel falls back to a flat material and stays
 usable — just without the glass.

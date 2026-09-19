@@ -3,6 +3,43 @@
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 the numbering [SemVer](https://semver.org/).
 
+## [1.3.0] — 2026-09-19
+
+### Fixed
+
+- **The glass had no response to being touched.** The core computes one — its
+  springs run on press, pull and wave, and `activeMaterial` makes the medium
+  denser and cleaner under a finger — but it bends the field for the LENS
+  pass, which is off here, and for the SURFACE pass, which contributes about a
+  tenth of what you see. The optics were baked into the CSS filter once per
+  shape and never touched again, so the numbers changed and nothing moved.
+
+  All eight values the core produces now reach the layers that actually draw,
+  every frame. A press clears the medium (scattering falls from 6 px to 1.5)
+  and deepens its refraction; the pull spring makes the pane lag behind the
+  finger; the wave rings through the depth of the refraction and dies out; the
+  contact point blooms with light at the radius the core gives for a finger,
+  which has an area rather than being a point. The press also sinks the pane
+  by 1.5%.
+
+- **A stray pointer move could fling the pane across the screen.** If a
+  `pointerup` went somewhere we never heard about — onto a native scrollbar, or
+  out of a window that lost focus — the drag stayed armed, and the next
+  movement of the mouse dragged the pane with nobody touching it.
+
+### Changed
+
+- **The morph no longer shows clipped text.** Content used to turn opaque
+  within the first third of the shape change, so it was read through a box
+  still growing around it and appeared to slide out of a hole. Arriving content
+  now waits for the shape and resolves into it; leaving content goes at once,
+  because lingering under the arriving one turns a cross-fade into a smear.
+- **A change of shape rings.** A dense medium does that, and the core already
+  knows how the ring looks and how fast it dies, so opening and closing borrow
+  the same spring instead of a second kind of motion. The impulse starts at the
+  corner the sheet is pinned to — the one place that stays put while the rest
+  travels, and in the core's own morph model the neck between the two shapes.
+
 ## [1.2.0] — 2026-09-19
 
 ### Changed
@@ -92,6 +129,7 @@ In full under "Honest limitations" in the README.
   the known structure and was not exercised live.
 - Images do not make it into the book — text only.
 
+[1.3.0]: https://github.com/pruffit/VireBook/releases/tag/v1.3.0
 [1.2.0]: https://github.com/pruffit/VireBook/releases/tag/v1.2.0
 [1.1.1]: https://github.com/pruffit/VireBook/releases/tag/v1.1.1
 [1.1.0]: https://github.com/pruffit/VireBook/releases/tag/v1.1.0

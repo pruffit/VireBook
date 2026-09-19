@@ -137,6 +137,36 @@ export interface Refraction {
 export interface GlassPaint {
   inkLight: boolean;
   body: string;
+  /**
+   * The live consequences of the material, recomputed every frame, for the CSS
+   * layers to wear.
+   *
+   * These exist because the pane is drawn by CSS, not by the canvas. The core
+   * does compute the response to a finger — `vgTouchWarp` bends the field, and
+   * `activeMaterial` makes the medium denser and cleaner under a press — but it
+   * bends it for the LENS pass, which is off here, and for the SURFACE pass,
+   * which contributes about a tenth of what you see. Baking the optics into the
+   * filter once per shape, as we used to, threw the whole response away: the
+   * springs ran, the numbers changed, and nothing on screen moved.
+   */
+  /** Scattering radius of the medium right now, CSS px. Falls under a press:
+   *  an active material is a cleaner one. */
+  blur: number;
+  /** How far the rim bends a ray right now, CSS px. Grows under a press. */
+  refract: number;
+  /** Spring offset of the pull, CSS px — the pane lagging behind the finger. */
+  pullX: number;
+  pullY: number;
+  /** How deep the press is, 0…1. */
+  press: number;
+  /** How active the medium is, 0…1. Activity is a state of the MEDIUM — denser,
+   *  cleaner glass and a bloom of light — not a tint laid on top. */
+  active: number;
+  /** Where the finger is, relative to the centre of the pane, CSS px. */
+  touchX: number;
+  touchY: number;
+  /** How wide the contact spot is, CSS px. The finger has an area, not a point. */
+  touchRadius: number;
 }
 
 export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, maxHeight: number) {
@@ -219,6 +249,16 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
     },
     release: () => deform.release(1.8),
     idle: () => deform.idle(),
+
+    /** A wave with no finger behind it, for when the pane changes shape by
+     *  itself. A dense medium rings when it is reshaped; the core already knows
+     *  how that ring looks and how fast it dies, so this borrows the same spring
+     *  rather than inventing a second kind of motion. grab and release land in
+     *  one frame, so the press never rises — what is left is the wave. */
+    ripple(x: number, y: number, strength = 2.4) {
+      deform.grab(x, y, strength);
+      deform.release(0);
+    },
 
     /**
      * Refraction of the live DOM: the map for feDisplacementMap plus the shift
@@ -335,9 +375,32 @@ export function createGlassSurface(canvas: HTMLCanvasElement, maxWidth: number, 
       settledAlpha = settledAlpha < 0 ? alpha : settledAlpha + (alpha - settledAlpha) * SETTLE;
       settledLevel = settledLevel < 0 ? level : settledLevel + (level - settledLevel) * SETTLE;
 
+      // The same two numbers `refraction()` bakes into the filter for a settled
+      // shape, but taken off the LIVE optics — the ones activeMaterial has just
+      // changed. Under a press the medium loses three quarters of its roughness
+      // and gains ior and bevel, so the glass clears up and bends harder. That is
+      // the core's own account of what an active material is; it only had to be
+      // let out to the layer that draws.
+      const bevel = bevelDp(geometry, optics);
+      // The wave rides on the depth of the refraction. In the shader it is a ring
+      // running outwards through the warped field; with the lens off there is no
+      // field to run through, so what is left of it is the thing a ring does to
+      // the medium — the whole body of glass breathes once and settles. Same two
+      // numbers, amplitude and phase, straight off the core's spring.
+      const ripple = d.waveAmp > 0 ? Math.sin(d.wavePhase * Math.PI * 2) * d.waveAmp * 0.9 : 0;
+
       return {
         inkLight,
         body: `rgba(${Math.round(settledLevel)}, ${Math.round(settledLevel)}, ${Math.round(settledLevel)}, ${settledAlpha.toFixed(3)})`,
+        blur: optics.blur,
+        refract: Math.max(0, bevel * optics.refraction + ripple),
+        pullX: d.pullX,
+        pullY: d.pullY,
+        press: d.press,
+        active: d.active,
+        touchX: d.touchX,
+        touchY: d.touchY,
+        touchRadius: 0.72 * halfMinDp(geometry),
       };
     },
 

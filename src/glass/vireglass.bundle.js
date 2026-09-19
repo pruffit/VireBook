@@ -3349,6 +3349,15 @@ function createGlassSurface(canvas, maxWidth, maxHeight) {
     },
     release: () => deform.release(1.8),
     idle: () => deform.idle(),
+    /** A wave with no finger behind it, for when the pane changes shape by
+     *  itself. A dense medium rings when it is reshaped; the core already knows
+     *  how that ring looks and how fast it dies, so this borrows the same spring
+     *  rather than inventing a second kind of motion. grab and release land in
+     *  one frame, so the press never rises — what is left is the wave. */
+    ripple(x, y, strength = 2.4) {
+      deform.grab(x, y, strength);
+      deform.release(0);
+    },
     /**
      * Refraction of the live DOM: the map for feDisplacementMap plus the shift
      * magnitude and the haze, all out of the core's optics. Recomputed only when
@@ -3433,9 +3442,20 @@ function createGlassSurface(canvas, maxWidth, maxHeight) {
       aimLevel = level;
       settledAlpha = settledAlpha < 0 ? alpha : settledAlpha + (alpha - settledAlpha) * SETTLE;
       settledLevel = settledLevel < 0 ? level : settledLevel + (level - settledLevel) * SETTLE;
+      const bevel = bevelDp(geometry, optics);
+      const ripple = d.waveAmp > 0 ? Math.sin(d.wavePhase * Math.PI * 2) * d.waveAmp * 0.9 : 0;
       return {
         inkLight,
-        body: `rgba(${Math.round(settledLevel)}, ${Math.round(settledLevel)}, ${Math.round(settledLevel)}, ${settledAlpha.toFixed(3)})`
+        body: `rgba(${Math.round(settledLevel)}, ${Math.round(settledLevel)}, ${Math.round(settledLevel)}, ${settledAlpha.toFixed(3)})`,
+        blur: optics.blur,
+        refract: Math.max(0, bevel * optics.refraction + ripple),
+        pullX: d.pullX,
+        pullY: d.pullY,
+        press: d.press,
+        active: d.active,
+        touchX: d.touchX,
+        touchY: d.touchY,
+        touchRadius: 0.72 * halfMinDp(geometry)
       };
     },
     /** The last background measurement and ink decision — for debugging the material. */

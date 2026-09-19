@@ -108,6 +108,24 @@ const CSS = `
    pulled into the refraction: a parent's background is part of its own child's
    backdrop. */
 .tint { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+/* The light that blooms under a finger. When the medium goes active the core
+   raises its presence and its ior; on a surface pass that reads as a brighter
+   rim and a specular bloom, and this is the part of it CSS can wear directly.
+   Position and radius come from the core's own contact spot — the finger has an
+   area, not a point — and they arrive as custom properties so a frame writes
+   three numbers rather than re-parsing a gradient string. */
+.glow {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: var(--g-a, 0);
+  background: radial-gradient(
+    circle var(--g-r, 90px) at var(--g-x, 50%) var(--g-y, 50%),
+    color-mix(in oklch, var(--vg-ink) 30%, transparent),
+    transparent 72%
+  );
+}
 
 /* The fallback material when WebGL2 is unavailable: the extension has to work
    without the glass too. */
@@ -121,12 +139,21 @@ const CSS = `
     0 20px 44px -16px color-mix(in oklch, var(--vg-deep) 85%, transparent);
 }
 
+/* Arriving content waits for the shape. The sheet takes --morph to travel, and
+   content that turns opaque inside the first third of it is read through a box
+   still growing around it — clipped on the side the sheet has not reached yet,
+   so the text appears to slide out of a hole rather than the panel to unfold.
+   The delay is most of the morph: the shape forms, then the content resolves
+   into it. */
 .view {
   position: absolute;
   z-index: 2;
   opacity: 0;
-  transition: opacity .19s var(--ease);
+  transition: opacity .2s var(--ease) .15s;
 }
+/* Leaving content does not wait for anything: it is being replaced, and
+   lingering under the arriving one turns a cross-fade into a smear. */
+.view.leaving { transition: opacity .12s var(--ease); }
 /* The content is pinned to the same corner the sheet grows from: otherwise it
    drifts away from the edge during the morph. */
 .root.x-right .view { right: 0; }
@@ -270,7 +297,9 @@ export function create({
   clipEl.append(refractEl);
   const tintEl = document.createElement('div');
   tintEl.className = 'tint';
-  shell.append(clipEl, tintEl);
+  const glowEl = document.createElement('div');
+  glowEl.className = 'glow';
+  shell.append(clipEl, tintEl, glowEl);
   rootEl.append(canvas, shell);
 
   // The refraction filter lives in the shadow tree: url(#…) inside a
@@ -344,6 +373,7 @@ export function create({
     canvas.remove();
     clipEl.remove();
     tintEl.remove();
+    glowEl.remove();
     shell.classList.add('flat');
   }
 
@@ -418,6 +448,16 @@ export function create({
         // travelling. Stretch it to follow the live size: the field is smooth, so
         // the stretch is invisible, and the bevel stays glued to the real rim.
         fitMap(w, h);
+        // The response to a finger, worn by the layers that actually draw. The
+        // depth of the refraction and the haze come straight off the live optics,
+        // so a press clears the medium up and bends it harder; the pull is the
+        // core's spring, and the pane lags behind the finger by it.
+        wear(out.blur, out.refract);
+        glow(out, w, h);
+        deformX = out.pullX;
+        deformY = out.pullY;
+        pressed = out.press;
+        applyTransform();
       }
       if (performance.now() < paintUntil || !glass!.idle() || !glass!.settled()) {
         painting = requestAnimationFrame(frame);
@@ -492,6 +532,62 @@ export function create({
     paintGlass(performance.now() + 900);
   }
 
+  // ── What the pane is wearing right now ────────────────────────────────────
+  // One place composes the transform, because three things move the pane and
+  // they overlap: the drag, the glide into a corner, and the core's pull spring.
+  /** Offset from a drag in progress, CSS px. */
+  let dragX = 0;
+  let dragY = 0;
+  /** Offset from the core's pull spring, CSS px. */
+  let deformX = 0;
+  let deformY = 0;
+  /** How deep the press is, 0…1. */
+  let pressed = 0;
+  /** How far a full press sinks the pane. The core calls the press shallow, and
+   *  a control that dives under the cursor reads as a button, not as glass. */
+  const PRESS_SINK = 0.015;
+
+  function applyTransform(): void {
+    const x = dragX + deformX;
+    const y = dragY + deformY;
+    const scale = 1 - pressed * PRESS_SINK;
+    const move = x || y ? `translate(${x.toFixed(2)}px,${y.toFixed(2)}px)` : '';
+    const sink = pressed > 0.001 ? ` scale(${scale.toFixed(4)})` : '';
+    rootEl.style.transform = move || sink ? `${move}${sink}`.trim() : '';
+  }
+
+  let glowing = -1;
+  /** The bloom under the finger. The core hands over where the contact is and
+   *  how active the medium has become; the gradient only paints it. */
+  function glow(out: { active: number; touchX: number; touchY: number; touchRadius: number }, w: number, h: number): void {
+    const a = out.active;
+    // Nothing lit and nothing left over — do not touch the style at all.
+    if (a < 0.002 && glowing < 0.002) return;
+    glowing = a;
+    const st = glowEl.style;
+    st.setProperty('--g-a', a.toFixed(3));
+    st.setProperty('--g-x', (w / 2 + out.touchX).toFixed(1) + 'px');
+    st.setProperty('--g-y', (h / 2 + out.touchY).toFixed(1) + 'px');
+    st.setProperty('--g-r', out.touchRadius.toFixed(1) + 'px');
+  }
+
+  let wornBlur = -1;
+  let wornRefract = -1;
+  /** The live optics, onto the filter. Written every frame, so the two numbers
+   *  are compared first: an SVG attribute write invalidates the filter, and
+   *  re-running a displacement map over the backdrop at 60 Hz for no change is
+   *  the one thing here expensive enough to notice. */
+  function wear(blur: number, refract: number): void {
+    if (Math.abs(blur - wornBlur) > 0.05) {
+      wornBlur = blur;
+      blurEl.setAttribute('stdDeviation', (blur / 2).toFixed(2));
+    }
+    if (Math.abs(refract - wornRefract) > 0.05) {
+      wornRefract = refract;
+      feDisp.setAttribute('scale', (refract * 2).toFixed(2));
+    }
+  }
+
   let mapFor = '';
   // Building the map is a loop over pixels plus PNG encoding, and it is
   // synchronous. The widget has only a handful of shapes, so each is built once.
@@ -524,8 +620,9 @@ export function create({
     if (!out.map) return;
     feImage.setAttribute('href', out.map);
     fitMap(w, h);
-    feDisp.setAttribute('scale', out.scale.toFixed(2));
-    blurEl.setAttribute('stdDeviation', (out.blur / 2).toFixed(2));
+    // Prime the depth and the haze for the settled material; from here on the
+    // paint loop keeps writing them from the live optics, every frame.
+    wear(out.blur, out.scale / 2);
     refractEl.style.backdropFilter = 'url(#vg-refract)';
     refractEl.style.setProperty('-webkit-backdrop-filter', 'url(#vg-refract)');
   }
@@ -570,15 +667,21 @@ export function create({
     at = target;
     applyCorner();
     rootEl.classList.remove('gliding');
-    rootEl.style.transform = '';
+    dragX = 0;
+    dragY = 0;
+    applyTransform();
     const after = shell.getBoundingClientRect();
     const dx = before.left - after.left;
     const dy = before.top - after.top;
     if (animate && (dx || dy)) {
-      rootEl.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+      dragX = dx;
+      dragY = dy;
+      applyTransform();
       requestAnimationFrame(() => {
         rootEl.classList.add('gliding');
-        rootEl.style.transform = '';
+        dragX = 0;
+        dragY = 0;
+        applyTransform();
       });
     }
     if (onCornerChange) onCornerChange(at);
@@ -595,6 +698,13 @@ export function create({
     else if (dir === 'up') moveTo('t' + x, true);
     else moveTo('b' + x, true);
   }
+
+  // The glide owns the transform transition only while it is gliding. Left on,
+  // it would smear every later press: the spring updates the same property, and
+  // a 0.38 s ease over it turns a response into a drift.
+  rootEl.addEventListener('transitionend', (e) => {
+    if (e.target === rootEl && e.propertyName === 'transform') rootEl.classList.remove('gliding');
+  });
 
   let drag: { x: number; y: number; box: DOMRect; moving: boolean } | null = null;
   let dragged = false;
@@ -614,6 +724,14 @@ export function create({
 
   window.addEventListener('pointermove', (e) => {
     if (!drag) return;
+    // No button down any more: the pointerup went somewhere we never heard about
+    // — onto a native scrollbar, or out of the window while it lost focus. Left
+    // armed, the next stray movement of the mouse drags the pane across the
+    // screen without anyone touching it.
+    if (e.buttons === 0) {
+      letGo();
+      return;
+    }
     const dx = e.clientX - drag.x;
     const dy = e.clientY - drag.y;
     if (!drag.moving) {
@@ -632,13 +750,13 @@ export function create({
       if (glass) glass.release();
     }
     const b = drag.box;
-    const mx = Math.min(Math.max(dx, KEEP_IN - b.left), innerWidth - KEEP_IN - b.right);
-    const my = Math.min(Math.max(dy, KEEP_IN - b.top), innerHeight - KEEP_IN - b.bottom);
-    rootEl.style.transform = 'translate(' + mx + 'px,' + my + 'px)';
+    dragX = Math.min(Math.max(dx, KEEP_IN - b.left), innerWidth - KEEP_IN - b.right);
+    dragY = Math.min(Math.max(dy, KEEP_IN - b.top), innerHeight - KEEP_IN - b.bottom);
+    applyTransform();
     if (glass) paintGlass();
   });
 
-  const letGo = (): void => {
+  function letGo(): void {
     if (!drag) return;
     const moving = drag.moving;
     drag = null;
@@ -649,7 +767,7 @@ export function create({
     } else if (glass) {
       paintGlass();
     }
-  };
+  }
   window.addEventListener('pointerup', letGo);
   window.addEventListener('pointercancel', letGo);
 
@@ -733,6 +851,7 @@ export function create({
 
     const previous = view;
     if (previous) {
+      previous.classList.add('leaving');
       previous.classList.remove('in');
       setTimeout(() => previous.remove(), 220);
     }
@@ -751,6 +870,14 @@ export function create({
       lastSpread = pageSpread({ left, top, width: w, height: h });
       glass.setSpread(lastSpread);
       refract(w, h, pill ? h / 2 : SHEET_RADIUS);
+      // The medium rings when it is reshaped. The impulse starts at the corner
+      // the sheet is pinned to, because that is the one place that stays put
+      // while everything else travels — in the core's own morph model, the neck
+      // between the two shapes.
+      glass.ripple(
+        at[1] === 'l' ? -w / 2 : w / 2,
+        at[0] === 't' ? -h / 2 : h / 2,
+      );
     }
 
     const apply = (): void => {

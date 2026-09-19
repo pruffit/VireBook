@@ -5303,6 +5303,15 @@ void main() {
       },
       release: () => deform.release(1.8),
       idle: () => deform.idle(),
+      /** A wave with no finger behind it, for when the pane changes shape by
+       *  itself. A dense medium rings when it is reshaped; the core already knows
+       *  how that ring looks and how fast it dies, so this borrows the same spring
+       *  rather than inventing a second kind of motion. grab and release land in
+       *  one frame, so the press never rises — what is left is the wave. */
+      ripple(x, y, strength = 2.4) {
+        deform.grab(x, y, strength);
+        deform.release(0);
+      },
       /**
        * Refraction of the live DOM: the map for feDisplacementMap plus the shift
        * magnitude and the haze, all out of the core's optics. Recomputed only when
@@ -5387,9 +5396,20 @@ void main() {
         aimLevel = level;
         settledAlpha = settledAlpha < 0 ? alpha : settledAlpha + (alpha - settledAlpha) * SETTLE;
         settledLevel = settledLevel < 0 ? level : settledLevel + (level - settledLevel) * SETTLE;
+        const bevel = bevelDp(geometry, optics);
+        const ripple = d.waveAmp > 0 ? Math.sin(d.wavePhase * Math.PI * 2) * d.waveAmp * 0.9 : 0;
         return {
           inkLight,
-          body: `rgba(${Math.round(settledLevel)}, ${Math.round(settledLevel)}, ${Math.round(settledLevel)}, ${settledAlpha.toFixed(3)})`
+          body: `rgba(${Math.round(settledLevel)}, ${Math.round(settledLevel)}, ${Math.round(settledLevel)}, ${settledAlpha.toFixed(3)})`,
+          blur: optics.blur,
+          refract: Math.max(0, bevel * optics.refraction + ripple),
+          pullX: d.pullX,
+          pullY: d.pullY,
+          press: d.press,
+          active: d.active,
+          touchX: d.touchX,
+          touchY: d.touchY,
+          touchRadius: 0.72 * halfMinDp(geometry)
         };
       },
       /** The last background measurement and ink decision — for debugging the material. */
@@ -5494,6 +5514,24 @@ void main() {
    pulled into the refraction: a parent's background is part of its own child's
    backdrop. */
 .tint { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+/* The light that blooms under a finger. When the medium goes active the core
+   raises its presence and its ior; on a surface pass that reads as a brighter
+   rim and a specular bloom, and this is the part of it CSS can wear directly.
+   Position and radius come from the core's own contact spot \u2014 the finger has an
+   area, not a point \u2014 and they arrive as custom properties so a frame writes
+   three numbers rather than re-parsing a gradient string. */
+.glow {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: var(--g-a, 0);
+  background: radial-gradient(
+    circle var(--g-r, 90px) at var(--g-x, 50%) var(--g-y, 50%),
+    color-mix(in oklch, var(--vg-ink) 30%, transparent),
+    transparent 72%
+  );
+}
 
 /* The fallback material when WebGL2 is unavailable: the extension has to work
    without the glass too. */
@@ -5507,12 +5545,21 @@ void main() {
     0 20px 44px -16px color-mix(in oklch, var(--vg-deep) 85%, transparent);
 }
 
+/* Arriving content waits for the shape. The sheet takes --morph to travel, and
+   content that turns opaque inside the first third of it is read through a box
+   still growing around it \u2014 clipped on the side the sheet has not reached yet,
+   so the text appears to slide out of a hole rather than the panel to unfold.
+   The delay is most of the morph: the shape forms, then the content resolves
+   into it. */
 .view {
   position: absolute;
   z-index: 2;
   opacity: 0;
-  transition: opacity .19s var(--ease);
+  transition: opacity .2s var(--ease) .15s;
 }
+/* Leaving content does not wait for anything: it is being replaced, and
+   lingering under the arriving one turns a cross-fade into a smear. */
+.view.leaving { transition: opacity .12s var(--ease); }
 /* The content is pinned to the same corner the sheet grows from: otherwise it
    drifts away from the edge during the morph. */
 .root.x-right .view { right: 0; }
@@ -5612,7 +5659,9 @@ void main() {
     clipEl.append(refractEl);
     const tintEl = document.createElement("div");
     tintEl.className = "tint";
-    shell.append(clipEl, tintEl);
+    const glowEl = document.createElement("div");
+    glowEl.className = "glow";
+    shell.append(clipEl, tintEl, glowEl);
     rootEl.append(canvas, shell);
     const SVGNS = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(SVGNS, "svg");
@@ -5665,6 +5714,7 @@ void main() {
       canvas.remove();
       clipEl.remove();
       tintEl.remove();
+      glowEl.remove();
       shell.classList.add("flat");
     }
     let at = normalizeCorner(corner);
@@ -5718,6 +5768,12 @@ void main() {
           rootEl.classList.toggle("ink-dark", !out.inkLight);
           tintEl.style.background = out.body;
           fitMap(w, h);
+          wear(out.blur, out.refract);
+          glow(out, w, h);
+          deformX = out.pullX;
+          deformY = out.pullY;
+          pressed = out.press;
+          applyTransform();
         }
         if (performance.now() < paintUntil || !glass.idle() || !glass.settled()) {
           painting = requestAnimationFrame(frame);
@@ -5769,6 +5825,43 @@ void main() {
       glass.setSpread(lastSpread);
       paintGlass(performance.now() + 900);
     }
+    let dragX = 0;
+    let dragY = 0;
+    let deformX = 0;
+    let deformY = 0;
+    let pressed = 0;
+    const PRESS_SINK = 0.015;
+    function applyTransform() {
+      const x = dragX + deformX;
+      const y = dragY + deformY;
+      const scale = 1 - pressed * PRESS_SINK;
+      const move = x || y ? `translate(${x.toFixed(2)}px,${y.toFixed(2)}px)` : "";
+      const sink = pressed > 1e-3 ? ` scale(${scale.toFixed(4)})` : "";
+      rootEl.style.transform = move || sink ? `${move}${sink}`.trim() : "";
+    }
+    let glowing = -1;
+    function glow(out, w, h) {
+      const a = out.active;
+      if (a < 2e-3 && glowing < 2e-3) return;
+      glowing = a;
+      const st = glowEl.style;
+      st.setProperty("--g-a", a.toFixed(3));
+      st.setProperty("--g-x", (w / 2 + out.touchX).toFixed(1) + "px");
+      st.setProperty("--g-y", (h / 2 + out.touchY).toFixed(1) + "px");
+      st.setProperty("--g-r", out.touchRadius.toFixed(1) + "px");
+    }
+    let wornBlur = -1;
+    let wornRefract = -1;
+    function wear(blur2, refract2) {
+      if (Math.abs(blur2 - wornBlur) > 0.05) {
+        wornBlur = blur2;
+        blurEl.setAttribute("stdDeviation", (blur2 / 2).toFixed(2));
+      }
+      if (Math.abs(refract2 - wornRefract) > 0.05) {
+        wornRefract = refract2;
+        feDisp.setAttribute("scale", (refract2 * 2).toFixed(2));
+      }
+    }
     let mapFor = "";
     const mapCache = /* @__PURE__ */ new Map();
     function fitMap(w, h) {
@@ -5791,8 +5884,7 @@ void main() {
       if (!out.map) return;
       feImage.setAttribute("href", out.map);
       fitMap(w, h);
-      feDisp.setAttribute("scale", out.scale.toFixed(2));
-      blurEl.setAttribute("stdDeviation", (out.blur / 2).toFixed(2));
+      wear(out.blur, out.scale / 2);
       refractEl.style.backdropFilter = "url(#vg-refract)";
       refractEl.style.setProperty("-webkit-backdrop-filter", "url(#vg-refract)");
     }
@@ -5823,15 +5915,21 @@ void main() {
       at = target;
       applyCorner();
       rootEl.classList.remove("gliding");
-      rootEl.style.transform = "";
+      dragX = 0;
+      dragY = 0;
+      applyTransform();
       const after = shell.getBoundingClientRect();
       const dx = before.left - after.left;
       const dy = before.top - after.top;
       if (animate && (dx || dy)) {
-        rootEl.style.transform = "translate(" + dx + "px," + dy + "px)";
+        dragX = dx;
+        dragY = dy;
+        applyTransform();
         requestAnimationFrame(() => {
           rootEl.classList.add("gliding");
-          rootEl.style.transform = "";
+          dragX = 0;
+          dragY = 0;
+          applyTransform();
         });
       }
       if (onCornerChange) onCornerChange(at);
@@ -5845,6 +5943,9 @@ void main() {
       else if (dir === "up") moveTo("t" + x, true);
       else moveTo("b" + x, true);
     }
+    rootEl.addEventListener("transitionend", (e) => {
+      if (e.target === rootEl && e.propertyName === "transform") rootEl.classList.remove("gliding");
+    });
     let drag = null;
     let dragged = false;
     shell.addEventListener("pointerdown", (e) => {
@@ -5859,6 +5960,10 @@ void main() {
     });
     window.addEventListener("pointermove", (e) => {
       if (!drag) return;
+      if (e.buttons === 0) {
+        letGo();
+        return;
+      }
       const dx = e.clientX - drag.x;
       const dy = e.clientY - drag.y;
       if (!drag.moving) {
@@ -5873,12 +5978,12 @@ void main() {
         if (glass) glass.release();
       }
       const b = drag.box;
-      const mx = Math.min(Math.max(dx, KEEP_IN - b.left), innerWidth - KEEP_IN - b.right);
-      const my = Math.min(Math.max(dy, KEEP_IN - b.top), innerHeight - KEEP_IN - b.bottom);
-      rootEl.style.transform = "translate(" + mx + "px," + my + "px)";
+      dragX = Math.min(Math.max(dx, KEEP_IN - b.left), innerWidth - KEEP_IN - b.right);
+      dragY = Math.min(Math.max(dy, KEEP_IN - b.top), innerHeight - KEEP_IN - b.bottom);
+      applyTransform();
       if (glass) paintGlass();
     });
-    const letGo = () => {
+    function letGo() {
       if (!drag) return;
       const moving = drag.moving;
       drag = null;
@@ -5889,7 +5994,7 @@ void main() {
       } else if (glass) {
         paintGlass();
       }
-    };
+    }
     window.addEventListener("pointerup", letGo);
     window.addEventListener("pointercancel", letGo);
     rootEl.addEventListener(
@@ -5950,6 +6055,7 @@ void main() {
       next.style.width = w + "px";
       const previous = view;
       if (previous) {
+        previous.classList.add("leaving");
         previous.classList.remove("in");
         setTimeout(() => previous.remove(), 220);
       }
@@ -5962,6 +6068,10 @@ void main() {
         lastSpread = pageSpread({ left, top, width: w, height: h });
         glass.setSpread(lastSpread);
         refract(w, h, pill ? h / 2 : SHEET_RADIUS);
+        glass.ripple(
+          at[1] === "l" ? -w / 2 : w / 2,
+          at[0] === "t" ? -h / 2 : h / 2
+        );
       }
       const apply = () => {
         shell.style.width = w + "px";
