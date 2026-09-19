@@ -1,0 +1,41 @@
+name: Сайт перестал скачиваться
+description: Кнопка не появилась, текста не нашлось, книга пустая или обрезана.
+title: '[сайт] '
+labels: [сайт]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Сайты переверстывают разметку — это обычное дело и чинится точечно,
+        в `src/adapters/<сайт>.js`. Чтобы починить, нужна ссылка и то, что видно в консоли.
+  - type: input
+    id: url
+    attributes:
+      label: Ссылка на работу
+      description: Страница, на которой не сработало. Если работа закрытая — напишите это словами.
+      placeholder: https://ficbook.net/readfic/...
+    validations:
+      required: true
+  - type: dropdown
+    id: symptom
+    attributes:
+      label: Что именно случилось
+      options:
+        - Кнопка не появилась вовсе
+        - Кнопка есть, но «Не нашёл текста»
+        - Книга скачалась пустой
+        - Книга обрезана — глав меньше, чем на сайте
+        - Файл не открывается на читалке
+        - Что-то с видом панели
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Подробности
+      description: Сколько глав ожидалось и сколько вышло, что написано в панели, что в консоли (F12 → Console).
+  - type: input
+    id: browser
+    attributes:
+      label: Браузер и версия
+      placeholder: Яндекс.Браузер 24.x / Chrome 131 / Edge 131

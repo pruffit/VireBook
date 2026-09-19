@@ -1,0 +1,30 @@
+name: Добавить сайт
+description: Хочется свой парсер под ещё один сайт с фанфиками.
+title: '[новый сайт] '
+labels: [новый сайт]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Универсальный разбор работает на любом сайте, но свой парсер точнее:
+        он знает оглавление, автора и число глав. См. CONTRIBUTING.md — адаптер
+        это один небольшой файл.
+  - type: input
+    id: site
+    attributes:
+      label: Домен
+      placeholder: example.com
+    validations:
+      required: true
+  - type: input
+    id: work
+    attributes:
+      label: Ссылка на любую работу с несколькими главами
+      description: По ней снимается разметка и делается фикстура для тестов.
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Что важно знать
+      description: Нужна ли авторизация, есть ли антибот, отдаёт ли сайт готовые файлы сам, доступен ли он из вашей страны.
