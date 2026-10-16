@@ -3,6 +3,43 @@
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 the numbering [SemVer](https://semver.org/).
 
+## [1.4.0] — 2026-10-16
+
+### Changed
+
+- **VireGlass now comes from npm** — `vireglass@2.2.0`. It used to live in this
+  repository as a generated file — `src/glass/vireglass.bundle.js`, built out of
+  a private package in a monorepo nobody else had, committed ready-made so that
+  the extension could be built without it. The package is
+  [published](https://www.npmjs.com/package/vireglass) now, so the bundle, its
+  hand-written types and `scripts/build-glass.mjs` are all gone, and the build
+  resolves `vireglass` like any other dependency. The extension still installs
+  as a folder with no `node_modules` in it: the package is bundled into `dist/`.
+
+- **The material is the package's live-DOM renderer, not a WebGL canvas.**
+  Version 2 moved glass-over-live-DOM into `vireglass/dom`, which is precisely
+  what this panel was doing by hand, and turned the WebGL renderer into the
+  lab's own opaque pipeline — it always draws its own backdrop now, so it could
+  no longer serve as a transparent overlay. `src/glass.ts` is a port of the
+  package's `attachGlass` into a shadow tree; the canvas, the hand-built
+  displacement map, the hand-rolled body density and the estimate of background
+  busyness are all gone, replaced by the package's own. The rim and the adaptive
+  shadow are new here — they used to be drawn by the canvas that no longer
+  exists.
+
+  It stays a port, rather than a call to `attachGlass`, for two reasons: the
+  pane answers a finger by moving — a transform on the whole widget, from a
+  spring `GlassHandle` neither exposes nor lets anyone drive — and a drag here
+  means "throw the panel into another corner", which only the widget can tell
+  from a press. The morph is the other: `attachGlass` re-reads the backdrop and
+  re-bakes the map at full device resolution on every resize, and a panel
+  changing shape resizes every frame.
+
+- **The body over a dark page is denser.** Not a decision made here: 2.2.0
+  changed how `withPresence` reaches its minimum separation, and over a flat
+  dark backdrop the density it asks for goes from 0.20 to 0.50. The panel stands
+  apart from the chapter text now instead of nearly vanishing into it.
+
 ## [1.3.0] — 2026-09-19
 
 ### Fixed
@@ -129,6 +166,7 @@ In full under "Honest limitations" in the README.
   the known structure and was not exercised live.
 - Images do not make it into the book — text only.
 
+[1.4.0]: https://github.com/pruffit/VireBook/releases/tag/v1.4.0
 [1.3.0]: https://github.com/pruffit/VireBook/releases/tag/v1.3.0
 [1.2.0]: https://github.com/pruffit/VireBook/releases/tag/v1.2.0
 [1.1.1]: https://github.com/pruffit/VireBook/releases/tag/v1.1.1

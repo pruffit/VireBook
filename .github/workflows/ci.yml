@@ -17,11 +17,6 @@ jobs:
           cache: npm
       - run: npm ci
 
-      # The glass layer (src/glass/vireglass.bundle.js) is built from a private
-      # package and is committed ready-made — CI does not rebuild it, only
-      # checks that it is there.
-      - run: test -s src/glass/vireglass.bundle.js
-
       - run: npm run typecheck
 
       # dist/ is committed so that "load unpacked" works straight from a clone.

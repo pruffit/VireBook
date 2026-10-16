@@ -12,10 +12,9 @@
 
 <!--
 House rules that save a review round (more in CONTRIBUTING.md):
-  · no runtime dependencies;
+  · one runtime dependency, vireglass, and no second one;
   · TypeScript under strict, no `any`;
   · comments say why;
-  · src/glass/vireglass.bundle.js is generated, not hand-edited;
   · requests to sites go only through ctx.fetchDoc / fetchText;
   · the interface is in English and says "book".
 -->

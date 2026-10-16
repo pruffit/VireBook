@@ -26,16 +26,19 @@ that went missing silently.
 
 ## House rules that will save a review round
 
-- **There are no runtime dependencies** and none are being added. Everything the
-  extension needs is in the repository, ready to run.
+- **There is exactly one runtime dependency**, [`vireglass`](https://github.com/pruffit/vireglass),
+  and a second one is not being added. It is bundled into `dist/`, so what ships
+  is still a folder you can load unpacked.
 - **TypeScript under `strict`.** `npm run typecheck` must be clean. No `any`; if
   a type is genuinely unknown, `unknown` plus a narrowing check.
 - **Comments say *why*.** Restating the code is not needed; a non-obvious
   invariant or a way around somebody else's bug is, in a line or two.
 - **`dist/` is a build artefact**, but it is committed: run `npm run build` and
   commit the result along with the source. CI fails if the two disagree.
-- **`src/glass/vireglass.bundle.js` is not edited by hand** — it is generated,
-  see the README.
+- **The material is not reimplemented here.** `src/glass.ts` is a port of
+  `attachGlass` from `vireglass/dom` into a shadow tree, and every number in it
+  is imported from the package. A constant copied out of it instead is a copy
+  that will drift; see the README for what the port changes and why.
 - Requests to sites go only through `ctx.fetchDoc` / `fetchText`: that is where
   the pacing, `Retry-After` and backoff live. A bare `fetch` in an adapter walks
   straight past them and into a 429.

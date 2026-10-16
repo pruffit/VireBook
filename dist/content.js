@@ -405,9 +405,9 @@
       const text = el.textContent || "";
       if (text.length < 400) continue;
       const paragraphs = el.querySelectorAll("p, br").length;
-      const density2 = linkDensity(el);
-      if (density2 > 0.35) continue;
-      let score = text.length * (1 - density2) + paragraphs * 60;
+      const density = linkDensity(el);
+      if (density > 0.35) continue;
+      let score = text.length * (1 - density) + paragraphs * 60;
       const idc = `${el.id || ""} ${typeof el.className === "string" ? el.className : ""}`;
       if (CONTENT_HINT.test(idc)) score *= 1.6;
       const nested = el.querySelectorAll("div, article, section").length;
@@ -1985,1064 +1985,499 @@ ${stripTags(c.xhtml)}`).join("\n");
     }, 2e4);
   }
 
-  // src/glass/vireglass.bundle.js
-  var __create = Object.create;
-  var __defProp = Object.defineProperty;
-  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
-  var __getOwnPropNames = Object.getOwnPropertyNames;
-  var __getProtoOf = Object.getPrototypeOf;
-  var __hasOwnProp = Object.prototype.hasOwnProperty;
-  var __commonJS = (cb, mod) => function __require() {
-    try {
-      return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
-    } catch (e) {
-      throw mod = 0, e;
-    }
+  // node_modules/vireglass/dist/chunk-MMPK6DCK.js
+  var RIM = {
+    /**
+     * The key-light lobe's exponent. Two opposing arcs come out of one expression, which is why
+     * they are opposed rather than placed: `pow(max(facing, 0), n) + 0.45 * pow(max(-facing, 0), n)`.
+     *
+     * MEASURED off two close-ups of real end caps, frames/crops/cap158-left and cap158-right. The
+     * bright arc's full width at half its peak is 53 degrees in the first and 30 in the second; this
+     * exponent's own width is `2·acos(0.5^(1/n))`, so they imply 6 and 20. It was 3, whose arc is 75
+     * degrees wide — broader than either measurement, and the error is in the same direction in both.
+     *
+     * 6 is the conservative end: it reproduces the wider crop exactly, and a broader arc is the more
+     * forgiving error. One exponent cannot serve both, and that is not noise — a specular lobe's
+     * width depends on the light's angular size as well as the surface, and those are two different
+     * scenes. The model has no term for the light's size.
+     */
+    lobeExponent: 6,
+    /** The far arc, weaker than the one facing the light (§2). */
+    opposingArc: 0.45,
+    /**
+     * The dark edge along the whole silhouette, as a multiplicative darkening. iOS 27 made it a
+     * layer of its own, and it does not rule out the highlight sitting on top of it (§2).
+     */
+    darkEdge: 0.22,
+    /** Width of the hairline, CSS px. "About a point, not a band and not a bevel" (§2). */
+    widthPx: 1
   };
-  var __copyProps = (to, from, except, desc) => {
-    if (from && typeof from === "object" || typeof from === "function") {
-      for (let key of __getOwnPropNames(from))
-        if (!__hasOwnProp.call(to, key) && key !== except)
-          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
-    }
-    return to;
+  var BODY3 = {
+    /** Lightness ceiling for the body when legibility is loose. */
+    capLoose: 0.62,
+    /** …and when it is strict. The model is calibrated at these two, not in between (E-43). */
+    capTight: 0.38,
+    /** The two ends the body tints toward. Glass has no colour of its own (HIG "Color"). */
+    tintDark: 0.07,
+    tintLight: 0.94,
+    /** How far the backdrop's spread reaches past its mean when deciding what the ink needs. */
+    busyEdge: 0.75,
+    /** Fine texture the body has to stop being a window for. */
+    groundSpan: 0.06,
+    /** Where the tint flips direction, by the element's AVERAGE lightness — a local threshold cuts
+     *  a diagonal step across the body on a gradient. */
+    darkSideFrom: 0.42,
+    darkSideTo: 0.58,
+    /** Ceiling on any single demand, so one requirement cannot make the glass opaque on its own. */
+    maxDemand: 0.92,
+    /**
+     * And a tighter one for presence specifically. It is a FLOOR on visibility, not a licence to go
+     * opaque: wherever the body's tint sits close to the backdrop, the density that would deliver the
+     * separation is the ceiling, and glass at `maxDemand` has stopped being a window. Better to
+     * separate as far as transparency allows and no further. UNMEASURED.
+     */
+    presenceDemand: 0.5
   };
-  var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
-    // If the importer is in node compatibility mode or this is not an ESM
-    // file that has been converted to a CommonJS file using a Babel-
-    // compatible transform (i.e. "__esModule" has not been set), then set
-    // "default" to the CommonJS "module.exports" for node compatibility.
-    isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
-    mod
-  ));
-  var require_react_development = __commonJS({
-    "../vire/node_modules/.pnpm/react@19.2.4/node_modules/react/cjs/react.development.js"(exports, module) {
-      "use strict";
-      (function() {
-        function defineDeprecationWarning(methodName, info) {
-          Object.defineProperty(Component.prototype, methodName, {
-            get: function() {
-              console.warn(
-                "%s(...) is deprecated in plain JavaScript React classes. %s",
-                info[0],
-                info[1]
-              );
-            }
-          });
-        }
-        function getIteratorFn(maybeIterable) {
-          if (null === maybeIterable || "object" !== typeof maybeIterable)
-            return null;
-          maybeIterable = MAYBE_ITERATOR_SYMBOL && maybeIterable[MAYBE_ITERATOR_SYMBOL] || maybeIterable["@@iterator"];
-          return "function" === typeof maybeIterable ? maybeIterable : null;
-        }
-        function warnNoop(publicInstance, callerName) {
-          publicInstance = (publicInstance = publicInstance.constructor) && (publicInstance.displayName || publicInstance.name) || "ReactClass";
-          var warningKey = publicInstance + "." + callerName;
-          didWarnStateUpdateForUnmountedComponent[warningKey] || (console.error(
-            "Can't call %s on a component that is not yet mounted. This is a no-op, but it might indicate a bug in your application. Instead, assign to `this.state` directly or define a `state = {};` class property with the desired state in the %s component.",
-            callerName,
-            publicInstance
-          ), didWarnStateUpdateForUnmountedComponent[warningKey] = true);
-        }
-        function Component(props, context, updater) {
-          this.props = props;
-          this.context = context;
-          this.refs = emptyObject;
-          this.updater = updater || ReactNoopUpdateQueue;
-        }
-        function ComponentDummy() {
-        }
-        function PureComponent(props, context, updater) {
-          this.props = props;
-          this.context = context;
-          this.refs = emptyObject;
-          this.updater = updater || ReactNoopUpdateQueue;
-        }
-        function noop() {
-        }
-        function testStringCoercion(value) {
-          return "" + value;
-        }
-        function checkKeyStringCoercion(value) {
-          try {
-            testStringCoercion(value);
-            var JSCompiler_inline_result = false;
-          } catch (e) {
-            JSCompiler_inline_result = true;
-          }
-          if (JSCompiler_inline_result) {
-            JSCompiler_inline_result = console;
-            var JSCompiler_temp_const = JSCompiler_inline_result.error;
-            var JSCompiler_inline_result$jscomp$0 = "function" === typeof Symbol && Symbol.toStringTag && value[Symbol.toStringTag] || value.constructor.name || "Object";
-            JSCompiler_temp_const.call(
-              JSCompiler_inline_result,
-              "The provided key is an unsupported type %s. This value must be coerced to a string before using it here.",
-              JSCompiler_inline_result$jscomp$0
-            );
-            return testStringCoercion(value);
-          }
-        }
-        function getComponentNameFromType(type) {
-          if (null == type) return null;
-          if ("function" === typeof type)
-            return type.$$typeof === REACT_CLIENT_REFERENCE ? null : type.displayName || type.name || null;
-          if ("string" === typeof type) return type;
-          switch (type) {
-            case REACT_FRAGMENT_TYPE:
-              return "Fragment";
-            case REACT_PROFILER_TYPE:
-              return "Profiler";
-            case REACT_STRICT_MODE_TYPE:
-              return "StrictMode";
-            case REACT_SUSPENSE_TYPE:
-              return "Suspense";
-            case REACT_SUSPENSE_LIST_TYPE:
-              return "SuspenseList";
-            case REACT_ACTIVITY_TYPE:
-              return "Activity";
-          }
-          if ("object" === typeof type)
-            switch ("number" === typeof type.tag && console.error(
-              "Received an unexpected object in getComponentNameFromType(). This is likely a bug in React. Please file an issue."
-            ), type.$$typeof) {
-              case REACT_PORTAL_TYPE:
-                return "Portal";
-              case REACT_CONTEXT_TYPE:
-                return type.displayName || "Context";
-              case REACT_CONSUMER_TYPE:
-                return (type._context.displayName || "Context") + ".Consumer";
-              case REACT_FORWARD_REF_TYPE:
-                var innerType = type.render;
-                type = type.displayName;
-                type || (type = innerType.displayName || innerType.name || "", type = "" !== type ? "ForwardRef(" + type + ")" : "ForwardRef");
-                return type;
-              case REACT_MEMO_TYPE:
-                return innerType = type.displayName || null, null !== innerType ? innerType : getComponentNameFromType(type.type) || "Memo";
-              case REACT_LAZY_TYPE:
-                innerType = type._payload;
-                type = type._init;
-                try {
-                  return getComponentNameFromType(type(innerType));
-                } catch (x) {
-                }
-            }
-          return null;
-        }
-        function getTaskName(type) {
-          if (type === REACT_FRAGMENT_TYPE) return "<>";
-          if ("object" === typeof type && null !== type && type.$$typeof === REACT_LAZY_TYPE)
-            return "<...>";
-          try {
-            var name = getComponentNameFromType(type);
-            return name ? "<" + name + ">" : "<...>";
-          } catch (x) {
-            return "<...>";
-          }
-        }
-        function getOwner() {
-          var dispatcher = ReactSharedInternals.A;
-          return null === dispatcher ? null : dispatcher.getOwner();
-        }
-        function UnknownOwner() {
-          return Error("react-stack-top-frame");
-        }
-        function hasValidKey(config) {
-          if (hasOwnProperty.call(config, "key")) {
-            var getter = Object.getOwnPropertyDescriptor(config, "key").get;
-            if (getter && getter.isReactWarning) return false;
-          }
-          return void 0 !== config.key;
-        }
-        function defineKeyPropWarningGetter(props, displayName) {
-          function warnAboutAccessingKey() {
-            specialPropKeyWarningShown || (specialPropKeyWarningShown = true, console.error(
-              "%s: `key` is not a prop. Trying to access it will result in `undefined` being returned. If you need to access the same value within the child component, you should pass it as a different prop. (https://react.dev/link/special-props)",
-              displayName
-            ));
-          }
-          warnAboutAccessingKey.isReactWarning = true;
-          Object.defineProperty(props, "key", {
-            get: warnAboutAccessingKey,
-            configurable: true
-          });
-        }
-        function elementRefGetterWithDeprecationWarning() {
-          var componentName = getComponentNameFromType(this.type);
-          didWarnAboutElementRef[componentName] || (didWarnAboutElementRef[componentName] = true, console.error(
-            "Accessing element.ref was removed in React 19. ref is now a regular prop. It will be removed from the JSX Element type in a future release."
-          ));
-          componentName = this.props.ref;
-          return void 0 !== componentName ? componentName : null;
-        }
-        function ReactElement(type, key, props, owner, debugStack, debugTask) {
-          var refProp = props.ref;
-          type = {
-            $$typeof: REACT_ELEMENT_TYPE,
-            type,
-            key,
-            props,
-            _owner: owner
-          };
-          null !== (void 0 !== refProp ? refProp : null) ? Object.defineProperty(type, "ref", {
-            enumerable: false,
-            get: elementRefGetterWithDeprecationWarning
-          }) : Object.defineProperty(type, "ref", { enumerable: false, value: null });
-          type._store = {};
-          Object.defineProperty(type._store, "validated", {
-            configurable: false,
-            enumerable: false,
-            writable: true,
-            value: 0
-          });
-          Object.defineProperty(type, "_debugInfo", {
-            configurable: false,
-            enumerable: false,
-            writable: true,
-            value: null
-          });
-          Object.defineProperty(type, "_debugStack", {
-            configurable: false,
-            enumerable: false,
-            writable: true,
-            value: debugStack
-          });
-          Object.defineProperty(type, "_debugTask", {
-            configurable: false,
-            enumerable: false,
-            writable: true,
-            value: debugTask
-          });
-          Object.freeze && (Object.freeze(type.props), Object.freeze(type));
-          return type;
-        }
-        function cloneAndReplaceKey(oldElement, newKey) {
-          newKey = ReactElement(
-            oldElement.type,
-            newKey,
-            oldElement.props,
-            oldElement._owner,
-            oldElement._debugStack,
-            oldElement._debugTask
-          );
-          oldElement._store && (newKey._store.validated = oldElement._store.validated);
-          return newKey;
-        }
-        function validateChildKeys(node) {
-          isValidElement(node) ? node._store && (node._store.validated = 1) : "object" === typeof node && null !== node && node.$$typeof === REACT_LAZY_TYPE && ("fulfilled" === node._payload.status ? isValidElement(node._payload.value) && node._payload.value._store && (node._payload.value._store.validated = 1) : node._store && (node._store.validated = 1));
-        }
-        function isValidElement(object) {
-          return "object" === typeof object && null !== object && object.$$typeof === REACT_ELEMENT_TYPE;
-        }
-        function escape(key) {
-          var escaperLookup = { "=": "=0", ":": "=2" };
-          return "$" + key.replace(/[=:]/g, function(match) {
-            return escaperLookup[match];
-          });
-        }
-        function getElementKey(element, index) {
-          return "object" === typeof element && null !== element && null != element.key ? (checkKeyStringCoercion(element.key), escape("" + element.key)) : index.toString(36);
-        }
-        function resolveThenable(thenable) {
-          switch (thenable.status) {
-            case "fulfilled":
-              return thenable.value;
-            case "rejected":
-              throw thenable.reason;
-            default:
-              switch ("string" === typeof thenable.status ? thenable.then(noop, noop) : (thenable.status = "pending", thenable.then(
-                function(fulfilledValue) {
-                  "pending" === thenable.status && (thenable.status = "fulfilled", thenable.value = fulfilledValue);
-                },
-                function(error) {
-                  "pending" === thenable.status && (thenable.status = "rejected", thenable.reason = error);
-                }
-              )), thenable.status) {
-                case "fulfilled":
-                  return thenable.value;
-                case "rejected":
-                  throw thenable.reason;
-              }
-          }
-          throw thenable;
-        }
-        function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
-          var type = typeof children;
-          if ("undefined" === type || "boolean" === type) children = null;
-          var invokeCallback = false;
-          if (null === children) invokeCallback = true;
-          else
-            switch (type) {
-              case "bigint":
-              case "string":
-              case "number":
-                invokeCallback = true;
-                break;
-              case "object":
-                switch (children.$$typeof) {
-                  case REACT_ELEMENT_TYPE:
-                  case REACT_PORTAL_TYPE:
-                    invokeCallback = true;
-                    break;
-                  case REACT_LAZY_TYPE:
-                    return invokeCallback = children._init, mapIntoArray(
-                      invokeCallback(children._payload),
-                      array,
-                      escapedPrefix,
-                      nameSoFar,
-                      callback
-                    );
-                }
-            }
-          if (invokeCallback) {
-            invokeCallback = children;
-            callback = callback(invokeCallback);
-            var childKey = "" === nameSoFar ? "." + getElementKey(invokeCallback, 0) : nameSoFar;
-            isArrayImpl(callback) ? (escapedPrefix = "", null != childKey && (escapedPrefix = childKey.replace(userProvidedKeyEscapeRegex, "$&/") + "/"), mapIntoArray(callback, array, escapedPrefix, "", function(c) {
-              return c;
-            })) : null != callback && (isValidElement(callback) && (null != callback.key && (invokeCallback && invokeCallback.key === callback.key || checkKeyStringCoercion(callback.key)), escapedPrefix = cloneAndReplaceKey(
-              callback,
-              escapedPrefix + (null == callback.key || invokeCallback && invokeCallback.key === callback.key ? "" : ("" + callback.key).replace(
-                userProvidedKeyEscapeRegex,
-                "$&/"
-              ) + "/") + childKey
-            ), "" !== nameSoFar && null != invokeCallback && isValidElement(invokeCallback) && null == invokeCallback.key && invokeCallback._store && !invokeCallback._store.validated && (escapedPrefix._store.validated = 2), callback = escapedPrefix), array.push(callback));
-            return 1;
-          }
-          invokeCallback = 0;
-          childKey = "" === nameSoFar ? "." : nameSoFar + ":";
-          if (isArrayImpl(children))
-            for (var i = 0; i < children.length; i++)
-              nameSoFar = children[i], type = childKey + getElementKey(nameSoFar, i), invokeCallback += mapIntoArray(
-                nameSoFar,
-                array,
-                escapedPrefix,
-                type,
-                callback
-              );
-          else if (i = getIteratorFn(children), "function" === typeof i)
-            for (i === children.entries && (didWarnAboutMaps || console.warn(
-              "Using Maps as children is not supported. Use an array of keyed ReactElements instead."
-            ), didWarnAboutMaps = true), children = i.call(children), i = 0; !(nameSoFar = children.next()).done; )
-              nameSoFar = nameSoFar.value, type = childKey + getElementKey(nameSoFar, i++), invokeCallback += mapIntoArray(
-                nameSoFar,
-                array,
-                escapedPrefix,
-                type,
-                callback
-              );
-          else if ("object" === type) {
-            if ("function" === typeof children.then)
-              return mapIntoArray(
-                resolveThenable(children),
-                array,
-                escapedPrefix,
-                nameSoFar,
-                callback
-              );
-            array = String(children);
-            throw Error(
-              "Objects are not valid as a React child (found: " + ("[object Object]" === array ? "object with keys {" + Object.keys(children).join(", ") + "}" : array) + "). If you meant to render a collection of children, use an array instead."
-            );
-          }
-          return invokeCallback;
-        }
-        function mapChildren(children, func, context) {
-          if (null == children) return children;
-          var result = [], count = 0;
-          mapIntoArray(children, result, "", "", function(child) {
-            return func.call(context, child, count++);
-          });
-          return result;
-        }
-        function lazyInitializer(payload) {
-          if (-1 === payload._status) {
-            var ioInfo = payload._ioInfo;
-            null != ioInfo && (ioInfo.start = ioInfo.end = performance.now());
-            ioInfo = payload._result;
-            var thenable = ioInfo();
-            thenable.then(
-              function(moduleObject) {
-                if (0 === payload._status || -1 === payload._status) {
-                  payload._status = 1;
-                  payload._result = moduleObject;
-                  var _ioInfo = payload._ioInfo;
-                  null != _ioInfo && (_ioInfo.end = performance.now());
-                  void 0 === thenable.status && (thenable.status = "fulfilled", thenable.value = moduleObject);
-                }
-              },
-              function(error) {
-                if (0 === payload._status || -1 === payload._status) {
-                  payload._status = 2;
-                  payload._result = error;
-                  var _ioInfo2 = payload._ioInfo;
-                  null != _ioInfo2 && (_ioInfo2.end = performance.now());
-                  void 0 === thenable.status && (thenable.status = "rejected", thenable.reason = error);
-                }
-              }
-            );
-            ioInfo = payload._ioInfo;
-            if (null != ioInfo) {
-              ioInfo.value = thenable;
-              var displayName = thenable.displayName;
-              "string" === typeof displayName && (ioInfo.name = displayName);
-            }
-            -1 === payload._status && (payload._status = 0, payload._result = thenable);
-          }
-          if (1 === payload._status)
-            return ioInfo = payload._result, void 0 === ioInfo && console.error(
-              "lazy: Expected the result of a dynamic import() call. Instead received: %s\n\nYour code should look like: \n  const MyComponent = lazy(() => import('./MyComponent'))\n\nDid you accidentally put curly braces around the import?",
-              ioInfo
-            ), "default" in ioInfo || console.error(
-              "lazy: Expected the result of a dynamic import() call. Instead received: %s\n\nYour code should look like: \n  const MyComponent = lazy(() => import('./MyComponent'))",
-              ioInfo
-            ), ioInfo.default;
-          throw payload._result;
-        }
-        function resolveDispatcher() {
-          var dispatcher = ReactSharedInternals.H;
-          null === dispatcher && console.error(
-            "Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:\n1. You might have mismatching versions of React and the renderer (such as React DOM)\n2. You might be breaking the Rules of Hooks\n3. You might have more than one copy of React in the same app\nSee https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem."
-          );
-          return dispatcher;
-        }
-        function releaseAsyncTransition() {
-          ReactSharedInternals.asyncTransitions--;
-        }
-        function enqueueTask(task) {
-          if (null === enqueueTaskImpl)
-            try {
-              var requireString = ("require" + Math.random()).slice(0, 7);
-              enqueueTaskImpl = (module && module[requireString]).call(
-                module,
-                "timers"
-              ).setImmediate;
-            } catch (_err) {
-              enqueueTaskImpl = function(callback) {
-                false === didWarnAboutMessageChannel && (didWarnAboutMessageChannel = true, "undefined" === typeof MessageChannel && console.error(
-                  "This browser does not have a MessageChannel implementation, so enqueuing tasks via await act(async () => ...) will fail. Please file an issue at https://github.com/facebook/react/issues if you encounter this warning."
-                ));
-                var channel2 = new MessageChannel();
-                channel2.port1.onmessage = callback;
-                channel2.port2.postMessage(void 0);
-              };
-            }
-          return enqueueTaskImpl(task);
-        }
-        function aggregateErrors(errors) {
-          return 1 < errors.length && "function" === typeof AggregateError ? new AggregateError(errors) : errors[0];
-        }
-        function popActScope(prevActQueue, prevActScopeDepth) {
-          prevActScopeDepth !== actScopeDepth - 1 && console.error(
-            "You seem to have overlapping act() calls, this is not supported. Be sure to await previous act() calls before making a new one. "
-          );
-          actScopeDepth = prevActScopeDepth;
-        }
-        function recursivelyFlushAsyncActWork(returnValue, resolve, reject) {
-          var queue = ReactSharedInternals.actQueue;
-          if (null !== queue)
-            if (0 !== queue.length)
-              try {
-                flushActQueue(queue);
-                enqueueTask(function() {
-                  return recursivelyFlushAsyncActWork(returnValue, resolve, reject);
-                });
-                return;
-              } catch (error) {
-                ReactSharedInternals.thrownErrors.push(error);
-              }
-            else ReactSharedInternals.actQueue = null;
-          0 < ReactSharedInternals.thrownErrors.length ? (queue = aggregateErrors(ReactSharedInternals.thrownErrors), ReactSharedInternals.thrownErrors.length = 0, reject(queue)) : resolve(returnValue);
-        }
-        function flushActQueue(queue) {
-          if (!isFlushing) {
-            isFlushing = true;
-            var i = 0;
-            try {
-              for (; i < queue.length; i++) {
-                var callback = queue[i];
-                do {
-                  ReactSharedInternals.didUsePromise = false;
-                  var continuation = callback(false);
-                  if (null !== continuation) {
-                    if (ReactSharedInternals.didUsePromise) {
-                      queue[i] = callback;
-                      queue.splice(0, i);
-                      return;
-                    }
-                    callback = continuation;
-                  } else break;
-                } while (1);
-              }
-              queue.length = 0;
-            } catch (error) {
-              queue.splice(0, i + 1), ReactSharedInternals.thrownErrors.push(error);
-            } finally {
-              isFlushing = false;
-            }
-          }
-        }
-        "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
-        var REACT_ELEMENT_TYPE = /* @__PURE__ */ Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = /* @__PURE__ */ Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = /* @__PURE__ */ Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = /* @__PURE__ */ Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = /* @__PURE__ */ Symbol.for("react.profiler"), REACT_CONSUMER_TYPE = /* @__PURE__ */ Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = /* @__PURE__ */ Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = /* @__PURE__ */ Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = /* @__PURE__ */ Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = /* @__PURE__ */ Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = /* @__PURE__ */ Symbol.for("react.memo"), REACT_LAZY_TYPE = /* @__PURE__ */ Symbol.for("react.lazy"), REACT_ACTIVITY_TYPE = /* @__PURE__ */ Symbol.for("react.activity"), MAYBE_ITERATOR_SYMBOL = Symbol.iterator, didWarnStateUpdateForUnmountedComponent = {}, ReactNoopUpdateQueue = {
-          isMounted: function() {
-            return false;
-          },
-          enqueueForceUpdate: function(publicInstance) {
-            warnNoop(publicInstance, "forceUpdate");
-          },
-          enqueueReplaceState: function(publicInstance) {
-            warnNoop(publicInstance, "replaceState");
-          },
-          enqueueSetState: function(publicInstance) {
-            warnNoop(publicInstance, "setState");
-          }
-        }, assign = Object.assign, emptyObject = {};
-        Object.freeze(emptyObject);
-        Component.prototype.isReactComponent = {};
-        Component.prototype.setState = function(partialState, callback) {
-          if ("object" !== typeof partialState && "function" !== typeof partialState && null != partialState)
-            throw Error(
-              "takes an object of state variables to update or a function which returns an object of state variables."
-            );
-          this.updater.enqueueSetState(this, partialState, callback, "setState");
-        };
-        Component.prototype.forceUpdate = function(callback) {
-          this.updater.enqueueForceUpdate(this, callback, "forceUpdate");
-        };
-        var deprecatedAPIs = {
-          isMounted: [
-            "isMounted",
-            "Instead, make sure to clean up subscriptions and pending requests in componentWillUnmount to prevent memory leaks."
-          ],
-          replaceState: [
-            "replaceState",
-            "Refactor your code to use setState instead (see https://github.com/facebook/react/issues/3236)."
-          ]
-        };
-        for (fnName in deprecatedAPIs)
-          deprecatedAPIs.hasOwnProperty(fnName) && defineDeprecationWarning(fnName, deprecatedAPIs[fnName]);
-        ComponentDummy.prototype = Component.prototype;
-        deprecatedAPIs = PureComponent.prototype = new ComponentDummy();
-        deprecatedAPIs.constructor = PureComponent;
-        assign(deprecatedAPIs, Component.prototype);
-        deprecatedAPIs.isPureReactComponent = true;
-        var isArrayImpl = Array.isArray, REACT_CLIENT_REFERENCE = /* @__PURE__ */ Symbol.for("react.client.reference"), ReactSharedInternals = {
-          H: null,
-          A: null,
-          T: null,
-          S: null,
-          actQueue: null,
-          asyncTransitions: 0,
-          isBatchingLegacy: false,
-          didScheduleLegacyUpdate: false,
-          didUsePromise: false,
-          thrownErrors: [],
-          getCurrentStack: null,
-          recentlyCreatedOwnerStacks: 0
-        }, hasOwnProperty = Object.prototype.hasOwnProperty, createTask = console.createTask ? console.createTask : function() {
-          return null;
-        };
-        deprecatedAPIs = {
-          react_stack_bottom_frame: function(callStackForError) {
-            return callStackForError();
-          }
-        };
-        var specialPropKeyWarningShown, didWarnAboutOldJSXRuntime;
-        var didWarnAboutElementRef = {};
-        var unknownOwnerDebugStack = deprecatedAPIs.react_stack_bottom_frame.bind(
-          deprecatedAPIs,
-          UnknownOwner
-        )();
-        var unknownOwnerDebugTask = createTask(getTaskName(UnknownOwner));
-        var didWarnAboutMaps = false, userProvidedKeyEscapeRegex = /\/+/g, reportGlobalError = "function" === typeof reportError ? reportError : function(error) {
-          if ("object" === typeof window && "function" === typeof window.ErrorEvent) {
-            var event = new window.ErrorEvent("error", {
-              bubbles: true,
-              cancelable: true,
-              message: "object" === typeof error && null !== error && "string" === typeof error.message ? String(error.message) : String(error),
-              error
-            });
-            if (!window.dispatchEvent(event)) return;
-          } else if ("object" === typeof process && "function" === typeof process.emit) {
-            process.emit("uncaughtException", error);
-            return;
-          }
-          console.error(error);
-        }, didWarnAboutMessageChannel = false, enqueueTaskImpl = null, actScopeDepth = 0, didWarnNoAwaitAct = false, isFlushing = false, queueSeveralMicrotasks = "function" === typeof queueMicrotask ? function(callback) {
-          queueMicrotask(function() {
-            return queueMicrotask(callback);
-          });
-        } : enqueueTask;
-        deprecatedAPIs = Object.freeze({
-          __proto__: null,
-          c: function(size) {
-            return resolveDispatcher().useMemoCache(size);
-          }
-        });
-        var fnName = {
-          map: mapChildren,
-          forEach: function(children, forEachFunc, forEachContext) {
-            mapChildren(
-              children,
-              function() {
-                forEachFunc.apply(this, arguments);
-              },
-              forEachContext
-            );
-          },
-          count: function(children) {
-            var n = 0;
-            mapChildren(children, function() {
-              n++;
-            });
-            return n;
-          },
-          toArray: function(children) {
-            return mapChildren(children, function(child) {
-              return child;
-            }) || [];
-          },
-          only: function(children) {
-            if (!isValidElement(children))
-              throw Error(
-                "React.Children.only expected to receive a single React element child."
-              );
-            return children;
-          }
-        };
-        exports.Activity = REACT_ACTIVITY_TYPE;
-        exports.Children = fnName;
-        exports.Component = Component;
-        exports.Fragment = REACT_FRAGMENT_TYPE;
-        exports.Profiler = REACT_PROFILER_TYPE;
-        exports.PureComponent = PureComponent;
-        exports.StrictMode = REACT_STRICT_MODE_TYPE;
-        exports.Suspense = REACT_SUSPENSE_TYPE;
-        exports.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = ReactSharedInternals;
-        exports.__COMPILER_RUNTIME = deprecatedAPIs;
-        exports.act = function(callback) {
-          var prevActQueue = ReactSharedInternals.actQueue, prevActScopeDepth = actScopeDepth;
-          actScopeDepth++;
-          var queue = ReactSharedInternals.actQueue = null !== prevActQueue ? prevActQueue : [], didAwaitActCall = false;
-          try {
-            var result = callback();
-          } catch (error) {
-            ReactSharedInternals.thrownErrors.push(error);
-          }
-          if (0 < ReactSharedInternals.thrownErrors.length)
-            throw popActScope(prevActQueue, prevActScopeDepth), callback = aggregateErrors(ReactSharedInternals.thrownErrors), ReactSharedInternals.thrownErrors.length = 0, callback;
-          if (null !== result && "object" === typeof result && "function" === typeof result.then) {
-            var thenable = result;
-            queueSeveralMicrotasks(function() {
-              didAwaitActCall || didWarnNoAwaitAct || (didWarnNoAwaitAct = true, console.error(
-                "You called act(async () => ...) without await. This could lead to unexpected testing behaviour, interleaving multiple act calls and mixing their scopes. You should - await act(async () => ...);"
-              ));
-            });
-            return {
-              then: function(resolve, reject) {
-                didAwaitActCall = true;
-                thenable.then(
-                  function(returnValue) {
-                    popActScope(prevActQueue, prevActScopeDepth);
-                    if (0 === prevActScopeDepth) {
-                      try {
-                        flushActQueue(queue), enqueueTask(function() {
-                          return recursivelyFlushAsyncActWork(
-                            returnValue,
-                            resolve,
-                            reject
-                          );
-                        });
-                      } catch (error$0) {
-                        ReactSharedInternals.thrownErrors.push(error$0);
-                      }
-                      if (0 < ReactSharedInternals.thrownErrors.length) {
-                        var _thrownError = aggregateErrors(
-                          ReactSharedInternals.thrownErrors
-                        );
-                        ReactSharedInternals.thrownErrors.length = 0;
-                        reject(_thrownError);
-                      }
-                    } else resolve(returnValue);
-                  },
-                  function(error) {
-                    popActScope(prevActQueue, prevActScopeDepth);
-                    0 < ReactSharedInternals.thrownErrors.length ? (error = aggregateErrors(
-                      ReactSharedInternals.thrownErrors
-                    ), ReactSharedInternals.thrownErrors.length = 0, reject(error)) : reject(error);
-                  }
-                );
-              }
-            };
-          }
-          var returnValue$jscomp$0 = result;
-          popActScope(prevActQueue, prevActScopeDepth);
-          0 === prevActScopeDepth && (flushActQueue(queue), 0 !== queue.length && queueSeveralMicrotasks(function() {
-            didAwaitActCall || didWarnNoAwaitAct || (didWarnNoAwaitAct = true, console.error(
-              "A component suspended inside an `act` scope, but the `act` call was not awaited. When testing React components that depend on asynchronous data, you must await the result:\n\nawait act(() => ...)"
-            ));
-          }), ReactSharedInternals.actQueue = null);
-          if (0 < ReactSharedInternals.thrownErrors.length)
-            throw callback = aggregateErrors(ReactSharedInternals.thrownErrors), ReactSharedInternals.thrownErrors.length = 0, callback;
-          return {
-            then: function(resolve, reject) {
-              didAwaitActCall = true;
-              0 === prevActScopeDepth ? (ReactSharedInternals.actQueue = queue, enqueueTask(function() {
-                return recursivelyFlushAsyncActWork(
-                  returnValue$jscomp$0,
-                  resolve,
-                  reject
-                );
-              })) : resolve(returnValue$jscomp$0);
-            }
-          };
-        };
-        exports.cache = function(fn) {
-          return function() {
-            return fn.apply(null, arguments);
-          };
-        };
-        exports.cacheSignal = function() {
-          return null;
-        };
-        exports.captureOwnerStack = function() {
-          var getCurrentStack = ReactSharedInternals.getCurrentStack;
-          return null === getCurrentStack ? null : getCurrentStack();
-        };
-        exports.cloneElement = function(element, config, children) {
-          if (null === element || void 0 === element)
-            throw Error(
-              "The argument must be a React element, but you passed " + element + "."
-            );
-          var props = assign({}, element.props), key = element.key, owner = element._owner;
-          if (null != config) {
-            var JSCompiler_inline_result;
-            a: {
-              if (hasOwnProperty.call(config, "ref") && (JSCompiler_inline_result = Object.getOwnPropertyDescriptor(
-                config,
-                "ref"
-              ).get) && JSCompiler_inline_result.isReactWarning) {
-                JSCompiler_inline_result = false;
-                break a;
-              }
-              JSCompiler_inline_result = void 0 !== config.ref;
-            }
-            JSCompiler_inline_result && (owner = getOwner());
-            hasValidKey(config) && (checkKeyStringCoercion(config.key), key = "" + config.key);
-            for (propName in config)
-              !hasOwnProperty.call(config, propName) || "key" === propName || "__self" === propName || "__source" === propName || "ref" === propName && void 0 === config.ref || (props[propName] = config[propName]);
-          }
-          var propName = arguments.length - 2;
-          if (1 === propName) props.children = children;
-          else if (1 < propName) {
-            JSCompiler_inline_result = Array(propName);
-            for (var i = 0; i < propName; i++)
-              JSCompiler_inline_result[i] = arguments[i + 2];
-            props.children = JSCompiler_inline_result;
-          }
-          props = ReactElement(
-            element.type,
-            key,
-            props,
-            owner,
-            element._debugStack,
-            element._debugTask
-          );
-          for (key = 2; key < arguments.length; key++)
-            validateChildKeys(arguments[key]);
-          return props;
-        };
-        exports.createContext = function(defaultValue) {
-          defaultValue = {
-            $$typeof: REACT_CONTEXT_TYPE,
-            _currentValue: defaultValue,
-            _currentValue2: defaultValue,
-            _threadCount: 0,
-            Provider: null,
-            Consumer: null
-          };
-          defaultValue.Provider = defaultValue;
-          defaultValue.Consumer = {
-            $$typeof: REACT_CONSUMER_TYPE,
-            _context: defaultValue
-          };
-          defaultValue._currentRenderer = null;
-          defaultValue._currentRenderer2 = null;
-          return defaultValue;
-        };
-        exports.createElement = function(type, config, children) {
-          for (var i = 2; i < arguments.length; i++)
-            validateChildKeys(arguments[i]);
-          i = {};
-          var key = null;
-          if (null != config)
-            for (propName in didWarnAboutOldJSXRuntime || !("__self" in config) || "key" in config || (didWarnAboutOldJSXRuntime = true, console.warn(
-              "Your app (or one of its dependencies) is using an outdated JSX transform. Update to the modern JSX transform for faster performance: https://react.dev/link/new-jsx-transform"
-            )), hasValidKey(config) && (checkKeyStringCoercion(config.key), key = "" + config.key), config)
-              hasOwnProperty.call(config, propName) && "key" !== propName && "__self" !== propName && "__source" !== propName && (i[propName] = config[propName]);
-          var childrenLength = arguments.length - 2;
-          if (1 === childrenLength) i.children = children;
-          else if (1 < childrenLength) {
-            for (var childArray = Array(childrenLength), _i = 0; _i < childrenLength; _i++)
-              childArray[_i] = arguments[_i + 2];
-            Object.freeze && Object.freeze(childArray);
-            i.children = childArray;
-          }
-          if (type && type.defaultProps)
-            for (propName in childrenLength = type.defaultProps, childrenLength)
-              void 0 === i[propName] && (i[propName] = childrenLength[propName]);
-          key && defineKeyPropWarningGetter(
-            i,
-            "function" === typeof type ? type.displayName || type.name || "Unknown" : type
-          );
-          var propName = 1e4 > ReactSharedInternals.recentlyCreatedOwnerStacks++;
-          return ReactElement(
-            type,
-            key,
-            i,
-            getOwner(),
-            propName ? Error("react-stack-top-frame") : unknownOwnerDebugStack,
-            propName ? createTask(getTaskName(type)) : unknownOwnerDebugTask
-          );
-        };
-        exports.createRef = function() {
-          var refObject = { current: null };
-          Object.seal(refObject);
-          return refObject;
-        };
-        exports.forwardRef = function(render) {
-          null != render && render.$$typeof === REACT_MEMO_TYPE ? console.error(
-            "forwardRef requires a render function but received a `memo` component. Instead of forwardRef(memo(...)), use memo(forwardRef(...))."
-          ) : "function" !== typeof render ? console.error(
-            "forwardRef requires a render function but was given %s.",
-            null === render ? "null" : typeof render
-          ) : 0 !== render.length && 2 !== render.length && console.error(
-            "forwardRef render functions accept exactly two parameters: props and ref. %s",
-            1 === render.length ? "Did you forget to use the ref parameter?" : "Any additional parameter will be undefined."
-          );
-          null != render && null != render.defaultProps && console.error(
-            "forwardRef render functions do not support defaultProps. Did you accidentally pass a React component?"
-          );
-          var elementType = { $$typeof: REACT_FORWARD_REF_TYPE, render }, ownName;
-          Object.defineProperty(elementType, "displayName", {
-            enumerable: false,
-            configurable: true,
-            get: function() {
-              return ownName;
-            },
-            set: function(name) {
-              ownName = name;
-              render.name || render.displayName || (Object.defineProperty(render, "name", { value: name }), render.displayName = name);
-            }
-          });
-          return elementType;
-        };
-        exports.isValidElement = isValidElement;
-        exports.lazy = function(ctor) {
-          ctor = { _status: -1, _result: ctor };
-          var lazyType = {
-            $$typeof: REACT_LAZY_TYPE,
-            _payload: ctor,
-            _init: lazyInitializer
-          }, ioInfo = {
-            name: "lazy",
-            start: -1,
-            end: -1,
-            value: null,
-            owner: null,
-            debugStack: Error("react-stack-top-frame"),
-            debugTask: console.createTask ? console.createTask("lazy()") : null
-          };
-          ctor._ioInfo = ioInfo;
-          lazyType._debugInfo = [{ awaited: ioInfo }];
-          return lazyType;
-        };
-        exports.memo = function(type, compare) {
-          null == type && console.error(
-            "memo: The first argument must be a component. Instead received: %s",
-            null === type ? "null" : typeof type
-          );
-          compare = {
-            $$typeof: REACT_MEMO_TYPE,
-            type,
-            compare: void 0 === compare ? null : compare
-          };
-          var ownName;
-          Object.defineProperty(compare, "displayName", {
-            enumerable: false,
-            configurable: true,
-            get: function() {
-              return ownName;
-            },
-            set: function(name) {
-              ownName = name;
-              type.name || type.displayName || (Object.defineProperty(type, "name", { value: name }), type.displayName = name);
-            }
-          });
-          return compare;
-        };
-        exports.startTransition = function(scope) {
-          var prevTransition = ReactSharedInternals.T, currentTransition = {};
-          currentTransition._updatedFibers = /* @__PURE__ */ new Set();
-          ReactSharedInternals.T = currentTransition;
-          try {
-            var returnValue = scope(), onStartTransitionFinish = ReactSharedInternals.S;
-            null !== onStartTransitionFinish && onStartTransitionFinish(currentTransition, returnValue);
-            "object" === typeof returnValue && null !== returnValue && "function" === typeof returnValue.then && (ReactSharedInternals.asyncTransitions++, returnValue.then(releaseAsyncTransition, releaseAsyncTransition), returnValue.then(noop, reportGlobalError));
-          } catch (error) {
-            reportGlobalError(error);
-          } finally {
-            null === prevTransition && currentTransition._updatedFibers && (scope = currentTransition._updatedFibers.size, currentTransition._updatedFibers.clear(), 10 < scope && console.warn(
-              "Detected a large number of updates inside startTransition. If this is due to a subscription please re-write it to use React provided hooks. Otherwise concurrent mode guarantees are off the table."
-            )), null !== prevTransition && null !== currentTransition.types && (null !== prevTransition.types && prevTransition.types !== currentTransition.types && console.error(
-              "We expected inner Transitions to have transferred the outer types set and that you cannot add to the outer Transition while inside the inner.This is a bug in React."
-            ), prevTransition.types = currentTransition.types), ReactSharedInternals.T = prevTransition;
-          }
-        };
-        exports.unstable_useCacheRefresh = function() {
-          return resolveDispatcher().useCacheRefresh();
-        };
-        exports.use = function(usable) {
-          return resolveDispatcher().use(usable);
-        };
-        exports.useActionState = function(action, initialState, permalink) {
-          return resolveDispatcher().useActionState(
-            action,
-            initialState,
-            permalink
-          );
-        };
-        exports.useCallback = function(callback, deps) {
-          return resolveDispatcher().useCallback(callback, deps);
-        };
-        exports.useContext = function(Context) {
-          var dispatcher = resolveDispatcher();
-          Context.$$typeof === REACT_CONSUMER_TYPE && console.error(
-            "Calling useContext(Context.Consumer) is not supported and will cause bugs. Did you mean to call useContext(Context) instead?"
-          );
-          return dispatcher.useContext(Context);
-        };
-        exports.useDebugValue = function(value, formatterFn) {
-          return resolveDispatcher().useDebugValue(value, formatterFn);
-        };
-        exports.useDeferredValue = function(value, initialValue) {
-          return resolveDispatcher().useDeferredValue(value, initialValue);
-        };
-        exports.useEffect = function(create2, deps) {
-          null == create2 && console.warn(
-            "React Hook useEffect requires an effect callback. Did you forget to pass a callback to the hook?"
-          );
-          return resolveDispatcher().useEffect(create2, deps);
-        };
-        exports.useEffectEvent = function(callback) {
-          return resolveDispatcher().useEffectEvent(callback);
-        };
-        exports.useId = function() {
-          return resolveDispatcher().useId();
-        };
-        exports.useImperativeHandle = function(ref, create2, deps) {
-          return resolveDispatcher().useImperativeHandle(ref, create2, deps);
-        };
-        exports.useInsertionEffect = function(create2, deps) {
-          null == create2 && console.warn(
-            "React Hook useInsertionEffect requires an effect callback. Did you forget to pass a callback to the hook?"
-          );
-          return resolveDispatcher().useInsertionEffect(create2, deps);
-        };
-        exports.useLayoutEffect = function(create2, deps) {
-          null == create2 && console.warn(
-            "React Hook useLayoutEffect requires an effect callback. Did you forget to pass a callback to the hook?"
-          );
-          return resolveDispatcher().useLayoutEffect(create2, deps);
-        };
-        exports.useMemo = function(create2, deps) {
-          return resolveDispatcher().useMemo(create2, deps);
-        };
-        exports.useOptimistic = function(passthrough, reducer) {
-          return resolveDispatcher().useOptimistic(passthrough, reducer);
-        };
-        exports.useReducer = function(reducer, initialArg, init) {
-          return resolveDispatcher().useReducer(reducer, initialArg, init);
-        };
-        exports.useRef = function(initialValue) {
-          return resolveDispatcher().useRef(initialValue);
-        };
-        exports.useState = function(initialState) {
-          return resolveDispatcher().useState(initialState);
-        };
-        exports.useSyncExternalStore = function(subscribe, getSnapshot, getServerSnapshot) {
-          return resolveDispatcher().useSyncExternalStore(
-            subscribe,
-            getSnapshot,
-            getServerSnapshot
-          );
-        };
-        exports.useTransition = function() {
-          return resolveDispatcher().useTransition();
-        };
-        exports.version = "19.2.4";
-        "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(Error());
-      })();
-    }
-  });
-  var require_react = __commonJS({
-    "../vire/node_modules/.pnpm/react@19.2.4/node_modules/react/index.js"(exports, module) {
-      "use strict";
-      if (false) {
-        module.exports = null;
-      } else {
-        module.exports = require_react_development();
-      }
-    }
-  });
+  var SHADOW = {
+    /**
+     * Measured off reference frames 711–723: 4.0% over a flat light backdrop, 19.9% over text.
+     *
+     * REPRODUCED independently off frames/verify/m-707 and m-711 — the same capsule in the same scene
+     * at the same scale, once below the text over plain background and once scrolled up over it.
+     * Comparing the rows under the capsule against the same rows far to either side, so the
+     * background's own gradient cancels: 3.5% and 19.2%, peaking about 140 px below the capsule.
+     * Two passes, different frames and a different method, agreeing to within 0.7 of a point.
+     */
+    alphaFlat: 0.04,
+    alphaBusy: 0.199
+  };
+  var DISPERSION = {
+    /** Red bends less than the base index, blue more — and not symmetrically. */
+    redShift: -0.4,
+    blueShift: 0.6
+  };
+  var TOUCH = {
+    /**
+     * The element grows under pressure (M 3:51; HIG: interactive "expands").
+     *
+     * CHECKED, not measured: across frames/knob/switch-press, a 4x5 sheet of one switch being
+     * pressed, the control's extent runs 764 px in the three settled frames and 787 to 822 under the
+     * finger — 3 to 8 per cent. This value sits inside that, which is a consistency check and not a
+     * derivation: the measurement cannot separate the knob stretching from the track growing, and the
+     * settled frames agreeing to the pixel is the only part of it that is tight.
+     */
+    pressGrow: 0.06,
+    /** The ridge around the contact blob: material displaced from under the finger ends up
+     *  somewhere. Without it the shape balloons, and a dense medium does not do that. */
+    ridge: 0.42,
+    /** How far press pulls the field toward the finger. */
+    pressPull: 0.16,
+    /** Wavelength and decay of the ripple, as fractions of its span. Short and quick: in a dense
+     *  medium ripples are frequent and small; long shallow swells are water. */
+    waveLength: 0.17,
+    waveDecay: 0.7,
+    /** The ripple's span, as a multiple of the contact radius. It has to reach the far edge, or it
+     *  reads as jitter under the finger rather than a wave across the surface. */
+    waveSpan: 2,
+    /**
+     * Contact radius as a fraction of the element's half-size. UNMEASURED: §5 says the response has
+     * to be visible UNDER the finger, which is why the blob is wide, but gives no figure.
+     */
+    radiusOfHalfSize: 1.1,
+    /**
+     * Wave impulse as a fraction of the travel limit. UNMEASURED: the core carries the ripple's
+     * decay and frequency, but nothing says how hard a finger strikes it.
+     */
+    waveOfTravel: 0.18,
+    /** The lift-off ring is weaker than the one from touching down (§5). UNMEASURED ratio. */
+    releaseWave: 0.6,
+    /**
+     * How far a glow reaches past the element it started on, as a multiple of that element's
+     * half-size. UNMEASURED: §5 says the glow spreads "onto any Liquid Glass elements nearby" and
+     * names no distance. This is the reach at which a neighbour in a tab bar still lights and one
+     * across the screen does not.
+     */
+    glowReach: 3,
+    /**
+     * How much of an element's "active" state a touch alone raises — the fraction the glow and the
+     * ink lift ride on when nothing else is driving them. UNMEASURED.
+     *
+     * It was a private constant on the Android surface whose comment said it matched the web's, and
+     * nothing enforced that: the web renderer takes `active` from the host as a field and has no
+     * constant to match. Two renderers agreeing by a comment is exactly what this file is for.
+     */
+    activeOnTouch: 0.3
+  };
+  var BEVEL = {
+    sphere: 0.94,
+    floor: 0.02,
+    slopeMax: 3.2
+  };
+  var EPSILON = 1e-5;
+  var MEDIUM = {
+    /** The lightness content under the glass is pulled toward, and how hard. The medium both removes
+     *  light and mixes scattered light back in: over a light backdrop the body darkens, over a dark
+     *  one it lightens. A layer that only ADDED light pushed the body the wrong way over light
+     *  backdrops (M 2:35). */
+    luma: 0.4,
+    pull: 0.07,
+    /** Ambient light reaching the body on top of that pull. */
+    ambientSpill: 0.01,
+    /** Glass concentrates light: the body is a touch lighter than what lies beneath it (M 2:29). */
+    concentrate: 0.01,
+    /** Scattered light on a frosted element is an ADDITION over the backdrop, not a fraction of the
+     *  way to the tint — a fraction goes to zero once the backdrop reaches the tint's lightness and
+     *  darkens past it (docs/benchmarks.md). */
+    matteLift: 0.1,
+    /** How far scattering reaches, as a fraction of the gather radius, over a busy backdrop under
+     *  ink. Set against the reference: structure under the capsule fades by a factor of nine or ten
+     *  there, not thirty (M 11:47). */
+    scatterMax: 0.2,
+    scatterBase: 0.1,
+    /** The response to structure saturates early: what competes with the ink is not the AREA of
+     *  foreign text but the fact of it — a line under a tile measures about 0.12 of busy. */
+    structureGain: 20,
+    /** Tint density in the flat middle; the bevel multiplies it by the edge density. */
+    bodyDensityFlat: 0.19
+  };
+  var LENS = {
+    /** Backdrop compression at the rim goes to infinity at the silhouette, so the radius correction
+     *  is capped. */
+    footprintMax: 1.8,
+    /** Same reason, for the profile's slope. */
+    slopeMax: 40,
+    /** Every thin film on glass sits around this index. */
+    filmIor: 1.35,
+    /** Reference channel wavelengths in nm — red, green, blue — for diffraction and interference. */
+    lambdaR: 610,
+    lambdaG: 550,
+    lambdaB: 460
+  };
+  var SHADOW_GAP = {
+    /** How much weaker the shadow is right at the outline than under the middle of the gap, and what
+     *  fraction of the offset it takes to reach full depth. In the reference the shadow's minimum
+     *  sits BELOW the rim, not at it. */
+    light: 0.76,
+    reach: 0.2,
+    /** Fraction of the ambient hue the shadow carries. It has to stay a shadow, not a coloured blob. */
+    tint: 1
+  };
+  var SPECTRAL = {
+    /** How far into the bevel the fringes reach, as a fraction of it measured from the silhouette.
+     *  Diffraction is an EDGE effect; past this the bevel is plain glass. */
+    diffractionOnset: 0.45,
+    /**
+     * The same window for interference, which had none. §2 puts the iridescence on the opposing ARC —
+     * "the opposing arc carries an iridescent fringe" — and a fringe is a thing at an edge.
+     *
+     * Without it the term applies wherever the surface angle puts it, and across the inner bevel the
+     * angle barely changes, so a film that should read as a fringe reads as a flat colour filter.
+     * Measured on a 680x64 bar with the default preset: a multiplier of 1.68, 1.26, 0.05 held CONSTANT
+     * from a third of the way through the bevel to its inner edge — red boosted by two thirds and blue
+     * removed outright. UNMEASURED window; wider than diffraction's because interference reaches
+     * further in than the fringes do.
+     */
+    iridescenceOnset: 0.25,
+    /** Fringes across the bevel. Denser as the bevel sharpens, which is what the phase term does. */
+    diffractionFringes: 4,
+    /** The channel the hue is measured against, nm. Green is the eye's own reference. */
+    referenceLambda: 550
+  };
+  var ACCENT = {
+    /** The tone the colour takes over a dark backdrop and over a light one. "A range of tones mapped
+     *  to content brightness underneath", rather than one flat colour. */
+    deep: 0.88,
+    light: 1.08,
+    /** How much of the medium the colour occupies by default. Short of one, because the content has
+     *  to keep coming through: a fill "breaks the visual character of Liquid Glass" (@17:03). */
+    amount: 0.8
+  };
+  var ACCESSIBILITY = {
+    /** Frost floor under reduced transparency: the glass gets "frostier" (§9). */
+    frostMinDp: 14,
+    /**
+     * Body floor under reduced transparency. B @10:07 is the stricter statement of the two — a bar
+     * "gets a background when reduce transparency is enabled" — so this is a background, not a
+     * thicker haze. UNMEASURED: neither source gives a figure.
+     */
+    obscureMin: 0.82,
+    /** Under increased contrast the element is "predominantly black or white" (§9): the body goes to
+     *  whichever pole its ink already points at, at a density that leaves it reading as that pole. */
+    contrastDensity: 0.94,
+    /** …and separates from the backdrop on its own, whatever is behind it. */
+    contrastPresence: 0.5,
+    /**
+     * The contrasting border §9 asks for, in units of lightness away from the body's own pole. The
+     * rim stops taking its colour from the environment and takes it from the element instead — an
+     * ambient hairline is not a contrasting border. UNMEASURED.
+     */
+    contrastRim: 0.85,
+    /**
+     * Press that survives reduced motion. §9 "decreases the intensity of some effects and disables
+     * any elastic properties": the spring and the ripple are elastic and go to zero, the press is an
+     * ease that carries the element's light, so it is damped rather than removed — an element that
+     * stops answering a finger altogether is not reduced motion, it is no feedback. UNMEASURED.
+     */
+    stillPress: 0.6
+  };
+  var DERIVE = {
+    /** Physical 4% reflectance into the render's working range. UNMEASURED. */
+    fresnelGain: 17.5,
+    /** Schlick's exponent. A constant of the approximation, not a knob. */
+    fresnelExponent: 5,
+    /** The index at which ray bending is at full strength, measured from air. UNMEASURED. */
+    iorFullBend: 0.6,
+    /** Magnification behind a plane-parallel plate, per dp of thickness. UNMEASURED. */
+    magnifyPerDp: 6e-3,
+    /** In ordinary glasses the Abbe number falls as the index rises, so dispersion grows with it.
+     *  UNMEASURED slope. */
+    dispersionPerIor: 1.1,
+    /** Index spread between the red and blue channels. The physical value (~0.01 at an Abbe number
+     *  of 55) is at the threshold of visibility. UNMEASURED. */
+    iorSpreadPerDispersion: 0.045,
+    /** Beer–Lambert absorption per dp of path. UNMEASURED. */
+    absorbPerDp: 0.017,
+    /** Ceiling on how much denser the bevel may read than the body. The rim's ray travels further
+     *  through the medium; past this the rim is milk rather than glass. UNMEASURED. */
+    edgeDensityMax: 4,
+    /**
+     * Frost ceiling, dp. Deliberately low: blur is a SUPPORTING device here, and past about a dozen
+     * dp letters under the glass stop being letters. Separating content from ink is the body's job.
+     *
+     * UNMEASURED, and an attempt is recorded here so the next one does not repeat it.
+     * frames/verify/m-711 has the same paragraph sharp beside the capsule and behind it, which looks
+     * like the measurement: match the blur that takes the sharp patch's detail down to the glassed
+     * one's. It gives 2 to 3 px at that frame's scale, and the figure is not trustworthy. Detail is
+     * lost to three things at once there — the frost, the magnification (`refractionScale` lowers the
+     * text's spatial frequency without blurring anything), and the body veiling its contrast — and
+     * the method cannot separate them. What it does bound is the total: the text behind the glass
+     * keeps 68% of the detail it has beside it.
+     *
+     * A clean measurement needs a frame where the glass does not magnify, or a feature of known size
+     * behind it to normalise the magnification out.
+     */
+    blurMaxDp: 12,
+    /** Highlight width from a smooth surface and from a fully rough one, as a specular exponent.
+     *  UNMEASURED. */
+    specularPowerSmooth: 160,
+    specularPowerRough: 8,
+    /** How much roughness damps the highlight's brightness. UNMEASURED. */
+    specularRoughDamping: 0.6,
+    /**
+     * The medium's own hue by density. Water absorbs red and skews cool, ordinary glass is nearly
+     * neutral with a faint green, dense high-index media skew warm. Glass has no colour of its own
+     * (HIG "Color"), so this is never set by hand — it is tied to the index.
+     */
+    hueCool: [0.86, 1, 1.08],
+    hueNeutral: [1, 1.02, 0.99],
+    hueWarm: [1.08, 1, 0.88],
+    /** The index range the hue sweeps across, and where it starts. UNMEASURED. */
+    hueFromIor: 1.2,
+    hueSpan: 0.55,
+    /** Body lightness follows reflectance: the denser the medium, the more of its surroundings it
+     *  returns. UNMEASURED base and slope. */
+    bodyLiftBase: 0.34,
+    bodyLiftPerF0: 2.4,
+    /**
+     * How far past the bevel the rim gathers its surroundings, as a multiple of the bevel. At a
+     * grazing angle the eye receives the vicinity rather than what is under the glass, and without
+     * this, glass on an empty black background has no source at all. UNMEASURED.
+     */
+    gatherPerBevel: 4,
+    /** Floor and ceiling on that radius, dp. Unbounded, a wide bevel gathers from fifty dp away and
+     *  a READABLE copy of the neighbourhood appears inside the glass — eight samples cannot blur a
+     *  disc that large (E-33, E-37). */
+    gatherMinDp: 4,
+    gatherMaxDp: 28,
+    /** The body's own density from absorption through its thickness. Small: the body only moves
+     *  toward the tint under the legibility requirement, otherwise it dims the content. UNMEASURED. */
+    bodyDensity: 0.05,
+    /**
+     * Rim light on the physical scale rather than the rim highlight's. `fresnelGain` saturates at one
+     * for dense media, and applying it here too would raise body lightness harder than the glass had
+     * just separated it from the ink — eating its own legibility work. UNMEASURED.
+     */
+    edgeLightGain: 6,
+    /**
+     * Iridescence rides the REFLECTED ray, so it is tied to Fresnel and has no knob of its own.
+     *
+     * MEASURED against how coloured a real rim is. In frames/crops the brightest rim pixels have a
+     * channel spread — (max − min) / max — of 13% in cap158-left and 20% in cap158-right, against
+     * their own backdrops' 14.6% and 14.3%. So the rim is no more coloured than the scene it stands
+     * in: §2's "iridescent fringe" adds a few points at most, and in one of the two crops it adds
+     * nothing measurable.
+     *
+     * At 1.6 this put ordinary glass at 0.945 iridescence and the spectral multiplier reached a 97%
+     * channel spread — red boosted by two thirds and blue removed. Rendered over a coloured page that
+     * is a neon tube around every control, which is what sent me to measure it.
+     */
+    iridescencePerFresnel: 0.042,
+    /** Edge diffraction shares dispersion's λ-dependence, at the stylised amplitude: at the physical
+     *  one the fringes are not visible at all. MEASURED with the same crops and the same target as
+     *  iridescence — on its own it was reaching a 93% channel spread. */
+    diffractionPerDispersion: 0.05,
+    /** Multiple internal reflection — the denser the medium, the more light it circulates and the
+     *  more it is tinted by its surroundings. UNMEASURED slope. */
+    colorPickupPerFresnel: 0.9,
+    /**
+     * The ceiling, which keeps it a medium rather than a fill.
+     *
+     * MEASURED, frames/concentric/shadow-zoom: the same sidebar twice, over a yellow cover and over a
+     * pink one, so the difference between the panels is the pickup with the sidebar's own colour
+     * subtracted out. Sampling a band of rows clear of the text, the bar's hue offset against the
+     * cover's own reaches 0.31 of it at the edge nearest the content in the yellow panel and 0.28 in
+     * the pink one. It was 0.42, which nothing measured.
+     *
+     * Reality is not uniform: the bleed falls to nothing about ninety pixels in, and both panels show
+     * the same falloff. The DOM path has one backdrop sample per element and cannot reproduce that,
+     * so it applies the ceiling across the whole body — right at the edge, too strong in the middle.
+     * That limit is in docs/dom.md rather than papered over with a lower number.
+     */
+    colorPickupMax: 0.3
+  };
+  var SIZE = {
+    /** Half-size at which bevel and thickness are specified as given; they grow as its square root
+     *  from there. UNMEASURED reference size. */
+    referenceDp: 24,
+    /** Floor and ceiling on that growth. UNMEASURED. */
+    gainMin: 0.8,
+    gainMax: 2.4,
+    /** A bevel wider than this fraction of the half-size breaks the SDF — the roundings converge in
+     *  the middle. A property of the geometry, not a taste. */
+    maxBevelFraction: 0.65
+  };
+  var SHADOW_DENSITY = {
+    /** Over a flat background. */
+    flat: 0.8,
+    /** How fast it rises with structure behind the element, and how far it may rise. */
+    busyGain: 6,
+    busyRise: 1.2,
+    /** Quantisation of the emitted value: a shadow that changes on every pixel of scroll re-lays-out
+     *  the native view every frame. */
+    step: 0.05
+  };
+  var SPRING = {
+    /** Stiffness and damping while the finger is down. UNMEASURED. */
+    holdStiffness: 260,
+    holdDamping: 46,
+    /** …and after it lifts. Stiffer, and damped hard: a dense medium snaps back without ringing. */
+    releaseStiffness: 420,
+    releaseDamping: 34,
+    /** Time constants for the press dent, in and out, seconds. UNMEASURED. */
+    pressAttack: 0.07,
+    pressRelease: 0.16,
+    /** How fast the touch point catches up to the finger. Not instant: an instant jump tears the
+     *  deformation, and on rapid taps that reads as jitter. */
+    pointFollow: 0.045,
+    /** …and how fast the element registers as being touched at all, which is what the glow rides. */
+    activeFollow: 0.09,
+    /** The ripple decays within a quarter second rather than oscillating: in a viscous medium ripples
+     *  are short and weak. UNMEASURED. */
+    waveDecay: 0.22,
+    waveTurnsPerSecond: 3,
+    /** Ceilings on the accumulated ripple, as multiples of a single impulse. Impulses add up rather
+     *  than restart — restarting cuts a running wave mid-period, which is what jolts on rapid taps. */
+    waveCapOnGrab: 1.6,
+    waveCapOnRelease: 2
+  };
+  var SCALE = {
+    /** Where on the scale the material stays exactly as it is by default. */
+    default: 0.35,
+    /** Body density at the fully tinted end: content under the glass has to be hidden. UNMEASURED. */
+    tintedDensity: 0.9
+  };
+  var SCROLL_EDGE = {
+    /** How far the content has to slide under the panel for the effect to fully engage, dp. */
+    engageDp: 24,
+    /**
+     * How far the blur reaches BELOW the bar's lower lip, as a multiple of the bar's own height.
+     *
+     * MEASURED, frames/scroll-edge/z576 at 320x413. High-frequency energy (mean |laplacian| per row,
+     * which a brightness gradient in the content cannot fake) reads 1.4 through the zone under the
+     * bar and 14 in the sharp content below — a factor of ten. The bar's lip is at y≈45 and the zone
+     * runs to y≈130, so the reach is about 1.9 times the bar's own height.
+     *
+     * The same frame confirms 219 @9:22 in passing: the floating title sits inside that zone at 32,
+     * twenty times its surroundings. Titles stay crisp while everything behind them dissolves, which
+     * is why the effect belongs behind the glass in the stack rather than over the content.
+     */
+    reachOfBarHeight: 1.9,
+    /** The blur the content dissolves into at the edge, dp. This is the effect itself — the content
+     *  goes out of focus into the background rather than being covered by anything. UNMEASURED. */
+    dissolveBlurDp: 10,
+    /**
+     * Over dark content the glass turns dark and 219 @9:33 switches the effect "to apply a subtle
+     * dimming instead". Dimming is a reduction in luminance: dark content under dark glass merges
+     * with it, and pushing the content down is what lets the glass sit above it. UNMEASURED.
+     */
+    dimAlpha: 0.1,
+    /** A pinned view under the panel (column headers) gets a flat band instead of a gradual fade
+     *  (219 @9:41) — "a stronger, more opaque boundary" (356 @12:12). UNMEASURED. */
+    hardBlurDp: 14,
+    hardAlpha: 0.18
+  };
+
+  // node_modules/vireglass/dist/chunk-SLRPHDV7.js
+  var roundedRectGeometry = (width, height, cornerRadius) => ({ width, height, cornerRadius });
+  var halfMinDp = (g) => Math.max(Math.min(g.width, g.height) / 2, 1);
+  var MAX_STRETCH = 0.34;
+  var sizeDp = (g) => Math.sqrt(halfMinDp(g) * Math.max(Math.sqrt(g.width * g.height) / 2, 1));
+  var sizeGain = (g) => {
+    const raw = Math.sqrt(sizeDp(g) / SIZE.referenceDp);
+    if (raw <= SIZE.gainMin) return SIZE.gainMin;
+    const span = SIZE.gainMax - SIZE.gainMin;
+    return SIZE.gainMin + span * (1 - Math.exp(-(raw - SIZE.gainMin) / span));
+  };
+  var MAX_BEVEL_FRACTION = SIZE.maxBevelFraction;
+  var bevelFraction = (g, o) => Math.min(MAX_BEVEL_FRACTION, o.bevelDp * sizeGain(g) / halfMinDp(g));
+  var bevelDp = (g, o) => Math.max(bevelFraction(g, o) * halfMinDp(g), 1);
+  var thicknessDp = (g, o) => o.thicknessDp * sizeGain(g);
+  var RIM_FRACTION = 0.85;
+  var rimDp = (g, o) => thicknessDp(g, o) * RIM_FRACTION;
+  var shadowReachDp = (g) => Math.min(Math.max(halfMinDp(g) * 0.65, 6), 36);
+  function shadowOpacity(busy) {
+    return SHADOW_DENSITY.flat + Math.min(Math.max(busy, 0) * SHADOW_DENSITY.busyGain, SHADOW_DENSITY.busyRise);
+  }
+  function shadowOpacityFrom(sample) {
+    return Math.round(shadowOpacity(sample.busy) / SHADOW_DENSITY.step) * SHADOW_DENSITY.step;
+  }
+
+  // node_modules/vireglass/dist/chunk-H5QTBF67.js
   var clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
   var clamp01 = (v) => clamp(v, 0, 1);
   var fresnelF0 = (ior) => ((ior - 1) / (ior + 1)) ** 2;
-  var FRESNEL_GAIN = 17.5;
-  var fresnelStrength = (ior) => clamp01(fresnelF0(ior) * FRESNEL_GAIN);
-  var FRESNEL_EXPONENT = 5;
-  var refractionStrength = (ior) => clamp01((ior - 1) / 0.6);
-  var MAGNIFY_PER_DP = 6e-3;
-  var refractionScale = (ior, thicknessDp) => 1 + MAGNIFY_PER_DP * thicknessDp * (1 - 1 / Math.max(ior, 1));
-  var DISPERSION_PER_IOR = 1.1;
-  var dispersion = (ior) => clamp01((ior - 1) * DISPERSION_PER_IOR);
-  var ABSORB_PER_DP = 0.017;
-  var absorption = (pathDp) => 1 - Math.exp(-ABSORB_PER_DP * Math.max(pathDp, 0));
-  var edgeDensity = (thicknessDp, bevelDp2) => {
-    const body = absorption(thicknessDp);
+  var fresnelStrength = (ior) => clamp01(fresnelF0(ior) * DERIVE.fresnelGain);
+  var FRESNEL_EXPONENT = DERIVE.fresnelExponent;
+  var refractionStrength = (ior) => clamp01((ior - 1) / DERIVE.iorFullBend);
+  var refractionScale = (ior, thicknessDp2) => 1 + DERIVE.magnifyPerDp * thicknessDp2 * (1 - 1 / Math.max(ior, 1));
+  var dispersion = (ior) => clamp01((ior - 1) * DERIVE.dispersionPerIor);
+  var iorSpread = (ior) => dispersion(ior) * DERIVE.iorSpreadPerDispersion;
+  var absorption = (pathDp) => 1 - Math.exp(-DERIVE.absorbPerDp * Math.max(pathDp, 0));
+  var edgeDensity = (thicknessDp2, bevelDp2) => {
+    const body = absorption(thicknessDp2);
     if (body <= 0) return 1;
-    return clamp(absorption(thicknessDp + bevelDp2) / body, 1, 4);
+    return clamp(absorption(thicknessDp2 + bevelDp2) / body, 1, DERIVE.edgeDensityMax);
   };
-  var BLUR_MAX = 12;
-  var blur = (roughness) => clamp01(roughness) * BLUR_MAX;
-  var specularPower = (roughness) => 160 - clamp01(roughness) * 152;
-  var specularStrength = (ior, roughness) => clamp01(fresnelStrength(ior) * (1 - clamp01(roughness) * 0.6));
-  var EDGE_PUSH_PER_BEVEL = 2.6;
-  var edgePush = (ior, bevelDp2) => refractionStrength(ior) * EDGE_PUSH_PER_BEVEL * Math.max(bevelDp2, 0);
-  var COOL = { r: 0.86, g: 1, b: 1.08 };
-  var NEUTRAL = { r: 1, g: 1.02, b: 0.99 };
-  var WARM = { r: 1.08, g: 1, b: 0.88 };
-  var mixHue = (a, b, t) => ({
-    r: a.r + (b.r - a.r) * t,
-    g: a.g + (b.g - a.g) * t,
-    b: a.b + (b.b - a.b) * t
-  });
+  var blur = (roughness) => clamp01(roughness) * DERIVE.blurMaxDp;
+  var specularPower = (roughness) => DERIVE.specularPowerSmooth - clamp01(roughness) * (DERIVE.specularPowerSmooth - DERIVE.specularPowerRough);
+  var specularStrength = (ior, roughness) => clamp01(fresnelStrength(ior) * (1 - clamp01(roughness) * DERIVE.specularRoughDamping));
+  var mixHue = (a, b, t) => [
+    a[0] + (b[0] - a[0]) * t,
+    a[1] + (b[1] - a[1]) * t,
+    a[2] + (b[2] - a[2]) * t
+  ];
   function mediumTint(ior) {
-    const t = clamp01((ior - 1.2) / 0.55);
-    const hue = t < 0.5 ? mixHue(COOL, NEUTRAL, t * 2) : mixHue(NEUTRAL, WARM, (t - 0.5) * 2);
-    const lift = 0.34 + fresnelF0(ior) * 2.4;
-    return { r: clamp01(hue.r * lift), g: clamp01(hue.g * lift), b: clamp01(hue.b * lift) };
+    const t = clamp01((ior - DERIVE.hueFromIor) / DERIVE.hueSpan);
+    const hue = t < 0.5 ? mixHue(DERIVE.hueCool, DERIVE.hueNeutral, t * 2) : mixHue(DERIVE.hueNeutral, DERIVE.hueWarm, (t - 0.5) * 2);
+    const lift = DERIVE.bodyLiftBase + fresnelF0(ior) * DERIVE.bodyLiftPerF0;
+    return { r: clamp01(hue[0] * lift), g: clamp01(hue[1] * lift), b: clamp01(hue[2] * lift) };
   }
-  var GATHER_PER_BEVEL = 4;
-  var GATHER_MAX = 28;
-  var gatherRadius = (bevelDp2) => clamp(Math.max(bevelDp2, 1) * GATHER_PER_BEVEL, 4, GATHER_MAX);
-  var BODY_DENSITY = 0.19;
-  var bodyDensity = (thicknessDp) => BODY_DENSITY * absorption(thicknessDp);
-  var EDGE_LIGHT_GAIN = 6;
-  var edgeLight = (ior) => clamp01(fresnelF0(ior) * EDGE_LIGHT_GAIN);
-  var iridescence = (ior, filmNm) => filmNm <= 0 ? 0 : clamp01(fresnelStrength(ior) * 1.6);
-  var diffraction = (ior) => clamp01(dispersion(ior) * 0.5);
-  var colorPickup = (ior) => clamp(fresnelStrength(ior) * 0.9, 0, 0.42);
+  var gatherRadius = (bevelDp2) => clamp(Math.max(bevelDp2, 1) * DERIVE.gatherPerBevel, DERIVE.gatherMinDp, DERIVE.gatherMaxDp);
+  var bodyDensity = (thicknessDp2) => DERIVE.bodyDensity * absorption(thicknessDp2);
+  var edgeLight = (ior) => clamp01(fresnelF0(ior) * DERIVE.edgeLightGain);
+  var iridescence = (ior, filmNm) => filmNm <= 0 ? 0 : clamp01(fresnelStrength(ior) * DERIVE.iridescencePerFresnel);
+  var diffraction = (ior) => clamp01(dispersion(ior) * DERIVE.diffractionPerDispersion);
+  var colorPickup = (ior) => clamp(fresnelStrength(ior) * DERIVE.colorPickupPerFresnel, 0, DERIVE.colorPickupMax);
   var MATERIAL_RANGES = {
     ior: [1, 2],
     thickness: [0, 60],
@@ -3050,6 +2485,7 @@ ${stripTags(c.xhtml)}`).join("\n");
     roughness: [0, 1],
     environment: [0, 1],
     legibility: [0, 1],
+    dimming: [0, 0.5],
     ink: [0, 1],
     presence: [0, 0.6],
     film: [0, 900]
@@ -3063,17 +2499,19 @@ ${stripTags(c.xhtml)}`).join("\n");
     roughness: 0.05,
     environment: 0.27,
     legibility: 0.26,
+    dimming: 0,
     ink: 1,
     presence: 0.05,
     film: 340
   };
   var VIREGLASS_MATERIAL_V5 = {
     ior: 1.5,
-    thickness: 16,
-    bevel: 8,
+    thickness: 28,
+    bevel: 6,
     roughness: 0.06,
     environment: 0.27,
     legibility: 0.26,
+    dimming: 0,
     ink: 1,
     presence: 0.05,
     film: 340
@@ -3089,15 +2527,24 @@ ${stripTags(c.xhtml)}`).join("\n");
   var VIREGLASS_CONTROL_MATERIAL = {
     ...VIREGLASS_MATERIAL_V5,
     ior: 1.69,
-    thickness: 24,
-    bevel: 16,
+    thickness: 44,
+    bevel: 8,
     roughness: 0.035,
     presence: 0.176
   };
   var VIREGLASS_MATERIAL = VIREGLASS_MATERIAL_V5;
   function materialForInk(material, carriesInk) {
+    if (material.dimming > 0) return material;
     return { ...material, legibility: carriesInk ? VIREGLASS_LYRICS_MATERIAL.legibility : 0 };
   }
+  var VIREGLASS_CLEAR_MATERIAL = {
+    ...VIREGLASS_MATERIAL,
+    legibility: 0,
+    presence: 0,
+    // Apple's own numbers: 0.35 in the HIG Materials text, 0.3 in its own sample code. We take the
+    // lower one — it comes from working code, not from prose, and Clear has to stay a window.
+    dimming: 0.3
+  };
   function activeMaterial(material, on) {
     const k = Math.min(Math.max(on, 0), 1);
     return {
@@ -3125,7 +2572,6 @@ ${stripTags(c.xhtml)}`).join("\n");
       refraction: refractionStrength(m.ior),
       refractionScale: refractionScale(m.ior, m.thickness),
       bevelDp: m.bevel,
-      edgePushDp: edgePush(m.ior, m.bevel),
       gatherRadiusDp: gatherRadius(m.bevel),
       fresnel: fresnelStrength(m.ior),
       fresnelPower: FRESNEL_EXPONENT,
@@ -3137,6 +2583,7 @@ ${stripTags(c.xhtml)}`).join("\n");
       edgeDensity: edgeDensity(m.thickness, m.bevel),
       environment: m.environment,
       legibility: m.legibility,
+      dimming: m.dimming,
       ink: m.ink,
       presence: m.presence,
       adaptRadius: ADAPT_RADIUS,
@@ -3145,16 +2592,18 @@ ${stripTags(c.xhtml)}`).join("\n");
       film: m.film,
       iridescence: iridescence(m.ior, m.film),
       diffraction: diffraction(m.ior),
-      colorPickup: colorPickup(m.ior)
+      colorPickup: colorPickup(m.ior),
+      ior: m.ior,
+      thicknessDp: m.thickness,
+      iorSpread: iorSpread(m.ior)
     };
   }
   var LEGACY_OPTICS = {
-    "v3 \u0432\u0440\u0443\u0447\u043D\u0443\u044E": {
+    "v3-manual": {
       blur: 4.32,
       refraction: 0.49,
       refractionScale: 1.05,
       bevelDp: 12.6,
-      edgePushDp: 32.7,
       gatherRadiusDp: 40,
       fresnel: 0.77,
       fresnelPower: 2.86,
@@ -3166,6 +2615,7 @@ ${stripTags(c.xhtml)}`).join("\n");
       edgeDensity: 1.5,
       environment: 0.27,
       legibility: 0.55,
+      dimming: 0,
       ink: 1,
       presence: 0,
       adaptRadius: ADAPT_RADIUS,
@@ -3174,14 +2624,16 @@ ${stripTags(c.xhtml)}`).join("\n");
       film: 0,
       iridescence: 0,
       diffraction: 0,
-      colorPickup: 0
+      colorPickup: 0,
+      ior: 1.5,
+      thicknessDp: 16,
+      iorSpread: 0
     },
     "v2": {
       blur: 5,
       refraction: 0.95,
       refractionScale: 1.34,
       bevelDp: 14,
-      edgePushDp: 30,
       gatherRadiusDp: 40,
       fresnel: 0.72,
       fresnelPower: 2.4,
@@ -3193,6 +2645,7 @@ ${stripTags(c.xhtml)}`).join("\n");
       edgeDensity: 3.63,
       environment: 0,
       legibility: 0,
+      dimming: 0,
       ink: 1,
       presence: 0,
       adaptRadius: ADAPT_RADIUS,
@@ -3201,14 +2654,16 @@ ${stripTags(c.xhtml)}`).join("\n");
       film: 0,
       iridescence: 0,
       diffraction: 0,
-      colorPickup: 0
+      colorPickup: 0,
+      ior: 1.5,
+      thicknessDp: 16,
+      iorSpread: 0
     },
     "v1": {
       blur: 12,
       refraction: 0.55,
       refractionScale: 1.14,
       bevelDp: 10,
-      edgePushDp: 22,
       gatherRadiusDp: 40,
       fresnel: 0.5,
       fresnelPower: 3.2,
@@ -3220,6 +2675,7 @@ ${stripTags(c.xhtml)}`).join("\n");
       edgeDensity: 3.63,
       environment: 0,
       legibility: 0,
+      dimming: 0,
       ink: 1,
       presence: 0,
       adaptRadius: ADAPT_RADIUS,
@@ -3228,18 +2684,21 @@ ${stripTags(c.xhtml)}`).join("\n");
       film: 0,
       iridescence: 0,
       diffraction: 0,
-      colorPickup: 0
+      colorPickup: 0,
+      ior: 1.5,
+      thicknessDp: 16,
+      iorSpread: 0
     }
   };
   var LEGACY_NAMES = Object.keys(LEGACY_OPTICS);
   var MATERIAL_PRESETS = {
-    \u0412\u043E\u0434\u0430: VIREGLASS_MATERIAL_V4,
-    \u0421\u0442\u0435\u043A\u043B\u043E: { ...VIREGLASS_MATERIAL_V4, ior: 1.45, thickness: 25, bevel: 12.6, roughness: 0.17 },
-    \u041A\u0440\u0438\u0441\u0442\u0430\u043B\u043B: { ...VIREGLASS_MATERIAL_V4, ior: 1.7, thickness: 30, bevel: 16, roughness: 0.02 },
-    \u041C\u0430\u0442\u043E\u0432\u043E\u0435: { ...VIREGLASS_MATERIAL_V4, roughness: 0.55 },
-    \u0422\u043E\u043B\u0441\u0442\u043E\u0435: { ...VIREGLASS_MATERIAL_V4, thickness: 48, bevel: 22 },
-    \u041F\u043B\u0451\u043D\u043A\u0430: { ...VIREGLASS_MATERIAL_V4, thickness: 4, bevel: 3 },
-    \u0411\u0435\u043D\u0437\u0438\u043D: { ...VIREGLASS_MATERIAL_V4, ior: 1.5, thickness: 8, bevel: 6, film: 620 }
+    water: VIREGLASS_MATERIAL_V4,
+    glass: { ...VIREGLASS_MATERIAL_V4, ior: 1.45, thickness: 25, bevel: 12.6, roughness: 0.17 },
+    crystal: { ...VIREGLASS_MATERIAL_V4, ior: 1.7, thickness: 30, bevel: 16, roughness: 0.02 },
+    frosted: { ...VIREGLASS_MATERIAL_V4, roughness: 0.55 },
+    thick: { ...VIREGLASS_MATERIAL_V4, thickness: 48, bevel: 22 },
+    thin: { ...VIREGLASS_MATERIAL_V4, thickness: 4, bevel: 3 },
+    iridescent: { ...VIREGLASS_MATERIAL_V4, ior: 1.5, thickness: 8, bevel: 6, film: 620 }
   };
   var PRESET_NAMES = Object.keys(MATERIAL_PRESETS);
   var EFFECTS = [
@@ -3260,77 +2719,7 @@ ${stripTags(c.xhtml)}`).join("\n");
     (acc, e) => ({ ...acc, [e]: true }),
     {}
   );
-  function applyToggles(optics, toggles = {}) {
-    const on = { ...ALL_EFFECTS_ON, ...toggles };
-    const o = { ...optics, tint: { ...optics.tint } };
-    if (!on.blur) o.blur = 0;
-    if (!on.refraction) {
-      o.refraction = 0;
-      o.refractionScale = 1;
-      o.edgePushDp = 0;
-    }
-    if (!on.fresnel) o.fresnel = 0;
-    if (!on.bevel) o.bevelDp = 1;
-    if (!on.specular) o.specular = 0;
-    if (!on.dispersion) o.dispersion = 0;
-    if (!on.tint) o.tintStrength = 0;
-    if (!on.environment) o.environment = 0;
-    if (!on.legibility) o.legibility = 0;
-    if (!on.interference) o.iridescence = 0;
-    if (!on.diffraction) o.diffraction = 0;
-    return o;
-  }
-  var DEBUG_MODES = [
-    "normal",
-    "sdf",
-    "mask",
-    "edge",
-    "fresnel",
-    "refraction",
-    "backdrop",
-    "specular",
-    "dispersion",
-    "normals",
-    "spectral",
-    "adapt"
-  ];
-  function debugIndex(mode) {
-    return DEBUG_MODES.indexOf(mode);
-  }
-  var roundedRectGeometry = (width, height, cornerRadius) => ({ width, height, cornerRadius });
-  var halfMinDp = (g) => Math.max(Math.min(g.width, g.height) / 2, 1);
-  var MAX_STRETCH = 0.34;
-  var MAX_BEVEL_FRACTION = 0.5;
-  var MAX_PUSH_FRACTION = 0.85;
-  var bevelFraction = (g, o) => Math.min(MAX_BEVEL_FRACTION, o.bevelDp / halfMinDp(g));
-  var bevelDp = (g, o) => Math.max(bevelFraction(g, o) * halfMinDp(g), 1);
-  var edgePushDp = (g, o) => Math.min(o.edgePushDp, MAX_PUSH_FRACTION * halfMinDp(g));
-  var SPHERICAL_PER_BEVEL = 0.26;
-  var CHROMA_PER_BEVEL = 0.3;
-  var sphericalDp = (g, o) => o.refraction * SPHERICAL_PER_BEVEL * bevelDp(g, o);
-  var chromaDp = (g, o) => o.dispersion * CHROMA_PER_BEVEL * bevelDp(g, o);
-  var shadowReachDp = (g) => Math.min(halfMinDp(g) * 0.16, 7);
-  function morphReachDp(g, morph) {
-    if (!morph || morph.smoothing <= 0) return 0;
-    return Math.max(
-      0,
-      Math.abs(morph.offsetX) + morph.width / 2 - g.width / 2,
-      Math.abs(morph.offsetY) + morph.height / 2 - g.height / 2
-    );
-  }
-  var PAD_STEP = 8;
-  var quantise = (v) => Math.ceil(v / PAD_STEP) * PAD_STEP;
-  function lensPadDp(g, o, morph, dragLimit = 0) {
-    const sampling = Math.max(
-      edgePushDp(g, o) + sphericalDp(g, o) + chromaDp(g, o) + o.blur,
-      o.gatherRadiusDp
-    );
-    const stretch = halfMinDp(g) * MAX_STRETCH;
-    return quantise(sampling + dragLimit + stretch + morphReachDp(g, morph) + 2);
-  }
-  function surfacePadDp(g, dragLimit = 0, morph) {
-    return quantise(shadowReachDp(g) * 1.2 + dragLimit + morphReachDp(g, morph) + 2);
-  }
+  var VG_TAU = 6.28318530718;
   var VG_SDF = `
 float vgRoundRect(float2 p, float2 halfSize, float corner) {
   float2 q = abs(p) - halfSize + corner;
@@ -3342,55 +2731,66 @@ float vgSmin(float a, float b, float k) {
   return mix(b, a, h) - k * h * (1.0 - h);
 }
 
-// \u0421\u0446\u0435\u043D\u0430 = \u043E\u0434\u043D\u0430 \u0444\u043E\u0440\u043C\u0430, \u0430 \u043F\u0440\u0438 k > 0 \u2014 \u0433\u043B\u0430\u0434\u043A\u043E\u0435 \u043E\u0431\u044A\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u0435 \u0434\u0432\u0443\u0445 (\u043C\u043E\u0440\u0444\u0438\u043D\u0433-\u044D\u043A\u0441\u043F\u0435\u0440\u0438\u043C\u0435\u043D\u0442).
+// A scene is a single shape, and when k > 0 a smooth union with one or two neighbors. A third
+// shape exists to break the control into pieces (docs/reference.md \xA75): there are two bridges
+// there. It's turned off with a zero size, not its own k: the fused body shares one bridge.
 float vgScene(float2 p, float2 halfSize, float corner,
-              float2 offsetB, float2 halfB, float cornerB, float k) {
+              float2 offsetB, float2 halfB, float cornerB, float k,
+              float2 offsetC, float2 halfC, float cornerC) {
   float a = vgRoundRect(p, halfSize, corner);
   if (k <= 0.0) { return a; }
-  return vgSmin(a, vgRoundRect(p - offsetB, halfB, cornerB), k);
+  float ab = vgSmin(a, vgRoundRect(p - offsetB, halfB, cornerB), k);
+  if (halfC.x <= 0.0) { return ab; }
+  return vgSmin(ab, vgRoundRect(p - offsetC, halfC, cornerC), k);
 }
 
-// \u041E\u0442\u043A\u043B\u0438\u043A \u043D\u0430 \u043F\u0430\u043B\u0435\u0446. \u0414\u0435\u0444\u043E\u0440\u043C\u0438\u0440\u0443\u0435\u0442\u0441\u044F \u041F\u041E\u041B\u0415 \u0432\u043E\u043A\u0440\u0443\u0433 \u0442\u043E\u0447\u043A\u0438 \u043A\u0430\u0441\u0430\u043D\u0438\u044F, \u0430 \u043D\u0435 \u0433\u0430\u0431\u0430\u0440\u0438\u0442 \u0444\u043E\u0440\u043C\u044B: \u043C\u0430\u0441\u0448\u0442\u0430\u0431\u0438\u0440\u0443\u044F
-// \u0448\u0438\u0440\u0438\u043D\u0443, \u0442\u044F\u0433\u0443 \u0437\u0430 \u043F\u0440\u0430\u0432\u044B\u0439 \u043A\u0440\u0430\u0439 \u043F\u043E\u043B\u0443\u0447\u0430\u0435\u0448\u044C \u0438 \u043D\u0430 \u043B\u0435\u0432\u043E\u043C \u2014 \u0443 \u0436\u0438\u0434\u043A\u043E\u0441\u0442\u0438 \u0442\u0430\u043A \u043D\u0435 \u0431\u044B\u0432\u0430\u0435\u0442. \u0417\u0434\u0435\u0441\u044C \u0441\u043C\u0435\u0449\u0435\u043D\u0438\u0435
-// \u0437\u0430\u0442\u0443\u0445\u0430\u0435\u0442 \u0441 \u0440\u0430\u0441\u0441\u0442\u043E\u044F\u043D\u0438\u0435\u043C \u043E\u0442 \u043F\u0430\u043B\u044C\u0446\u0430, \u043F\u043E\u044D\u0442\u043E\u043C\u0443 \u0434\u0430\u043B\u044C\u043D\u0438\u0439 \u043A\u0440\u0430\u0439 \u0441\u0442\u043E\u0438\u0442 \u043D\u0430 \u043C\u0435\u0441\u0442\u0435.
+// Response to a finger. It's the FIELD around the touch point that deforms, not the shape's
+// bounding box: scaling width to pull the right edge would also pull the left one \u2014 liquid
+// doesn't behave that way. Here the displacement falls off with distance from the finger, so the
+// far edge stays put.
 //
-// \u041F\u043E\u0440\u044F\u0434\u043E\u043A \u0441\u043B\u0430\u0433\u0430\u0435\u043C\u044B\u0445 \u0437\u043D\u0430\u0447\u0438\u043C: \u0442\u044F\u0433\u0430 \u0441\u0434\u0432\u0438\u0433\u0430\u0435\u0442 \u043F\u043E\u043B\u0435, \u043D\u0430\u0436\u0430\u0442\u0438\u0435 \u0441\u0442\u044F\u0433\u0438\u0432\u0430\u0435\u0442 \u0435\u0433\u043E \u043A \u043F\u0430\u043B\u044C\u0446\u0443, \u0432\u043E\u043B\u043D\u0430 \u0438\u0434\u0451\u0442
-// \u043F\u043E\u0432\u0435\u0440\u0445 \u0443\u0436\u0435 \u0441\u043C\u0435\u0449\u0451\u043D\u043D\u043E\u0433\u043E \u2014 \u0438\u043D\u0430\u0447\u0435 \u0440\u044F\u0431\u044C \u043E\u0442\u0432\u044F\u0437\u044B\u0432\u0430\u0435\u0442\u0441\u044F \u043E\u0442 \u0434\u0435\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u0438 \u0438 \u0436\u0438\u0432\u0451\u0442 \u0441\u0430\u043C\u0430 \u043F\u043E \u0441\u0435\u0431\u0435.
+// The order of the terms matters: drag shifts the field, press pulls it toward the finger, the
+// wave rides on top of the already-shifted field \u2014 otherwise the ripple decouples from the
+// deformation and lives a life of its own.
 float2 vgTouchWarp(float2 p, float2 touch, float2 pull, float press, float radius,
                    float waveAmp, float wavePhase) {
   if (radius <= 0.0) { return p; }
+  // Under the finger the whole element grows (M 3:51; HIG: interactive "expands").
+  p /= 1.0 + ${TOUCH.pressGrow} * press;
   float2 d = p - touch;
   float r = length(d);
 
-  // \u041F\u0430\u043B\u0435\u0446 \u2014 \u041F\u042F\u0422\u041D\u041E, \u0430 \u043D\u0435 \u0442\u043E\u0447\u043A\u0430, \u043D\u043E \u0438 \u043D\u0435 \u0436\u0451\u0441\u0442\u043A\u0438\u0439 \u0448\u0442\u0430\u043C\u043F: \u0432\u0435\u0440\u0448\u0438\u043D\u0430 \u0448\u0438\u0440\u043E\u043A\u0430\u044F, \u043A\u0440\u0430\u044F \u043C\u044F\u0433\u043A\u0438\u0435. \u041F\u043B\u043E\u0441\u043A\u0430\u044F
-  // \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0430 \u0441 \u043E\u0431\u0440\u044B\u0432\u043E\u043C \u043D\u0430 \u043A\u0440\u0430\u044E \u0441\u0434\u0432\u0438\u0433\u0430\u0435\u0442 \u0443\u0447\u0430\u0441\u0442\u043E\u043A \u0446\u0435\u043B\u0438\u043A\u043E\u043C, \u0438 \u043F\u0440\u044F\u043C\u0430\u044F \u043B\u0438\u043D\u0438\u044F \u043F\u043E\u0434 \u0441\u0442\u0435\u043A\u043B\u043E\u043C \u043B\u043E\u043C\u0430\u0435\u0442\u0441\u044F
-  // \u0441\u0442\u0443\u043F\u0435\u043D\u044C\u044E \u2014 \u0434\u0435\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u044F \u0447\u0438\u0442\u0430\u0435\u0442\u0441\u044F \u043F\u0440\u044F\u043C\u043E\u0443\u0433\u043E\u043B\u044C\u043D\u043E\u0439, \u0445\u043E\u0442\u044F \u043F\u0430\u043B\u0435\u0446 \u043A\u0440\u0443\u0433\u043B\u044B\u0439. \u0414\u0432\u043E\u0439\u043D\u043E\u0439 smoothstep
-  // \u0434\u0430\u0451\u0442 \u0442\u0443 \u0436\u0435 \u0448\u0438\u0440\u0438\u043D\u0443 \u043A\u043E\u043D\u0442\u0430\u043A\u0442\u0430 \u0431\u0435\u0437 \u044D\u0442\u043E\u0439 \u0441\u0442\u0443\u043F\u0435\u043D\u0438.
+  // The finger is a BLOB, not a point, but not a hard stamp either: a wide peak, soft edges. A
+  // flat plateau with a sharp cutoff at the edge shifts the region as a block, and a straight
+  // line under the glass breaks into a step \u2014 the deformation reads as rectangular even though
+  // the finger is round. A double smoothstep gives the same contact width without that step.
   //
-  // \u0412\u043B\u0438\u044F\u043D\u0438\u0435 \u043E\u0431\u0440\u044B\u0432\u0430\u0435\u0442\u0441\u044F \u043D\u0430 \u0440\u0430\u0434\u0438\u0443\u0441\u0435, \u0430 \u043D\u0435 \u0440\u0430\u0441\u0442\u0432\u043E\u0440\u044F\u0435\u0442\u0441\u044F \u0431\u0435\u0441\u043A\u043E\u043D\u0435\u0447\u043D\u044B\u043C \u0445\u0432\u043E\u0441\u0442\u043E\u043C, \u043A\u0430\u043A \u0443 \u0433\u0430\u0443\u0441\u0441\u0438\u0430\u043D\u044B:
-  // \u0441 \u0445\u0432\u043E\u0441\u0442\u043E\u043C \u0434\u0435\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u044F \u0440\u0430\u0441\u043F\u043B\u044B\u0432\u0430\u0435\u0442\u0441\u044F \u043F\u0443\u0437\u044B\u0440\u0451\u043C \u2014 \xAB\u0440\u0435\u0437\u0438\u043D\u043E\u0432\u044B\u0439 \u043C\u0430\u0442\u0440\u0430\u0446\xBB.
+  // The influence cuts off at the radius rather than fading into an infinite tail like a
+  // Gaussian: with a tail the deformation spreads into a "rubber mattress" bulge.
   float k = clamp((radius - r) / radius, 0.0, 1.0);
   float s = k * k * (3.0 - 2.0 * k);
   float core = s * s * (3.0 - 2.0 * s);
-  // \u041A\u043E\u043B\u044C\u0446\u043E \u0432\u043E\u043A\u0440\u0443\u0433 \u043F\u044F\u0442\u043D\u0430: \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B, \u0443\u0448\u0435\u0434\u0448\u0438\u0439 \u0438\u0437-\u043F\u043E\u0434 \u043F\u0430\u043B\u044C\u0446\u0430, \u043E\u0431\u044F\u0437\u0430\u043D \u0433\u0434\u0435-\u0442\u043E \u043E\u043A\u0430\u0437\u0430\u0442\u044C\u0441\u044F. \u0411\u0435\u0437 \u044D\u0442\u043E\u0433\u043E
-  // \u0432\u0430\u043B\u0438\u043A\u0430 \u0444\u043E\u0440\u043C\u0430 \u043F\u0440\u043E\u0441\u0442\u043E \u0440\u0430\u0437\u0434\u0443\u0432\u0430\u0435\u0442\u0441\u044F, \u0430 \u043F\u043B\u043E\u0442\u043D\u0430\u044F \u0441\u0440\u0435\u0434\u0430 \u0442\u0430\u043A \u0441\u0435\u0431\u044F \u043D\u0435 \u0432\u0435\u0434\u0451\u0442.
+  // A ring around the blob: material displaced from under the finger has to end up somewhere.
+  // Without this ridge the shape just balloons, and a dense medium doesn't behave that way.
   float rim = k * k * (1.0 - k) * 4.0;
 
-  float2 q = p - pull * (core - 0.42 * rim);
-  q -= d * (press * 0.16 * core);
+  float2 q = p - pull * (core - ${TOUCH.ridge} * rim);
+  q -= d * (press * ${TOUCH.pressPull} * core);
 
-  // \u0423 \u0432\u043E\u043B\u043D\u044B \u0441\u0432\u043E\u0439 \u043C\u0430\u0441\u0448\u0442\u0430\u0431, \u0432\u0434\u0432\u043E\u0435 \u0448\u0438\u0440\u0435 \u0440\u0430\u0434\u0438\u0443\u0441\u0430 \u0442\u044F\u0433\u0438: \u0440\u044F\u0431\u044C \u043E\u0431\u044F\u0437\u0430\u043D\u0430 \u0434\u043E\u0431\u0435\u0436\u0430\u0442\u044C \u0434\u043E \u0434\u0430\u043B\u044C\u043D\u0435\u0433\u043E \u043A\u0440\u0430\u044F,
-  // \u0438\u043D\u0430\u0447\u0435 \u043E\u043D\u0430 \u0447\u0438\u0442\u0430\u0435\u0442\u0441\u044F \u043A\u0430\u043A \u0434\u0440\u043E\u0436\u0430\u043D\u0438\u0435 \u043F\u043E\u0434 \u043F\u0430\u043B\u044C\u0446\u0435\u043C, \u0430 \u043D\u0435 \u043A\u0430\u043A \u0432\u043E\u043B\u043D\u0430 \u043F\u043E \u043F\u043E\u0432\u0435\u0440\u0445\u043D\u043E\u0441\u0442\u0438. \u0414\u043B\u0438\u043D\u0430 \u0432\u043E\u043B\u043D\u044B
-  // \u043A\u043E\u0440\u043E\u0442\u043A\u0430\u044F: \u0432 \u043F\u043B\u043E\u0442\u043D\u043E\u0439 \u0441\u0440\u0435\u0434\u0435 \u0440\u044F\u0431\u044C \u0447\u0430\u0441\u0442\u0430\u044F \u0438 \u043C\u0435\u043B\u043A\u0430\u044F, \u0434\u043B\u0438\u043D\u043D\u044B\u0435 \u043F\u043E\u043B\u043E\u0433\u0438\u0435 \u0432\u0430\u043B\u044B \u2014 \u044D\u0442\u043E \u0432\u043E\u0434\u0430.
+  // The wave has its own scale, twice the drag radius: the ripple has to reach the far edge,
+  // otherwise it reads as jitter under the finger rather than a wave across the surface. The
+  // wavelength is short: in a dense medium ripples are frequent and small, long shallow swells
+  // are water.
   if (waveAmp > 0.0 && r > 0.0001) {
-    float span = radius * 2.0;
-    float ring = sin(r / (span * 0.17) - wavePhase * 6.2831853) * exp(-r / (span * 0.7));
+    float span = radius * ${TOUCH.waveSpan}.0;
+    float ring = sin(r / (span * ${TOUCH.waveLength}) - wavePhase * ${VG_TAU}) * exp(-r / (span * ${TOUCH.waveDecay}));
     q -= (d / r) * ring * waveAmp;
   }
   return q;
 }
 
-// \u0410\u043D\u0430\u043B\u0438\u0442\u0438\u0447\u0435\u0441\u043A\u0430\u044F \u043D\u043E\u0440\u043C\u0430\u043B\u044C \u043E\u0434\u0438\u043D\u043E\u0447\u043D\u043E\u0439 \u0444\u043E\u0440\u043C\u044B: \u0440\u0430\u0434\u0438\u0430\u043B\u044C\u043D\u0430\u044F \u043D\u0430 \u0441\u043A\u0440\u0443\u0433\u043B\u0435\u043D\u0438\u0438, \u043E\u0441\u0435\u0432\u0430\u044F \u043D\u0430 \u043F\u0440\u044F\u043C\u044B\u0445 \u0443\u0447\u0430\u0441\u0442\u043A\u0430\u0445.
+// Analytical normal of a single shape: radial on the rounded part, axis-aligned on the straight
+// segments.
 float2 vgRoundRectNormal(float2 p, float2 halfSize, float corner) {
   float2 q = abs(p) - halfSize + corner;
   float2 g = (q.x > 0.0 && q.y > 0.0)
@@ -3399,50 +2799,59 @@ float2 vgRoundRectNormal(float2 p, float2 halfSize, float corner) {
   return g * sign(p);
 }
 
-// \u041D\u043E\u0440\u043C\u0430\u043B\u044C \u043E\u0431\u044A\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u044F \u2014 \u0410\u041D\u0410\u041B\u0418\u0422\u0418\u0427\u0415\u0421\u041A\u0410\u042F, \u043A\u043E\u043D\u0435\u0447\u043D\u044B\u0445 \u0440\u0430\u0437\u043D\u043E\u0441\u0442\u0435\u0439 \u0437\u0434\u0435\u0441\u044C \u0431\u043E\u043B\u044C\u0448\u0435 \u043D\u0435\u0442.
+// Normal of the union \u2014 ANALYTICAL, no more finite differences here.
 //
-// \u0412\u044B\u0432\u043E\u0434: \u0443 smin \u0434\u0432\u0430 \u0441\u043B\u0430\u0433\u0430\u0435\u043C\u044B\u0445, mix(b,a,h) \u0438 \u2212k\xB7h\xB7(1\u2212h). \u0418\u0445 \u043F\u0440\u043E\u0438\u0437\u0432\u043E\u0434\u043D\u044B\u0435 \u043F\u043E h \u0441\u043E\u0434\u0435\u0440\u0436\u0430\u0442
-// \u043C\u043D\u043E\u0436\u0438\u0442\u0435\u043B\u044C (1\u22122h) \u0441 \u043F\u0440\u043E\u0442\u0438\u0432\u043E\u043F\u043E\u043B\u043E\u0436\u043D\u044B\u043C\u0438 \u0437\u043D\u0430\u043A\u0430\u043C\u0438 \u0438 \u0441\u043E\u043A\u0440\u0430\u0449\u0430\u044E\u0442\u0441\u044F \u0440\u043E\u0432\u043D\u043E, \u043F\u043E\u0442\u043E\u043C\u0443 \u0447\u0442\u043E h \u043B\u0438\u043D\u0435\u0439\u043D\u0430
-// \u043F\u043E (b\u2212a)/k. \u041E\u0441\u0442\u0430\u0451\u0442\u0441\u044F mix(\u2207b, \u2207a, h) \u2014 \u0442\u043E \u0435\u0441\u0442\u044C \u043D\u043E\u0440\u043C\u0430\u043B\u0438 \u0434\u0432\u0443\u0445 \u0444\u043E\u0440\u043C, \u0441\u043C\u0435\u0448\u0430\u043D\u043D\u044B\u0435 \u0442\u0435\u043C \u0436\u0435 \u0432\u0435\u0441\u043E\u043C,
-// \u043A\u0430\u043A\u0438\u043C \u0441\u043C\u0435\u0448\u0430\u043D\u044B \u0441\u0430\u043C\u0438 \u0440\u0430\u0441\u0441\u0442\u043E\u044F\u043D\u0438\u044F.
+// Derivation: smin has two terms, mix(b,a,h) and \u2212k\xB7h\xB7(1\u2212h). Their derivatives with respect to h
+// contain a factor of (1\u22122h) with opposite signs and cancel exactly, because h is linear in
+// (b\u2212a)/k. What's left is mix(\u2207b, \u2207a, h) \u2014 that is, the two shapes' normals, blended with the
+// same weight that blends the distances themselves.
 //
-// \u041F\u0440\u0435\u0436\u043D\u0438\u0439 \u0432\u0430\u0440\u0438\u0430\u043D\u0442 \u0431\u0440\u0430\u043B \u0447\u0435\u0442\u044B\u0440\u0435 \u0414\u041E\u041F\u041E\u041B\u041D\u0418\u0422\u0415\u041B\u042C\u041D\u042B\u0425 \u0432\u044B\u0447\u0438\u0441\u043B\u0435\u043D\u0438\u044F \u0441\u0446\u0435\u043D\u044B \u043D\u0430 \u043F\u0438\u043A\u0441\u0435\u043B\u044C (\u043A\u0430\u0436\u0434\u043E\u0435 \u2014 \u0434\u0432\u0435
-// \u0444\u043E\u0440\u043C\u044B \u043F\u043B\u044E\u0441 smin) \u0438 \u043F\u0440\u0438 \u044D\u0442\u043E\u043C \u0431\u044B\u043B \u043F\u0440\u0438\u0431\u043B\u0438\u0436\u0435\u043D\u0438\u0435\u043C. \u0417\u0434\u0435\u0441\u044C \u0434\u0432\u0435 \u0444\u043E\u0440\u043C\u044B, \u0442\u043E\u0447\u043D\u043E.
+// The previous version took four ADDITIONAL scene evaluations per pixel (each one \u2014 two shapes
+// plus smin) and was still an approximation. Here there are two shapes, exactly.
 float2 vgSceneNormal(float2 p, float2 halfSize, float corner,
-                     float2 offsetB, float2 halfB, float cornerB, float k) {
+                     float2 offsetB, float2 halfB, float cornerB, float k,
+                     float2 offsetC, float2 halfC, float cornerC) {
   float2 na = vgRoundRectNormal(p, halfSize, corner);
   if (k <= 0.0) { return na; }
   float2 q = p - offsetB;
   float a = vgRoundRect(p, halfSize, corner);
   float b = vgRoundRect(q, halfB, cornerB);
   float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
-  return normalize(mix(vgRoundRectNormal(q, halfB, cornerB), na, h) + float2(1e-5, 1e-5));
+  float2 nab = normalize(mix(vgRoundRectNormal(q, halfB, cornerB), na, h) + float2(${EPSILON}, ${EPSILON}));
+  if (halfC.x <= 0.0) { return nab; }
+  // Same derivation as for the pair: normals blend with the same weight as the distances.
+  float2 qc = p - offsetC;
+  float ab = vgSmin(a, b, k);
+  float c = vgRoundRect(qc, halfC, cornerC);
+  float hc = clamp(0.5 + 0.5 * (c - ab) / k, 0.0, 1.0);
+  return normalize(mix(vgRoundRectNormal(qc, halfC, cornerC), nab, hc) + float2(${EPSILON}, ${EPSILON}));
 }
 
-// \u041F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435 \u0432 \u0444\u0430\u0441\u043A\u0435: 0 \u2014 \u043F\u043B\u043E\u0441\u043A\u0430\u044F \u0441\u0435\u0440\u0435\u0434\u0438\u043D\u0430, 1 \u2014 \u0441\u0430\u043C\u0430\u044F \u043A\u0440\u043E\u043C\u043A\u0430. \u041E\u0434\u043D\u0430 \u044D\u0442\u0430 \u0432\u0435\u043B\u0438\u0447\u0438\u043D\u0430 \u043F\u0438\u0442\u0430\u0435\u0442
-// \u043C\u0430\u0441\u043A\u0443, \u0442\u043E\u043B\u0449\u0438\u043D\u0443, \u043F\u0440\u0435\u043B\u043E\u043C\u043B\u0435\u043D\u0438\u0435, \u0430\u0431\u0435\u0440\u0440\u0430\u0446\u0438\u0438 \u0438 \u0448\u0438\u0440\u0438\u043D\u0443 \u0441\u0432\u0435\u0442\u043E\u0432\u043E\u0439 \u043A\u0440\u043E\u043C\u043A\u0438.
+// Position within the bevel: 0 is the flat middle, 1 is the very edge. This one value feeds the
+// mask, thickness, refraction, aberrations and the width of the light rim.
 float vgBevelT(float sd, float bevel) {
   return clamp((sd + bevel) / bevel, 0.0, 1.0);
 }
 
-// \u041D\u0430\u043A\u043B\u043E\u043D \u043F\u0440\u043E\u0444\u0438\u043B\u044F \u0444\u0430\u0441\u043A\u0438 \u2014 \u0441\u0444\u0435\u0440\u0438\u0447\u0435\u0441\u043A\u0438\u0439: t / sqrt(1 - t\xB2), \u043A\u0430\u043A \u0443 \u0448\u0430\u0440\u043E\u0432\u043E\u0433\u043E \u0441\u0435\u0433\u043C\u0435\u043D\u0442\u0430. \u041F\u0440\u0435\u0436\u043D\u0438\u0439
-// t\xB2 \u0434\u0435\u0440\u0436\u0430\u043B \u043D\u0430\u043A\u043B\u043E\u043D \u043E\u043A\u043E\u043B\u043E \u043D\u0443\u043B\u044F \u043F\u043E\u0447\u0442\u0438 \u0432\u0441\u044E \u0444\u0430\u0441\u043A\u0443 \u0438 \u0432\u0437\u043B\u0435\u0442\u0430\u043B \u0443 \u0441\u0430\u043C\u043E\u0439 \u043A\u0440\u043E\u043C\u043A\u0438, \u043E\u0442\u0447\u0435\u0433\u043E \u0432\u0441\u044F \u043E\u043F\u0442\u0438\u043A\u0430
-// \u0441\u043E\u0431\u0438\u0440\u0430\u043B\u0430\u0441\u044C \u0432 \u0443\u0437\u043A\u043E\u0435 \u043A\u043E\u043B\u044C\u0446\u043E \u0438 \u0434\u0435\u0442\u0430\u043B\u044C \u0447\u0438\u0442\u0430\u043B\u0430\u0441\u044C \u0428\u0410\u0419\u0411\u041E\u0419 \u2014 \u043F\u043B\u043E\u0441\u043A\u0438\u0439 \u0432\u0435\u0440\u0445 \u0438 \u0441\u0442\u0435\u043D\u043A\u0430 \u043F\u043E \u0431\u043E\u0440\u0442\u0443.
-// \u0417\u0434\u0435\u0441\u044C \u043A\u0440\u0438\u0432\u0438\u0437\u043D\u0430 \u0440\u0430\u0441\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0430 \u043F\u043E \u0444\u0430\u0441\u043A\u0435, \u0438 \u043A\u0440\u043E\u043C\u043A\u0430 \u043F\u0435\u0440\u0435\u0441\u0442\u0430\u0451\u0442 \u0431\u044B\u0442\u044C \u043B\u0438\u043D\u0438\u0435\u0439.
+// Slope of the bevel profile \u2014 spherical: t / sqrt(1 - t\xB2), like a spherical cap. The previous t\xB2
+// kept the slope near zero through almost the whole bevel and then shot up right at the edge, so
+// all the optics bunched into a narrow ring and the element read as a PUCK \u2014 a flat top and a
+// wall around the rim. Here curvature is spread across the bevel, and the rim stops being a line.
 //
-// \u041F\u043E\u043B\u0435\u043C \u0437\u0440\u0435\u043D\u0438\u044F \u044D\u0442\u043E \u043F\u043E-\u043F\u0440\u0435\u0436\u043D\u0435\u043C\u0443 \u043D\u0435 \u043F\u0440\u0430\u0432\u0438\u0442: \u0433\u043D\u0451\u0442\u0441\u044F \u0442\u043E\u043B\u044C\u043A\u043E \u0444\u0430\u0441\u043A\u0430, \u0441\u0435\u0440\u0435\u0434\u0438\u043D\u0430 \u043F\u043B\u043E\u0441\u043A\u0430\u044F, \u0438\u043D\u0430\u0447\u0435
-// \u043F\u043E\u0432\u0435\u0440\u0445\u043D\u043E\u0441\u0442\u044C \u0447\u0438\u0442\u0430\u0435\u0442\u0441\u044F \u043C\u044B\u043B\u044C\u043D\u044B\u043C \u043F\u0443\u0437\u044B\u0440\u0451\u043C.
+// This still doesn't control the field of view: only the bevel bends, the middle stays flat,
+// otherwise the surface reads as a soap bubble.
 float vgBevelSlope(float t) {
-  return min(t * inversesqrt(max(1.0 - t * t * 0.94, 0.02)), 3.2);
+  return min(t * inversesqrt(max(1.0 - t * t * ${BEVEL.sphere}, ${BEVEL.floor})), ${BEVEL.slopeMax});
 }
 
-// \u0421\u042B\u0413\u0420\u0410\u041D\u041D\u0410\u042F \u0414\u041E\u041B\u042F. \u041F\u0440\u043E\u0433\u0440\u0435\u0441\u0441 \u2014 \u044D\u0442\u043E \u0430\u043A\u0442\u0438\u0432\u043D\u043E\u0435 \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u0435, \u0441\u0442\u0430\u0432\u0448\u0435\u0435 \u041F\u041E\u041B\u0415\u041C: \u0441\u043B\u0435\u0432\u0430 \u043E\u0442 \u0433\u0440\u0430\u043D\u0438\u0446\u044B \u0434\u0435\u0442\u0430\u043B\u044C
-// \u0430\u043A\u0442\u0438\u0432\u043D\u0430, \u0441\u043F\u0440\u0430\u0432\u0430 \u043E\u0441\u0442\u0430\u0451\u0442\u0441\u044F \u043E\u0431\u044B\u0447\u043D\u044B\u043C \u0441\u0442\u0435\u043A\u043B\u043E\u043C, \u0438 \u0433\u0440\u0430\u043D\u0438\u0446\u0430 \u0435\u0434\u0435\u0442. \u041E\u0442\u0440\u0438\u0446\u0430\u0442\u0435\u043B\u044C\u043D\u043E\u0435 \u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0435 \u0432\u044B\u043A\u043B\u044E\u0447\u0430\u0435\u0442
-// \u043F\u043E\u043B\u0435 \u0446\u0435\u043B\u0438\u043A\u043E\u043C \u2014 \u043D\u043E\u043B\u044C \u0437\u0430\u043D\u044F\u0442 \u043D\u0430\u0447\u0430\u043B\u043E\u043C \u0442\u0440\u0435\u043A\u0430 \u0438 \u0432\u044B\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0435\u043C \u0431\u044B\u0442\u044C \u043D\u0435 \u043C\u043E\u0436\u0435\u0442.
+// PROGRESS FRACTION. Progress is an active state turned into a FIELD: to the left of the boundary
+// the element is active, to the right it stays regular glass, and the boundary moves. A negative
+// value turns the field off entirely \u2014 zero is taken by the start of the track and can't also
+// mean off.
 //
-// \u0413\u0440\u0430\u043D\u0438\u0446\u0430 \u041C\u042F\u0413\u041A\u0410\u042F. \u0420\u0435\u0437\u043A\u0438\u0439 \u0441\u0442\u044B\u043A \u0447\u0438\u0442\u0430\u0435\u0442\u0441\u044F \u0441\u043A\u043B\u0435\u0439\u043A\u043E\u0439 \u0434\u0432\u0443\u0445 \u0440\u0430\u0437\u043D\u044B\u0445 \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u043E\u0432, \u0430 \u043D\u0435 \u0434\u0432\u0443\u043C\u044F
-// \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u044F\u043C\u0438 \u043E\u0434\u043D\u043E\u0433\u043E; \u0448\u0438\u0440\u0438\u043D\u0430 \u043F\u0435\u0440\u0435\u0445\u043E\u0434\u0430 \u0431\u0435\u0440\u0451\u0442\u0441\u044F \u0434\u043E\u043B\u0435\u0439 \u043F\u043E\u043B\u0443\u0448\u0438\u0440\u0438\u043D\u044B, \u0447\u0442\u043E\u0431\u044B \u043D\u0430 \u043A\u0440\u0443\u043F\u043D\u043E\u0439 \u0434\u0435\u0442\u0430\u043B\u0438
-// \u043E\u043D \u043D\u0435 \u0432\u044B\u0433\u043B\u044F\u0434\u0435\u043B \u043D\u0438\u0442\u043A\u043E\u0439, \u0430 \u043D\u0430 \u043C\u0435\u043B\u043A\u043E\u0439 \u043D\u0435 \u0441\u044A\u0435\u0434\u0430\u043B \u0435\u0451 \u0446\u0435\u043B\u0438\u043A\u043E\u043C.
+// The boundary is SOFT. A hard seam reads as two different materials glued together rather than
+// two states of one; the transition width is a fraction of the half-width, so it doesn't read as
+// a thread on a large element and doesn't swallow a small one whole.
 float vgProgress(float2 p, float2 halfSize, float progress) {
   if (progress < 0.0) { return 0.0; }
   float edge = mix(-halfSize.x, halfSize.x, clamp(progress, 0.0, 1.0));
@@ -3450,16 +2859,678 @@ float vgProgress(float2 p, float2 halfSize, float progress) {
   return 1.0 - smoothstep(edge - soft, edge + soft, p.x);
 }
 `;
-  var VG_FALLOFF = 2.6;
-  var HOLD_STIFFNESS = 260;
-  var HOLD_DAMPING = 46;
-  var RELEASE_STIFFNESS = 420;
-  var RELEASE_DAMPING = 34;
-  var PRESS_ATTACK = 0.07;
-  var PRESS_RELEASE = 0.16;
-  var WAVE_DECAY = 0.22;
-  var WAVE_TURNS_PER_SECOND = 3;
-  function createDeform() {
+  function sdfRoundedRect(x, y, w, h, r) {
+    const qx = Math.abs(x) - w / 2 + r;
+    const qy = Math.abs(y) - h / 2 + r;
+    return Math.min(Math.max(qx, qy), 0) + Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) - r;
+  }
+  function sdfRoundedRectGradient(x, y, w, h, r) {
+    const qx = Math.abs(x) - w / 2 + r;
+    const qy = Math.abs(y) - h / 2 + r;
+    let gx;
+    let gy;
+    if (qx > 0 && qy > 0) {
+      const cx = Math.max(qx, 1e-4);
+      const cy = Math.max(qy, 1e-4);
+      const len = Math.hypot(cx, cy);
+      gx = cx / len;
+      gy = cy / len;
+    } else if (qx > qy) {
+      gx = 1;
+      gy = 0;
+    } else {
+      gx = 0;
+      gy = 1;
+    }
+    return [gx * Math.sign(x), gy * Math.sign(y)];
+  }
+  function smin(a, b, k) {
+    const h = Math.min(Math.max(0.5 + 0.5 * (b - a) / k, 0), 1);
+    return b + (a - b) * h - k * h * (1 - h);
+  }
+  function sceneDistance(x, y, w, h, r, smoothing = 0, ...shapes2) {
+    let d = sdfRoundedRect(x, y, w, h, r);
+    if (smoothing <= 0) return d;
+    for (const s of shapes2) {
+      if (!s || s.width <= 0) continue;
+      d = smin(d, sdfRoundedRect(x - s.offsetX, y - s.offsetY, s.width, s.height, s.cornerRadius), smoothing);
+    }
+    return d;
+  }
+  function sceneGradient(x, y, w, h, r, smoothing = 0, ...shapes2) {
+    let d = sdfRoundedRect(x, y, w, h, r);
+    let [gx, gy] = sdfRoundedRectGradient(x, y, w, h, r);
+    let blended = false;
+    if (smoothing > 0) {
+      for (const s of shapes2) {
+        if (!s || s.width <= 0) continue;
+        const sx = x - s.offsetX;
+        const sy = y - s.offsetY;
+        const ds = sdfRoundedRect(sx, sy, s.width, s.height, s.cornerRadius);
+        const weight = Math.min(Math.max(0.5 + 0.5 * (ds - d) / smoothing, 0), 1);
+        const [nx, ny] = sdfRoundedRectGradient(sx, sy, s.width, s.height, s.cornerRadius);
+        gx = nx + (gx - nx) * weight;
+        gy = ny + (gy - ny) * weight;
+        d = smin(d, ds, smoothing);
+        blended = true;
+      }
+    }
+    if (!blended) return [gx, gy];
+    gx += EPSILON;
+    gy += EPSILON;
+    const len = Math.hypot(gx, gy) || 1;
+    return [gx / len, gy / len];
+  }
+  function touchWarp(x, y, t) {
+    if (t.radius <= 0) return [x, y];
+    const grow = 1 + TOUCH.pressGrow * t.press;
+    let px = x / grow;
+    let py = y / grow;
+    const dx = px - t.x;
+    const dy = py - t.y;
+    const r = Math.hypot(dx, dy);
+    const k = Math.min(Math.max((t.radius - r) / t.radius, 0), 1);
+    const s = k * k * (3 - 2 * k);
+    const core = s * s * (3 - 2 * s);
+    const rim = k * k * (1 - k) * 4;
+    px -= t.pullX * (core - TOUCH.ridge * rim);
+    py -= t.pullY * (core - TOUCH.ridge * rim);
+    px -= dx * (t.press * TOUCH.pressPull * core);
+    py -= dy * (t.press * TOUCH.pressPull * core);
+    if (t.waveAmp > 0 && r > 1e-4) {
+      const span = t.radius * TOUCH.waveSpan;
+      const ring = Math.sin(r / (span * TOUCH.waveLength) - t.wavePhase * VG_TAU) * Math.exp(-r / (span * TOUCH.waveDecay));
+      px -= dx / r * ring * t.waveAmp;
+      py -= dy / r * ring * t.waveAmp;
+    }
+    return [px, py];
+  }
+  var LENS_SHADER = `
+uniform shader content;
+
+// Known only to the view itself: its own size and its own place on screen.
+uniform float2 u_center;
+uniform float  u_reach;
+uniform float2 u_contentMin;
+uniform float2 u_contentMax;
+// Backdrop estimate UNDER the glass from the native probe: lightness, variegation and average
+// color, already smoothed over time. Negative lightness means the probe hasn't reported yet \u2014
+// fall back to our own samples.
+uniform float  u_probeLuma;
+uniform float  u_probeBusy;
+// The endpoints of the lightness range under the glass: right at a black/white border the
+// average reads as a gray that says "everything's fine," while the ink drowns over the light
+// half.
+uniform float2 u_probeRange;
+// Slope of lightness across the surface, fraction per half-size: tinting is a gradient \u2014 one
+// density per element wouldn't separate the ink from both halves of the backdrop.
+uniform float2 u_probeSlope;
+uniform float3 u_probe;
+
+// Material \u2014 over the shared channel from JS, already in device pixels.
+uniform float2 u_halfSize;
+uniform float  u_corner;
+uniform float  u_bevel;
+uniform float  u_thick;
+uniform float  u_rim;
+uniform float  u_ior;
+uniform float  u_iorSpread;
+uniform float2 u_light;
+uniform float  u_appear;
+uniform float4 u_accent;
+uniform float  u_frost;
+uniform float  u_ink;
+uniform float  u_legibility;
+uniform float  u_dim;
+uniform float  u_presence;
+uniform float  u_progress;
+uniform float  u_adaptRadius;
+uniform float  u_bodyDensity;
+uniform float  u_edgeLight;
+uniform float  u_fresnel;
+uniform float  u_specular;
+uniform float  u_reflectReach;
+uniform float  u_film;
+uniform float  u_iridescence;
+uniform float  u_diffraction;
+uniform float  u_colorPickup;
+uniform float2 u_morphOffset;
+uniform float2 u_morphHalf;
+uniform float  u_morphCorner;
+uniform float  u_morphK;
+uniform float2 u_morph2Offset;
+uniform float2 u_morph2Half;
+uniform float  u_morph2Corner;
+uniform float  u_debug;
+uniform float2 u_touch;
+uniform float2 u_pull;
+uniform float  u_touchPress;
+uniform float  u_touchRadius;
+uniform float2 u_wave;
+
+${VG_SDF}
+
+// Sample count for the disc gather: fewer than this reads as a staircase of copies at a sharp edge.
+const int   VG_FROST_TAPS = 20;
+// The sample count grows with the disc's area: estimator noise is the spread under the glass
+// divided by the square root of the sample count. The ceiling is cost: texture sampling is the
+// most expensive thing here.
+const int   VG_FROST_TAPS_MAX = 64;
+// The radius correction for backdrop compression at the rim is capped: at the silhouette it goes
+// to infinity.
+const float VG_FOOTPRINT_MAX = ${LENS.footprintMax};
+const float VG_TAU = 6.28318530718;
+// Ceiling on body lightness under light ink (and the mirrored floor under dark ink). This is a
+// ceiling, not a difference: "0.14 darker than white" is a lightness of 0.86, at which white text
+// is invisible.
+const float VG_BODY_CAP_LOOSE = ${BODY3.capLoose};
+const float VG_BODY_CAP_TIGHT = ${BODY3.capTight};
+// Tint lightness in both directions: real glass is never coal-black or paper-white.
+const float VG_TINT_DARK = ${BODY3.tintDark};
+const float VG_TINT_LIGHT = ${BODY3.tintLight};
+// Reference channel wavelengths, nm \u2014 for diffraction and interference.
+const float3 VG_LAMBDA = float3(${LENS.lambdaR}.0, ${LENS.lambdaG}.0, ${LENS.lambdaB}.0);
+// Film index of refraction: every thin film on glass sits around this value.
+const float VG_FILM_IOR = ${LENS.filmIor};
+// Ceiling on the profile's slope right at the silhouette: it goes to infinity there.
+const float VG_SLOPE_MAX = ${LENS.slopeMax}.0;
+// Fraction of the gather radius that scattering reaches over a busy backdrop under ink (M 11:47).
+// Set against the reference: there, structure under the capsule fades by a factor of 9-10, not
+// thirty.
+const float VG_SCATTER_MAX = ${MEDIUM.scatterMax};
+const float VG_SCATTER_BASE = ${MEDIUM.scatterBase};
+// The response to structure under the glass saturates early: what competes with the ink isn't
+// the area of foreign text but the mere fact that it's there (a line under a tile gives a busy
+// of about 0.12).
+const float VG_STRUCTURE_GAIN = ${MEDIUM.structureGain}.0;
+// How much denser the body with ink gets over a BUSY backdrop than over a calm one. There's no
+// flat floor here: legibility picks up its own targeted requirement further down, and base
+// frosting comes from VG_MATTE_LIFT.
+const float VG_GROUND_SPAN = ${BODY3.groundSpan};
+// Scattered light on a frosted element is an ADDITION on top of the backdrop, not a fraction of
+// the way to the tint: the fraction goes to zero once the canvas reaches the tint's lightness,
+// and darkens past it (docs/benchmarks.md).
+const float VG_MATTE_LIFT = ${MEDIUM.matteLift};
+// The fraction of backdrop spread that survives through to the body past scattering: the
+// legibility requirement is computed from this edge, not from the spot's average lightness.
+const float VG_BUSY_EDGE = ${BODY3.busyEdge};
+// Light concentration: the body is a touch lighter than what's beneath it (M 2:29).
+const float VG_CONCENTRATE = ${MEDIUM.concentrate};
+// The lightness the medium pulls content under the glass toward, and the strength of that pull.
+// The medium both removes light and mixes in scattered light: over a light backdrop the body
+// darkens, over a dark one it lightens.
+const float VG_MEDIUM_LUMA = ${MEDIUM.luma};
+const float VG_MEDIUM_PULL = ${MEDIUM.pull};
+// How much ambient light reaches the body on top of the pull.
+const float VG_AMBIENT_SPILL = ${MEDIUM.ambientSpill};
+
+float vgLuma(float3 c) { return dot(c, float3(0.2126, 0.7152, 0.0722)); }
+
+// Un-premultiply into ordinary color. One division, done in float: near zero, half's step is too
+// coarse, and several divisions in a row raise noise.
+float3 vgUnpack(half4 c) {
+  float a = float(c.a);
+  return a > 0.004 ? float3(c.rgb) / a : float3(0.0);
+}
+
+// The capture ends at the screen edge: samples are clamped to the rectangle where content
+// actually exists, otherwise full-width glass picked up a band of emptiness along its edges.
+float2 vgInContent(float2 q) { return clamp(q, u_contentMin, u_contentMax); }
+
+// Hue without lightness. Below the threshold the color has no hue, and the division blows up.
+float3 vgHue(float3 c) {
+  float l = vgLuma(c);
+  if (l < 0.02) { return float3(1.0); }
+  return clamp(c / l, float3(0.0), float3(2.0));
+}
+
+// Edge profile \u2014 a convex squircle: x = 0 at the silhouette, 1 where the rounding turns flat.
+float vgRimQ(float x) {
+  float k = 1.0 - x;
+  return sqrt(sqrt(max(1.0 - k * k * k * k, 0.0)));
+}
+
+float vgRimQd(float x) {
+  float k = 1.0 - x;
+  return k * k * k / pow(max(1.0 - k * k * k * k, 1e-5), 0.75);
+}
+
+// Glass height above the content at distance e from the silhouette.
+float vgHeight(float e, float w) {
+  return mix(u_rim, u_thick, vgRimQ(clamp(e / w, 0.0, 1.0)));
+}
+
+// Slope of the top face at the same point: the derivative of height with respect to distance
+// from the silhouette.
+float vgSlope(float e, float w) {
+  if (e >= w) { return 0.0; }
+  return min((u_thick - u_rim) / w * vgRimQd(clamp(e / w, 0.0, 1.0)), VG_SLOPE_MAX);
+}
+
+// Where a ray falling from above lands on a face with normal N: Snell's law refraction, then a
+// path of length z through the medium to the content. The convex face bends the ray toward the
+// normal \u2014 that is, inward relative to the shape.
+float2 vgShift(float3 N, float z, float ior) {
+  float3 T = refract(float3(0.0, 0.0, -1.0), N, 1.0 / ior);
+  return z * T.xy / max(-T.z, 0.05);
+}
+
+// Thin-film interference: optical path difference 2\xB7n\xB7d\xB7cos\u03B8t, each channel with its own \u03BB.
+// Returns a hue normalized to its own average \u2014 it colors, but doesn't lighten.
+float3 vgInterference(float cosI) {
+  float sinT2 = (1.0 - cosI * cosI) / (VG_FILM_IOR * VG_FILM_IOR);
+  float cosT = sqrt(max(1.0 - sinT2, 0.0));
+  float opd = 2.0 * VG_FILM_IOR * u_film * cosT;
+  float3 i = 0.5 + 0.5 * cos(VG_TAU * opd / VG_LAMBDA + 3.14159265);
+  return i / max((i.r + i.g + i.b) / 3.0, 0.001);
+}
+
+// Edge diffraction: fringes get denser the sharper the bevel. Also a hue, not a brightness.
+float3 vgDiffraction(float distFromEdge, float bevel) {
+  float phase = VG_TAU * ${SPECTRAL.diffractionFringes}.0 * distFromEdge / max(bevel, 1.0);
+  float3 d = 0.5 + 0.5 * cos(phase * (${SPECTRAL.referenceLambda}.0 / VG_LAMBDA));
+  return d / max((d.r + d.g + d.b) / 3.0, 0.001);
+}
+
+float vgHash(float2 p) {
+  return fract(sin(dot(p, float2(12.9898, 78.233))) * 43758.5453);
+}
+
+// Soft compression instead of a hard clamp: over a white backdrop, additions used to knock a
+// channel to one, and the glass turned into a flat blob with no detail.
+float3 vgSoftClip(float3 c) {
+  float3 over = max(c - 0.86, float3(0.0));
+  return min(c, float3(0.86)) + over * 0.14 / (0.14 + over);
+}
+
+// Our own blur: the capture is left clean, the shader does the blurring \u2014 averaging in float
+// smooths banding on its own and adds no noise of its own. A golden-angle spiral, rotated to its
+// own angle at every pixel: with a shared angle, neighboring pixels took the same samples, and
+// texture under the glass read in clumps. Accumulated premultiplied \u2014 one shared un-premultiply
+// at the end.
+float4 vgGather(float2 q, float radius, float2 seed) {
+  float4 acc = float4(content.eval(vgInContent(q)));
+  if (radius <= 0.25) { return acc; }
+  if (radius < 4.0) {
+    float r = radius * 0.7;
+    acc += float4(content.eval(vgInContent(q + float2(r, 0.0))))
+      + float4(content.eval(vgInContent(q - float2(r, 0.0))))
+      + float4(content.eval(vgInContent(q + float2(0.0, r))))
+      + float4(content.eval(vgInContent(q - float2(0.0, r))));
+    return acc * 0.2;
+  }
+  float ca = cos(2.39996323);
+  float sa = sin(2.39996323);
+  float a0 = vgHash(seed) * 6.28318530718;
+  float2 dir = float2(cos(a0), sin(a0));
+  float wide = radius * 0.5;
+  int taps = int(clamp(float(VG_FROST_TAPS) * wide * wide, float(VG_FROST_TAPS), float(VG_FROST_TAPS_MAX)));
+  for (int i = 1; i <= VG_FROST_TAPS_MAX; i++) {
+    if (i > taps) { break; }
+    dir = float2(dir.x * ca - dir.y * sa, dir.x * sa + dir.y * ca);
+    float r = radius * sqrt(float(i) / float(taps));
+    acc += float4(content.eval(vgInContent(q + dir * r)));
+  }
+  return acc / float(taps + 1);
+}
+
+half4 main(float2 xy) {
+  float2 p = vgTouchWarp(xy - u_center, u_touch, u_pull, u_touchPress, u_touchRadius, u_wave.x, u_wave.y);
+  float sd = vgScene(p, u_halfSize, u_corner, u_morphOffset, u_morphHalf, u_morphCorner, u_morphK,
+                u_morph2Offset, u_morph2Half, u_morph2Corner);
+  // There's nothing outside the glass \u2014 except the light it spills onto the backdrop under the
+  // finger (M 3:38): the same concentrated ambient as inside, so no white halo appears over a
+  // dark backdrop.
+  if (sd > 1.0) {
+    float spill = u_touchPress * exp(-sd / max(min(u_halfSize.x, u_halfSize.y) * 0.5, 4.0)) * 0.5 * u_appear;
+    if (spill < 0.004) { return half4(0.0); }
+    float3 lit = clamp((u_probeLuma >= 0.0 ? u_probe : float3(0.35)) * 1.6 + float3(0.1), float3(0.0), float3(1.0));
+    return half4(half3(lit * spill), half(spill));
+  }
+
+  float bevel = max(u_bevel, 1.0);
+  float e = max(-sd, 0.0);
+  // 0 in the flat middle, 1 at the silhouette.
+  float t = 1.0 - clamp(e / bevel, 0.0, 1.0);
+  float2 n = vgSceneNormal(p, u_halfSize, u_corner, u_morphOffset, u_morphHalf, u_morphCorner, u_morphK,
+                u_morph2Offset, u_morph2Half, u_morph2Corner);
+
+  // "backdrop" mode hands back the content as-is \u2014 a reference point for comparing the optics.
+  float on = u_debug > 5.5 && u_debug < 6.5 ? 0.0 : 1.0;
+  float lens = on * u_appear;
+
+  float z = vgHeight(e, bevel);
+  float slope = vgSlope(e, bevel);
+  float3 N = normalize(float3(n * slope, 1.0));
+  float2 shift = vgShift(N, z, u_ior) * lens;
+  float2 s = u_center + p + shift;
+
+  // The area the lens gathers into one pixel: a one-pixel step inward on screen, measured
+  // against the sampling step. At the silhouette it's large \u2014 a stripe of backdrop is compressed
+  // into a line there, and a point sample gives grain.
+  float e1 = e + 1.0;
+  float3 N1 = normalize(float3(n * vgSlope(e1, bevel), 1.0));
+  float2 shift1 = vgShift(N1, vgHeight(e1, bevel), u_ior) * lens;
+  float footprint = length(shift1 - shift - n);
+  float spread = max(footprint - 1.0, 0.0) * 0.5 * on;
+
+  // Dispersion: the same ray with each channel's own index. Blue bends more than red.
+  float2 dR = vgShift(N, z, u_ior + ${DISPERSION.redShift} * u_iorSpread) * lens - shift;
+  float2 dB = vgShift(N, z, u_ior + ${DISPERSION.blueShift} * u_iorSpread) * lens - shift;
+  float chroma = length(dB - dR);
+
+  float3 rgb;
+  float srcA;
+
+  if (chroma + spread < 0.25) {
+    // In the flat body all the samples would land at the same point, and the body is almost the
+    // whole area of the glass.
+    half4 c = content.eval(vgInContent(s));
+    srcA = float(c.a);
+    rgb = srcA > 0.004 ? float3(c.rgb) / srcA : float3(0.0);
+  } else {
+    // Accumulate premultiplied and divide once per pair: channels from different points with
+    // different alpha would otherwise produce a colored fringe at content edges that isn't
+    // really there.
+    float2 ev = n * spread;
+    half4 c0 = content.eval(vgInContent(s + dR - ev));
+    half4 c1 = content.eval(vgInContent(s + dR + ev));
+    half4 c2 = content.eval(vgInContent(s - ev));
+    half4 c3 = content.eval(vgInContent(s + ev));
+    half4 c4 = content.eval(vgInContent(s + dB - ev));
+    half4 c5 = content.eval(vgInContent(s + dB + ev));
+
+    float aR = float(c0.a + c1.a) * 0.5;
+    float aG = float(c2.a + c3.a) * 0.5;
+    float aB = float(c4.a + c5.a) * 0.5;
+    rgb = float3(
+      aR > 0.004 ? float(c0.r + c1.r) * 0.5 / aR : 0.0,
+      aG > 0.004 ? float(c2.g + c3.g) * 0.5 / aG : 0.0,
+      aB > 0.004 ? float(c4.b + c5.b) * 0.5 / aB : 0.0);
+    srcA = (aR + aG + aB) / 3.0;
+  }
+
+  // "backdrop" mode checks the CAPTURE, not a simplified version of the optics. What follows are
+  // layers that aren't tied to the lens (body, medium, scattering), and they used to conflate
+  // "did the pixels arrive" with "how did we process them." Here the element must DISAPPEAR: a
+  // visible silhouette means a capture loss.
+  if (u_debug > 5.5 && u_debug < 6.5) {
+    float bypass = srcA * (1.0 - smoothstep(-1.0, 1.0, sd));
+    return half4(half3(clamp(rgb, float3(0.0), float3(1.0)) * bypass), half(bypass));
+  }
+
+  // The transparent variant's dimming layer holds legibility instead of the body. A
+  // multiplication, not a tint: the content has to stay visible, just quieter.
+  rgb *= 1.0 - u_dim * u_appear;
+
+  // REFLECTION. Fresnel from the face's actual slope: at the silhouette the view is grazing and
+  // reflection is nearly total, which is why the rim reads as a thin line on its own. What's
+  // reflected is the element's surroundings and the key light.
+  float cosT = clamp(N.z, 0.0, 1.0);
+  float f0 = (u_ior - 1.0) / (u_ior + 1.0);
+  f0 *= f0;
+  float fres = (f0 + (1.0 - f0) * pow(1.0 - cosT, 5.0)) * u_fresnel * lens;
+
+  float lineW = clamp(min(u_halfSize.x, u_halfSize.y) * 0.03, 1.5, 5.0);
+  float3 refl;
+  if (e < lineW * 2.0 || fres > 0.01) {
+    float2 around = u_center + p + n * (u_reflectReach * mix(0.35, 1.0, clamp(slope / 3.2, 0.0, 1.0)));
+    // Two rings of eight samples total: a single offset sample is an undistorted COPY of
+    // neighboring content inside the glass (docs/material-lab.md E-33).
+    float p1 = u_reflectReach * 0.75;
+    float p2 = u_reflectReach * 0.4;
+    float d = 0.7071;
+    float4 rsum = float4(content.eval(vgInContent(around + float2(p1, 0.0))))
+      + float4(content.eval(vgInContent(around - float2(p1, 0.0))))
+      + float4(content.eval(vgInContent(around + float2(0.0, p1))))
+      + float4(content.eval(vgInContent(around - float2(0.0, p1))))
+      + float4(content.eval(vgInContent(around + float2(p2, p2) * d)))
+      + float4(content.eval(vgInContent(around + float2(-p2, p2) * d)))
+      + float4(content.eval(vgInContent(around + float2(p2, -p2) * d)))
+      + float4(content.eval(vgInContent(around + float2(-p2, -p2) * d)));
+    float ra = rsum.a * 0.125;
+    refl = ra > 0.004 ? rsum.rgb * 0.125 / ra : float3(0.0);
+  } else {
+    refl = u_probeLuma >= 0.0 ? u_probe : rgb;
+  }
+
+  // Light reaching the body is the same across the whole element: blending with the surroundings
+  // over the bevel's band used to paint a ring-shaped seam on the body.
+  float3 ambient = u_probeLuma >= 0.0 ? u_probe : rgb;
+
+  // Light comes from wherever the surroundings are brighter (M 11:04): the lightness slope under
+  // the element pulls the key light toward itself, and over a flat backdrop it stays at rest.
+  float2 bright = u_probeLuma >= 0.0 ? u_probeSlope : float2(0.0);
+  float brightLen = length(bright);
+  float2 L = normalize(mix(u_light, bright / max(brightLen, 1e-4), smoothstep(0.03, 0.2, brightLen)) + float2(1e-5));
+  // The key light's reflection uses the face's actual normal: at the flat top it points straight
+  // up, and there's nothing there for direction to depend on. Using the SDF normal instead
+  // painted the body as a cone.
+  float facing = dot(N.xy, L);
+  float key = u_specular * (pow(max(facing, 0.0), ${RIM.lobeExponent}.0) + ${RIM.opposingArc} * pow(max(-facing, 0.0), ${RIM.lobeExponent}.0));
+  float rimFacing = dot(n, L);
+  float rimKey = u_specular * (pow(max(rimFacing, 0.0), ${RIM.lobeExponent}.0) + ${RIM.opposingArc} * pow(max(-rimFacing, 0.0), ${RIM.lobeExponent}.0));
+  // Wherever the key light doesn't fall, the face reflects its shaded surroundings \u2014 hence the
+  // dark outline.
+  float3 env = refl * (0.55 + 0.45 * min(key, 1.0)) + float3(1.2 * key);
+
+  // Interference and diffraction live in the reflected ray at a grazing angle \u2014 a single hue
+  // multiplier applied to the reflection, no extra samples.
+  float3 spectral = float3(1.0);
+  if (u_iridescence > 0.001) {
+    spectral *= mix(float3(1.0), vgInterference(cosT), u_iridescence);
+  }
+  if (u_diffraction > 0.001) {
+    float w = u_diffraction * smoothstep(${SPECTRAL.diffractionOnset}, 1.0, t);
+    spectral *= mix(float3(1.0), vgDiffraction(e, bevel), w);
+  }
+
+  // The BACKDROP ESTIMATE arrives from the probe as one value per surface: computing it here
+  // from samples isn't an option \u2014 a kink in density used to turn the estimate's discreteness
+  // into ghost copies of text.
+  float3 wide;
+  float busy;
+  if (u_probeLuma >= 0.0) {
+    wide = u_probe;
+    busy = u_probeBusy;
+  } else {
+    // The probe hasn't reported yet (first frames) \u2014 fall back to our own samples.
+    float2 wx = float2(u_adaptRadius, 0.0);
+    float2 wy = float2(0.0, u_adaptRadius);
+    float3 w0 = vgUnpack(content.eval(vgInContent(s + wx)));
+    float3 w1 = vgUnpack(content.eval(vgInContent(s - wx)));
+    float3 w2 = vgUnpack(content.eval(vgInContent(s + wy)));
+    float3 w3 = vgUnpack(content.eval(vgInContent(s - wy)));
+    wide = (w0 + w1 + w2 + w3) * 0.25;
+    float lw = vgLuma(wide);
+    // The same statistic the probe uses (twice the mean deviation): both blur and the ink's
+    // contrast margin depend on it, and the two paths' scales must not diverge.
+    busy = clamp(0.5 * (abs(vgLuma(w0) - lw) + abs(vgLuma(w1) - lw)
+      + abs(vgLuma(w2) - lw) + abs(vgLuma(w3) - lw)), 0.0, 1.0);
+  }
+  // Lightness AT THIS SPOT on the surface: the probe's plane, clamped to the measured range.
+  float2 nrm = p / max(u_halfSize, float2(1.0));
+  float local = u_probeLuma >= 0.0
+    ? clamp(u_probeLuma + dot(u_probeSlope, nrm), u_probeRange.x, u_probeRange.y)
+    : vgLuma(wide);
+  float mean = u_probeLuma >= 0.0 ? u_probeLuma : vgLuma(wide);
+
+  // SCATTERING. Regular mutes foreign structure under its own ink with blur, not a fill (M
+  // 11:47): text under a capsule turns into blotches. Uniform across the whole lens; the radius
+  // is measured in backdrop space \u2014 the lens compresses it at the silhouette.
+  float structure = 1.0 - exp(-busy * VG_STRUCTURE_GAIN);
+  // Under ink, Regular always scatters the backdrop; over a busy one, more strongly.
+  float adaptBlur = max(
+    (structure * VG_SCATTER_MAX + VG_SCATTER_BASE) * u_legibility * u_adaptRadius
+      * min(max(footprint, 1.0), VG_FOOTPRINT_MAX),
+    u_frost) * u_appear;
+  if (adaptBlur > 0.5) {
+    float reach = max(u_reach - length(p), 1.0);
+    float4 g = vgGather(s, min(adaptBlur, reach), xy);
+    float ga = g.a;
+    float3 blurred = ga > 0.004 ? g.rgb / ga : float3(0.0);
+    rgb = mix(rgb, blurred, smoothstep(0.5, 2.0, adaptBlur));
+  }
+
+  // AFTER scattering, not before: scattering is a property of TRANSMITTED light and replaces rgb
+  // wholesale, so doing it the other way around erased the reflection over the whole element
+  // (issue #106).
+  rgb = mix(rgb, env * spectral, fres);
+
+  // BODY. Tint and dynamic range under the glass compress just enough for ink over it to stay
+  // legible (M 6:42). u_ink is ink POLARITY (1 light, 0 dark): the requirements are computed at
+  // the two ends and blended by it, otherwise the glass dips toward the middle during a recolor.
+  float strict = clamp(u_legibility * 2.0, 0.0, 1.0);
+  float capLight = mix(VG_BODY_CAP_LOOSE, VG_BODY_CAP_TIGHT, strict);
+  float floorDark = 1.0 - capLight;
+  float pol = clamp(u_ink, 0.0, 1.0);
+  // The requirement fades together with legibility: an element with no ink is promised
+  // transparent glass by the model.
+  float demand = clamp(u_legibility * 4.0, 0.0, 1.0);
+
+  // Where there's no ink, the glass tints away from the backdrop. The direction is chosen by the
+  // average lightness under the element, not the local spot's lightness: otherwise on a gradient
+  // the threshold cuts across the body as a diagonal step.
+  float darkSide = smoothstep(${BODY3.darkSideFrom}, ${BODY3.darkSideTo}, mean);
+  float away = mix(VG_TINT_LIGHT, VG_TINT_DARK, darkSide);
+  float tintLuma = mix(away, mix(VG_TINT_LIGHT, VG_TINT_DARK, pol), demand);
+
+  // How much medium it takes to push lightness under the ink past the threshold \u2014 locally.
+  // Computed from whichever edge of the backdrop's spread is closer to the ink: a light ink
+  // drowns in a light spot right beneath it, and the spot's average lightness knows nothing
+  // about that spot.
+  float edge = busy * VG_BUSY_EDGE;
+  float inkHi = min(local + edge, 1.0);
+  float inkLo = max(local - edge, 0.0);
+  float needForLight = inkHi > capLight
+    ? clamp((inkHi - capLight) / max(inkHi - VG_TINT_DARK, 1e-4), 0.0, ${BODY3.maxDemand})
+    : 0.0;
+  float needForDark = inkLo < floorDark
+    ? clamp((floorDark - inkLo) / max(VG_TINT_LIGHT - inkLo, 1e-4), 0.0, ${BODY3.maxDemand})
+    : 0.0;
+  float needForInk = mix(needForDark, needForLight, pol) * demand;
+
+  float ground = structure * u_legibility * VG_GROUND_SPAN;
+  float density = max(max(u_bodyDensity, ground), needForInk);
+
+  // PRESENCE (\xA73). Over a uniform backdrop there is nothing to refract, and an element that is
+  // only a rim honestly disappears \u2014 right for a piece of background, wrong for a control.
+  //
+  // This used to live on the rim line alone, as lit = max(rimKey, u_presence x 2), while the
+  // DOM path has always implemented it as a floor on the BODY. Two renderers, one field, two
+  // meanings. Measured on Apple's own control over a flat page (frames/verify/m-707), the body
+  // carries 16 levels of separation there and the rim 11.6 \u2014 so the body is where it belongs,
+  // and the rim's reading was the wrong one.
+  // The separation asked for is capped by the range that is left: over a backdrop at 0.96 there
+  // is no room to go 0.05 lighter. And what it is DIVIDED by is the distance to the tint's own
+  // end, not to the tint the body currently sits at \u2014 dividing by the latter explodes wherever
+  // the two are close, which is how the first version of this drove density to its ceiling at
+  // both extremes and took the window down to 7%.
+  bool lighter = local < 0.5;
+  float target = lighter ? min(local + u_presence, 1.0) : max(local - u_presence, 0.0);
+  float separation = abs(target - local);
+  float reached = abs(tintLuma - local) * density;
+  if (u_presence > 0.0 && reached < separation) {
+    float toEnd = abs((lighter ? VG_TINT_LIGHT : VG_TINT_DARK) - local);
+    density = max(density, min(separation / max(toEnd, 1e-4), ${BODY3.maxDemand}));
+  }
+
+  // Glass has no color of its own \u2014 only the color of what's beneath it (HIG "Color").
+  float3 tintHue = mix(float3(1.0), vgHue(wide * 0.5 + ambient * 0.5), u_colorPickup);
+  // The element appears by the lens and body building up, not by fading in (M 2:55): at
+  // u_appear = 0 it's indistinguishable from the backdrop beneath it.
+  rgb = mix(rgb, tintHue * tintLuma, density * u_appear);
+  rgb += tintHue * (u_legibility * VG_MATTE_LIFT * u_appear);
+
+  // TINTING \u2014 colored glass, not a fill (M 16:31, 17:03): the backdrop's lightness drives the
+  // tone \u2014 deeper over dark, lighter over light \u2014 and the content's texture still shows through
+  // the color.
+  if (u_accent.a > 0.0) {
+    float3 tone = u_accent.rgb * mix(${ACCENT.deep}, ${ACCENT.light}, local);
+    float3 through = tone * (0.85 + 0.3 * vgLuma(rgb));
+    rgb = mix(rgb, clamp(through, float3(0.0), float3(1.0)), u_accent.a * u_appear);
+  }
+
+  // CONTRAST COMPRESSION. The medium removes some light and mixes in scattered light, so content
+  // under the glass moves toward the middle rather than simply getting lighter (M 2:35). The
+  // previous layer only added light and, over a light backdrop, pushed the body the opposite way
+  // from the reference.
+  rgb = mix(rgb, vgHue(ambient) * VG_MEDIUM_LUMA, VG_MEDIUM_PULL * u_appear);
+  // Ambient light reaches the body the same way across the whole element.
+  rgb += ambient * u_edgeLight * VG_AMBIENT_SPILL * u_appear;
+  // Glass concentrates light; the played portion is the segment where there's more of it.
+  float glow = VG_CONCENTRATE + 0.08 * vgProgress(p, u_halfSize, u_progress);
+  rgb += (1.0 - rgb) * glow * lens;
+
+  // Under the finger and during morphing, glass concentrates light into a spot (M 4:56, 5:11).
+  // This is a CONCENTRATION of the surroundings, not the glass's own whiteness: over a dark
+  // backdrop the element lightens but never turns white, and ink over it stays legible.
+  if (u_touchPress > 0.001) {
+    float2 fromTouch = p - u_touch;
+    float spotR = max(min(u_halfSize.x, u_halfSize.y) * 1.2, 1.0);
+    float spot = u_touchPress * (0.3 + 0.55 * exp(-dot(fromTouch, fromTouch) / (spotR * spotR)));
+    rgb = mix(rgb, clamp(ambient * 1.6 + float3(0.1), float3(0.0), float3(1.0)), spot * lens);
+  }
+
+  // RIM LIGHT \u2014 a separate layer, a line about 1 pt wide along the silhouette (M 2:36, 11:04):
+  // brighter where the face faces the key light, weaker opposite it; where no light falls, a
+  // dark outline. This line is what holds the element's presence, not a fill on the body: over a
+  // flat backdrop a control is visible along its whole silhouette because of it.
+  float line = (1.0 - smoothstep(0.0, lineW, e)) * lens;
+  float outline = (1.0 - smoothstep(0.0, lineW * 0.6, e)) * lens;
+  float lit = clamp(max(rimKey * 1.4, u_presence * 2.0), 0.0, 1.0);
+  // The dark rim is its own layer around the whole silhouette, and the highlight sits ON TOP of
+  // it (iOS 27). While the outline used to fade via a (1 \u2212 lit) multiplier, the silhouette read
+  // as a single arc: highlight OR shadow.
+  rgb *= 1.0 - ${RIM.darkEdge} * outline;
+  rgb = mix(rgb, mix(refl, float3(1.0), 0.75), line * lit);
+
+  if (u_debug > 9.5 && u_debug < 10.5) { rgb = spectral * 0.5; }
+  if (u_debug > 10.5 && u_debug < 11.5) { rgb = float3(density, needForInk, structure); }
+  // WHAT THE PROBE SAID ABOUT THE BACKDROP \u2014 three values that drive all the tinting: the
+  // average lightness under the element, the vertical lightness slope, and the lightness AT THIS
+  // SPOT. The slope is shown offset and squeezed by half: it's signed and rarely exceeds a
+  // magnitude of one half.
+  if (u_debug > 11.5) { rgb = float3(max(u_probeLuma, 0.0), 0.5 + u_probeSlope.y * 0.5, local); }
+
+  rgb = vgSoftClip(rgb);
+
+  // Sample alpha has to survive to the result: un-premultiplying color by its original alpha and
+  // then returning it with a different one (the shape mask) would make a transparent backdrop
+  // opaque and blow it out.
+  float alpha = srcA * (1.0 - smoothstep(-1.0, 1.0, sd));
+  return half4(half3(clamp(rgb, float3(0.0), float3(1.0)) * alpha), half(alpha));
+}
+`;
+  var ACCENT_AMOUNT = ACCENT.amount;
+  var REST_LIGHT = [-0.577, -0.817];
+
+  // node_modules/vireglass/dist/chunk-JNRZNMJJ.js
+  var AMBIENT_STEP = 32;
+  function ambientFrom(sample) {
+    const step = (v) => Math.round(Math.min(Math.max(v, 0), 1) * AMBIENT_STEP) / AMBIENT_STEP;
+    return [step(sample.r), step(sample.g), step(sample.b)];
+  }
+  function shouldInkBeLight(sample, wasLight) {
+    return decisiveLuma(sample) < (wasLight ? FLIP_LUMA : RETURN_LUMA);
+  }
+  var decisiveLuma = (sample) => sample.luma * 0.75 + (sample.hi ?? sample.luma) * 0.25;
+  var FLIP_LUMA = 0.62;
+  var RETURN_LUMA = 0.5;
+
+  // node_modules/vireglass/dist/chunk-CTTZNZFV.js
+  var LUMA = [0.2126, 0.7152, 0.0722];
+  var luma = (c) => c[0] * LUMA[0] + c[1] * LUMA[1] + c[2] * LUMA[2];
+  function shadowTint(ambient) {
+    const peak = Math.max(ambient[0], ambient[1], ambient[2], 1e-3);
+    const hue = [ambient[0] / peak, ambient[1] / peak, ambient[2] / peak];
+    const grey = luma(hue);
+    const available = luma(ambient);
+    return [(hue[0] - grey) * available, (hue[1] - grey) * available, (hue[2] - grey) * available];
+  }
+  function createDeform(options = {}) {
+    let elastic = options.elastic !== false;
+    let pressCeiling = elastic ? 1 : ACCESSIBILITY.stillPress;
     let touchX = 0;
     let touchY = 0;
     let targetTouchX = 0;
@@ -3486,10 +3557,10 @@ float vgProgress(float2 p, float2 halfSize, float progress) {
       }
       targetX = 0;
       targetY = 0;
-      waveAmp = Math.min(waveAmp + waveStart, waveStart * 1.6);
+      if (elastic) waveAmp = Math.min(waveAmp + waveStart, waveStart * SPRING.waveCapOnGrab);
     }
     function drag(dx, dy, limit) {
-      if (!held) return;
+      if (!held || !elastic) return;
       const len = Math.hypot(dx, dy);
       const scale = len > 1e-3 ? limit * Math.tanh(len / limit) / len : 0;
       targetX = dx * scale;
@@ -3499,24 +3570,24 @@ float vgProgress(float2 p, float2 halfSize, float progress) {
       held = false;
       targetX = 0;
       targetY = 0;
-      waveAmp = Math.min(waveAmp + waveStart, waveStart * 2);
+      if (elastic) waveAmp = Math.min(waveAmp + waveStart, waveStart * SPRING.waveCapOnRelease);
     }
     function integrate(dt) {
-      const k = held ? HOLD_STIFFNESS : RELEASE_STIFFNESS;
-      const c = held ? HOLD_DAMPING : RELEASE_DAMPING;
+      const k = held ? SPRING.holdStiffness : SPRING.releaseStiffness;
+      const c = held ? SPRING.holdDamping : SPRING.releaseDamping;
       vx += (k * (targetX - pullX) - c * vx) * dt;
       vy += (k * (targetY - pullY) - c * vy) * dt;
       pullX += vx * dt;
       pullY += vy * dt;
-      const pressTarget = held ? 1 : 0;
-      const tau = held ? PRESS_ATTACK : PRESS_RELEASE;
+      const pressTarget = held ? pressCeiling : 0;
+      const tau = held ? SPRING.pressAttack : SPRING.pressRelease;
       press += (pressTarget - press) * (1 - Math.exp(-dt / tau));
-      active += (pressTarget - active) * (1 - Math.exp(-dt / 0.09));
-      const follow = 1 - Math.exp(-dt / 0.045);
+      active += (pressTarget - active) * (1 - Math.exp(-dt / SPRING.activeFollow));
+      const follow = 1 - Math.exp(-dt / SPRING.pointFollow);
       touchX += (targetTouchX - touchX) * follow;
       touchY += (targetTouchY - touchY) * follow;
-      wavePhase += dt * WAVE_TURNS_PER_SECOND;
-      waveAmp *= Math.exp(-dt / WAVE_DECAY);
+      wavePhase += dt * SPRING.waveTurnsPerSecond;
+      waveAmp *= Math.exp(-dt / SPRING.waveDecay);
       if (waveAmp < 0.01) waveAmp = 0;
     }
     function step(dt) {
@@ -3540,1239 +3611,315 @@ float vgProgress(float2 p, float2 halfSize, float progress) {
     function idle() {
       return !held && Math.abs(pullX) < 0.05 && Math.abs(pullY) < 0.05 && Math.hypot(vx, vy) < 0.5 && press < 4e-3 && active < 4e-3 && waveAmp === 0;
     }
+    function setElastic(on) {
+      if (on === elastic) return;
+      elastic = on;
+      pressCeiling = on ? 1 : ACCESSIBILITY.stillPress;
+      if (!on) {
+        pullX = 0;
+        pullY = 0;
+        vx = 0;
+        vy = 0;
+        targetX = 0;
+        targetY = 0;
+        waveAmp = 0;
+        wavePhase = 0;
+      }
+    }
     function sample() {
       return { touchX, touchY, pullX, pullY, press, active, waveAmp, wavePhase };
     }
-    return { grab, drag, release, step, idle, sample };
+    return { grab, drag, release, step, idle, sample, setElastic };
   }
-  var LENS_SHADER = `
-uniform shader content;
-
-// \u0417\u043D\u0430\u0435\u0442 \u0442\u043E\u043B\u044C\u043A\u043E \u0441\u0430\u043C\u0430 \u0432\u044C\u044E\u0445\u0430: \u0441\u0432\u043E\u0439 \u0440\u0430\u0437\u043C\u0435\u0440 \u0438 \u0441\u0432\u043E\u0451 \u043C\u0435\u0441\u0442\u043E \u043D\u0430 \u044D\u043A\u0440\u0430\u043D\u0435.
-uniform float2 u_center;
-uniform float  u_reach;
-uniform float2 u_contentMin;
-uniform float2 u_contentMax;
-// \u041E\u0446\u0435\u043D\u043A\u0430 \u0444\u043E\u043D\u0430 \u041F\u041E\u0414 \u0441\u0442\u0435\u043A\u043B\u043E\u043C \u0438\u0437 \u043D\u0430\u0442\u0438\u0432\u043D\u043E\u0433\u043E \u0437\u043E\u043D\u0434\u0430: \u0441\u0432\u0435\u0442\u043B\u043E\u0442\u0430, \u043F\u0435\u0441\u0442\u0440\u043E\u0442\u0430 \u0438 \u0441\u0440\u0435\u0434\u043D\u0438\u0439 \u0446\u0432\u0435\u0442, \u0443\u0436\u0435
-// \u0441\u0433\u043B\u0430\u0436\u0435\u043D\u043D\u044B\u0435 \u043F\u043E \u0432\u0440\u0435\u043C\u0435\u043D\u0438. \u041E\u0442\u0440\u0438\u0446\u0430\u0442\u0435\u043B\u044C\u043D\u0430\u044F \u0441\u0432\u0435\u0442\u043B\u043E\u0442\u0430 \u2014 \u0437\u043E\u043D\u0434\u0430 \u0435\u0449\u0451 \u043D\u0435\u0442, \u0434\u0435\u0440\u0436\u0438\u043C\u0441\u044F \u043D\u0430 \u0441\u0432\u043E\u0438\u0445 \u043E\u0442\u0441\u0447\u0451\u0442\u0430\u0445.
-uniform float  u_probeLuma;
-uniform float  u_probeBusy;
-// \u041A\u0440\u0430\u044F \u0434\u0438\u0430\u043F\u0430\u0437\u043E\u043D\u0430 \u0441\u0432\u0435\u0442\u043B\u043E\u0442\u044B \u043F\u043E\u0434 \u0441\u0442\u0435\u043A\u043B\u043E\u043C. \u0421\u0443\u0434\u0438\u0442\u044C \u043F\u043E \u0441\u0440\u0435\u0434\u043D\u0435\u043C\u0443 \u043D\u0435\u043B\u044C\u0437\u044F: \u043D\u0430\u0434 \u0433\u0440\u0430\u043D\u0438\u0446\u0435\u0439 \u0447\u0451\u0440\u043D\u043E\u0433\u043E \u0438
-// \u0431\u0435\u043B\u043E\u0433\u043E \u0441\u0440\u0435\u0434\u043D\u0435\u0435 \u2014 \u0441\u0435\u0440\u044B\u0439, \u043F\u0440\u0438 \u043A\u043E\u0442\u043E\u0440\u043E\u043C \xAB\u0432\u0441\u0451 \u0432 \u043F\u043E\u0440\u044F\u0434\u043A\u0435\xBB, \u0430 \u043D\u0430\u0434\u043F\u0438\u0441\u044C \u0442\u043E\u043D\u0435\u0442 \u043D\u0430\u0434 \u0441\u0432\u0435\u0442\u043B\u043E\u0439 \u043F\u043E\u043B\u043E\u0432\u0438\u043D\u043E\u0439.
-uniform float2 u_probeRange;
-// \u041D\u0430\u043A\u043B\u043E\u043D \u0441\u0432\u0435\u0442\u043B\u043E\u0442\u044B \u043F\u043E \u043F\u043E\u0432\u0435\u0440\u0445\u043D\u043E\u0441\u0442\u0438, \u0434\u043E\u043B\u0438 \u043D\u0430 \u043F\u043E\u043B\u0443\u0440\u0430\u0437\u043C\u0435\u0440. \u0422\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435 \u0413\u0420\u0410\u0414\u0418\u0415\u041D\u0422\u041D\u041E\u0415: \u0442\u0430\u043C, \u0433\u0434\u0435 \u043F\u043E\u0434
-// \u0441\u0442\u0435\u043A\u043B\u043E\u043C \u043E\u0434\u043D\u0430 \u043F\u043E\u043B\u043E\u0432\u0438\u043D\u0430 \u0441\u0432\u0435\u0442\u043B\u0435\u0435 \u0434\u0440\u0443\u0433\u043E\u0439, \u043E\u0434\u043D\u0430 \u043F\u043B\u043E\u0442\u043D\u043E\u0441\u0442\u044C \u043D\u0430 \u0432\u0441\u044E \u0434\u0435\u0442\u0430\u043B\u044C \u043D\u0435 \u0440\u0430\u0437\u0432\u043E\u0434\u0438\u0442 \u043D\u0430\u0434\u043F\u0438\u0441\u044C \u043D\u0438
-// \u0441 \u043E\u0434\u043D\u043E\u0439 \u0438\u0437 \u043D\u0438\u0445. \u041F\u043B\u043E\u0441\u043A\u043E\u0441\u0442\u044C \u2014 \u0441\u0430\u043C\u0430\u044F \u0433\u0440\u0443\u0431\u0430\u044F \u043C\u043E\u0434\u0435\u043B\u044C, \u043A\u043E\u0442\u043E\u0440\u0430\u044F \u044D\u0442\u043E \u043E\u043F\u0438\u0441\u044B\u0432\u0430\u0435\u0442, \u0438 \u0435\u0434\u0438\u043D\u0441\u0442\u0432\u0435\u043D\u043D\u0430\u044F
-// \u0433\u043B\u0430\u0434\u043A\u0430\u044F \u043F\u043E \u043F\u043E\u0441\u0442\u0440\u043E\u0435\u043D\u0438\u044E: \u0442\u043E\u0447\u0435\u0447\u043D\u0430\u044F \u043E\u0446\u0435\u043D\u043A\u0430 \u043D\u0430 \u0438\u0437\u043B\u043E\u043C\u0435 \u043F\u043B\u043E\u0442\u043D\u043E\u0441\u0442\u0438 \u0434\u0430\u0432\u0430\u043B\u0430 \u043F\u0440\u0438\u0437\u0440\u0430\u0447\u043D\u044B\u0435 \u043A\u043E\u043F\u0438\u0438 \u0442\u0435\u043A\u0441\u0442\u0430.
-uniform float2 u_probeSlope;
-uniform float3 u_probe;
-
-// \u041C\u0430\u0442\u0435\u0440\u0438\u0430\u043B \u2014 \u043E\u0431\u0449\u0438\u043C \u043A\u0430\u043D\u0430\u043B\u043E\u043C \u0438\u0437 JS, \u0443\u0436\u0435 \u0432 \u043F\u0438\u043A\u0441\u0435\u043B\u044F\u0445 \u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432\u0430.
-uniform float2 u_halfSize;
-uniform float  u_corner;
-uniform float  u_bevel;
-uniform float  u_magnify;
-uniform float  u_edgePush;
-uniform float  u_chroma;
-uniform float  u_spherical;
-uniform float  u_frost;
-uniform float  u_ink;
-uniform float  u_legibility;
-uniform float  u_presence;
-uniform float  u_progress;
-uniform float  u_adaptRadius;
-uniform float3 u_bodyTint;
-uniform float  u_bodyDensity;
-uniform float  u_edgeLight;
-uniform float  u_fresnel;
-uniform float  u_fresnelPower;
-uniform float  u_reflectReach;
-uniform float  u_film;
-uniform float  u_iridescence;
-uniform float  u_diffraction;
-uniform float  u_colorPickup;
-uniform float2 u_morphOffset;
-uniform float2 u_morphHalf;
-uniform float  u_morphCorner;
-uniform float  u_morphK;
-uniform float  u_debug;
-uniform float2 u_touch;
-uniform float2 u_pull;
-uniform float  u_touchPress;
-uniform float  u_touchRadius;
-uniform float2 u_wave;
-
-${VG_SDF}
-
-const float VG_FALLOFF = ${VG_FALLOFF};
-// \u041E\u0442\u0441\u0447\u0451\u0442\u043E\u0432 \u0432 \u0434\u0438\u0441\u043A\u043E\u0432\u043E\u043C \u0441\u0431\u043E\u0440\u0435. \u0414\u0432\u0435\u043D\u0430\u0434\u0446\u0430\u0442\u0438 \u0445\u0432\u0430\u0442\u0430\u043B\u043E, \u043F\u043E\u043A\u0430 \u0440\u0430\u0434\u0438\u0443\u0441 \u0431\u044B\u043B \u043C\u0430\u043B; \u0441 \u0440\u0430\u0441\u0441\u0435\u044F\u043D\u0438\u0435\u043C \u043F\u043E
-// \u0440\u0430\u0437\u043C\u0430\u0445\u0443 \u0444\u043E\u043D\u0430 \u043E\u043D \u0434\u043E\u0445\u043E\u0434\u0438\u0442 \u0434\u043E \u0434\u0432\u0443\u0445 \u0434\u0435\u0441\u044F\u0442\u043A\u043E\u0432 \u043F\u0438\u043A\u0441\u0435\u043B\u0435\u0439, \u0438 \u043D\u0430 \u0440\u0435\u0437\u043A\u043E\u0439 \u0433\u0440\u0430\u043D\u0438\u0446\u0435 \u0434\u0432\u0435\u043D\u0430\u0434\u0446\u0430\u0442\u044C
-// \u043E\u0442\u0441\u0447\u0451\u0442\u043E\u0432 \u0447\u0438\u0442\u0430\u044E\u0442\u0441\u044F \u0441\u0442\u0443\u043F\u0435\u043D\u044C\u043A\u0430\u043C\u0438 \u2014 \u043D\u0435 \u0440\u0430\u0437\u043C\u044B\u0442\u0438\u0435, \u0430 \u043B\u0435\u0441\u0435\u043D\u043A\u0430 \u0438\u0437 \u043A\u043E\u043F\u0438\u0439.
-const int   VG_FROST_TAPS = 20;
-// \u0427\u0438\u0441\u043B\u043E \u043F\u0440\u043E\u0431 \u0440\u0430\u0441\u0442\u0451\u0442 \u0441 \u041F\u041B\u041E\u0429\u0410\u0414\u042C\u042E \u043A\u0440\u0443\u0433\u0430, \u0430 \u043D\u0435 \u043E\u0441\u0442\u0430\u0451\u0442\u0441\u044F \u043F\u043E\u0441\u0442\u043E\u044F\u043D\u043D\u044B\u043C. \u0428\u0443\u043C \u043E\u0446\u0435\u043D\u043A\u0438 \u2014 \u044D\u0442\u043E \u0440\u0430\u0437\u0431\u0440\u043E\u0441
-// \u0441\u043E\u0434\u0435\u0440\u0436\u0438\u043C\u043E\u0433\u043E \u043F\u043E\u0434 \u0441\u0442\u0435\u043A\u043B\u043E\u043C, \u0434\u0435\u043B\u0451\u043D\u043D\u044B\u0439 \u043D\u0430 \u043A\u043E\u0440\u0435\u043D\u044C \u0438\u0437 \u0447\u0438\u0441\u043B\u0430 \u043F\u0440\u043E\u0431: \u043D\u0430 \u0440\u0435\u0437\u043A\u043E\u043C \u0442\u0435\u043A\u0441\u0442\u0435 \u0434\u0432\u0430\u0434\u0446\u0430\u0442\u0438 \u043F\u0440\u043E\u0431
-// \u043D\u0430 \u0440\u0430\u0434\u0438\u0443\u0441\u0435 \u0432 \u0441\u0435\u043C\u044C \u043F\u0438\u043A\u0441\u0435\u043B\u0435\u0439 \u0445\u0432\u0430\u0442\u0430\u0435\u0442 \u043D\u0430 \xB118 \u0438\u0437 255, \u0438 \u0434\u0435\u0442\u0430\u043B\u044C \u043F\u043E\u043A\u0440\u044B\u0432\u0430\u0435\u0442\u0441\u044F \u043A\u0440\u0443\u043F\u043E\u0439. \u041F\u043E\u0442\u043E\u043B\u043E\u043A
-// \u0441\u0442\u043E\u0438\u0442 \u043F\u043E\u0442\u043E\u043C\u0443, \u0447\u0442\u043E \u0432\u044B\u0431\u043E\u0440\u043A\u0430 \u0442\u0435\u043A\u0441\u0442\u0443\u0440\u044B \u2014 \u0441\u0430\u043C\u043E\u0435 \u0434\u043E\u0440\u043E\u0433\u043E\u0435 \u0437\u0434\u0435\u0441\u044C, \u0430 \u0431\u043E\u043B\u044C\u0448\u0435 \u043D\u0435\u0433\u043E \u0440\u0430\u0434\u0438\u0443\u0441 \u0443\u0445\u043E\u0434\u0438\u0442
-// \u0442\u043E\u043B\u044C\u043A\u043E \u0443 \u0441\u0430\u043C\u043E\u0439 \u043A\u0440\u043E\u043C\u043A\u0438.
-const int   VG_FROST_TAPS_MAX = 64;
-/* \u041F\u043E\u043F\u0440\u0430\u0432\u043A\u0430 \u043D\u0430 \u0441\u0436\u0430\u0442\u0438\u0435 \u0443 \u0444\u0430\u0441\u043A\u0438 \u043E\u0433\u0440\u0430\u043D\u0438\u0447\u0435\u043D\u0430. \u041E\u043D\u0430 \u0447\u0435\u0441\u0442\u043D\u043E \u0440\u0430\u0441\u0442\u0451\u0442 \u0434\u043E \u0431\u0435\u0441\u043A\u043E\u043D\u0435\u0447\u043D\u043E\u0441\u0442\u0438 \u0443 \u0441\u0430\u043C\u043E\u0439 \u043A\u0440\u043E\u043C\u043A\u0438,
-   \u0430 \u0441 \u043D\u0435\u0439 \u0440\u0430\u0441\u0442\u0451\u0442 \u0438 \u0440\u0430\u0434\u0438\u0443\u0441 \u0441\u0431\u043E\u0440\u0430 \u2014 \u0442\u043E \u0435\u0441\u0442\u044C \u0448\u0443\u043C \u043E\u0446\u0435\u043D\u043A\u0438 \u0438 \u0446\u0435\u043D\u0430. \u0414\u0430\u043B\u044C\u0448\u0435 \u044D\u0442\u043E\u0433\u043E \u043F\u0440\u0435\u0434\u0435\u043B\u0430 \u0441\u0442\u0440\u0443\u043A\u0442\u0443\u0440\u0443
-   \u0443 \u043A\u0440\u043E\u043C\u043A\u0438 \u0441\u043D\u0438\u043C\u0430\u0435\u0442 \u043D\u0435 \u0440\u0430\u0434\u0438\u0443\u0441, \u0430 \u043F\u043E\u0434\u043B\u043E\u0436\u043A\u0430 \u043F\u043E\u0434 \u043A\u0440\u0430\u0441\u043A\u043E\u0439. */
-const float VG_FOOTPRINT_MAX = 1.8;
-const float VG_TAU = 6.28318530718;
-// \u0420\u0430\u0437\u0434\u0435\u043B\u0435\u043D\u0438\u0435 \u043F\u043E \u0441\u0432\u0435\u0442\u043B\u043E\u0442\u0435, \u043A\u043E\u0442\u043E\u0440\u043E\u0435 \u0441\u0442\u0435\u043A\u043B\u043E \u043E\u0431\u044F\u0437\u0430\u043D\u043E \u043E\u0431\u0435\u0441\u043F\u0435\u0447\u0438\u0442\u044C \u043D\u0430\u0434\u043F\u0438\u0441\u0438 \u043F\u043E\u0432\u0435\u0440\u0445 \u0441\u0435\u0431\u044F \u043F\u0440\u0438
-// \u043F\u043E\u043B\u043D\u043E\u0439 \u0447\u0438\u0442\u0430\u0435\u043C\u043E\u0441\u0442\u0438. \u0412\u0435\u043B\u0438\u0447\u0438\u043D\u0430 \u043C\u043E\u0434\u0435\u043B\u0438, \u0430 \u043D\u0435 \u0440\u0443\u0447\u043A\u0430: \u043D\u0438\u0436\u0435 \u043D\u0435\u0451 \u0442\u0435\u043A\u0441\u0442 \u043D\u0430\u0447\u0438\u043D\u0430\u0435\u0442 \u0442\u043E\u043D\u0443\u0442\u044C.
-// \u041F\u0440\u0435\u0434\u0435\u043B, \u0437\u0430 \u043A\u043E\u0442\u043E\u0440\u044B\u0439 \u0442\u0435\u043B\u0443 \u043D\u0435\u043B\u044C\u0437\u044F \u0432\u044B\u043F\u0443\u0441\u043A\u0430\u0442\u044C \u0441\u0432\u0435\u0442\u043B\u043E\u0442\u0443, \u0447\u0442\u043E\u0431\u044B \u043D\u0430\u0434\u043F\u0438\u0441\u044C \u043F\u043E\u0432\u0435\u0440\u0445 \u043E\u0441\u0442\u0430\u043B\u0430\u0441\u044C \u0447\u0438\u0442\u0430\u0435\u043C\u043E\u0439.
-// \u042D\u0442\u043E \u041F\u041E\u0422\u041E\u041B\u041E\u041A, \u0430 \u043D\u0435 \u0440\u0430\u0437\u043D\u043E\u0441\u0442\u044C: \u043F\u0440\u0435\u0436\u043D\u044F\u044F \u043C\u043E\u0434\u0435\u043B\u044C \u0442\u0440\u0435\u0431\u043E\u0432\u0430\u043B\u0430 \u0431\u044B\u0442\u044C \xAB\u043D\u0430 sep \u0442\u0435\u043C\u043D\u0435\u0435\xBB \u043D\u0430\u0434\u043F\u0438\u0441\u0438, \u0438 \u043D\u0430
-// \u0441\u0432\u0435\u0442\u043B\u043E\u0442\u0435 0.86 \u0441\u0447\u0438\u0442\u0430\u043B\u0430 \u0431\u0435\u043B\u044B\u0439 \u0442\u0435\u043A\u0441\u0442 \u0447\u0438\u0442\u0430\u0435\u043C\u044B\u043C \u2014 \u0430 \u043E\u043D \u0442\u0430\u043C \u043D\u0435 \u0432\u0438\u0434\u0435\u043D \u0432\u043E\u0432\u0441\u0435. \u041E\u0442\u0441\u044E\u0434\u0430 \u0438 \u0431\u0440\u0430\u043B\u0438\u0441\u044C
-// \u0431\u0435\u043B\u044B\u0435 \u0438\u043A\u043E\u043D\u043A\u0438, \u0442\u043E\u043D\u0443\u0449\u0438\u0435 \u043D\u0430 \u0436\u0451\u043B\u0442\u043E\u043C \u0438 \u0437\u0435\u043B\u0451\u043D\u043E\u043C.
-const float VG_BODY_CAP_LOOSE = 0.62;
-const float VG_BODY_CAP_TIGHT = 0.38;
-// \u0421\u0432\u0435\u0442\u043B\u043E\u0442\u0430 \u0442\u0438\u043D\u0442\u0430 \u0432 \u0434\u0432\u0443\u0445 \u043D\u0430\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u044F\u0445. \u041D\u0435 \u0447\u0438\u0441\u0442\u044B\u0435 0 \u0438 1: \u0443 \u0441\u0442\u0435\u043A\u043B\u0430 \u0442\u0435\u043B\u043E \u043D\u0435 \u0431\u044B\u0432\u0430\u0435\u0442 \u043D\u0438 \u0443\u0433\u043E\u043B\u044C\u043D\u044B\u043C,
-// \u043D\u0438 \u0431\u0443\u043C\u0430\u0436\u043D\u044B\u043C, \u0438 \u0443\u043F\u043E\u0440 \u0432 \u043A\u0440\u0430\u044F \u0434\u0430\u0451\u0442 \u043F\u043B\u043E\u0441\u043A\u0443\u044E \u0437\u0430\u043B\u0438\u0432\u043A\u0443 \u0432\u043C\u0435\u0441\u0442\u043E \u0441\u0440\u0435\u0434\u044B.
-const float VG_TINT_DARK = 0.07;
-const float VG_TINT_LIGHT = 0.94;
-/* \u041D\u0430\u0441\u043A\u043E\u043B\u044C\u043A\u043E \u0441\u044B\u0433\u0440\u0430\u043D\u043D\u0430\u044F \u0447\u0430\u0441\u0442\u044C \u0440\u0430\u0437\u043B\u0438\u0447\u0438\u043C\u0435\u0435 \u043E\u0441\u0442\u0430\u043B\u044C\u043D\u043E\u0439 \u0434\u0435\u0442\u0430\u043B\u0438. \u0414\u0435\u0440\u0436\u0438\u0442\u0441\u044F \u0432 \u0442\u0435\u0445 \u0436\u0435 \u0435\u0434\u0438\u043D\u0438\u0446\u0430\u0445, \u0447\u0442\u043E \u0438
-   \u0441\u0430\u043C\u043E \u0442\u0440\u0435\u0431\u043E\u0432\u0430\u043D\u0438\u0435 \u043F\u0440\u0438\u0441\u0443\u0442\u0441\u0442\u0432\u0438\u044F, \u0438 \u041D\u0415\u0412\u042B\u0421\u041E\u041A\u0418\u041C: \u043D\u0430\u0434 \u0440\u043E\u0432\u043D\u044B\u043C \u0442\u0451\u043C\u043D\u044B\u043C \u0444\u043E\u043D\u043E\u043C \u0431\u043E\u043B\u044C\u0448\u0430\u044F \u043F\u0440\u0438\u0431\u0430\u0432\u043A\u0430
-   \u043F\u0440\u0435\u0432\u0440\u0430\u0449\u0430\u0435\u0442 \u043F\u043E\u043B\u043E\u0432\u0438\u043D\u0443 \u0434\u0435\u0442\u0430\u043B\u0438 \u0432 \u043C\u0430\u0442\u043E\u0432\u044B\u0439 \u0434\u0438\u0441\u043A \u2014 \u0440\u043E\u0432\u043D\u043E \u0442\u043E, \u0447\u0435\u0433\u043E \u043C\u043E\u0434\u0435\u043B\u044C \u0432\u0435\u043B\u0438\u0442 \u0438\u0437\u0431\u0435\u0433\u0430\u0442\u044C. */
-const float VG_PROGRESS_PRESENCE = 0.10;
-// \u041E\u043F\u043E\u0440\u043D\u044B\u0435 \u0434\u043B\u0438\u043D\u044B \u0432\u043E\u043B\u043D \u043A\u0430\u043D\u0430\u043B\u043E\u0432, \u043D\u043C. \u041E\u0442\u0441\u044E\u0434\u0430 \u0436\u0438\u0432\u0443\u0442 \u0412\u0421\u0415 \u0442\u0440\u0438 \u0441\u043F\u0435\u043A\u0442\u0440\u0430\u043B\u044C\u043D\u044B\u0445 \u044F\u0432\u043B\u0435\u043D\u0438\u044F \u0441\u0440\u0430\u0437\u0443:
-// \u0434\u0438\u0441\u043F\u0435\u0440\u0441\u0438\u044F (\u043F\u043E\u043A\u0430\u0437\u0430\u0442\u0435\u043B\u044C \u043F\u0440\u0435\u043B\u043E\u043C\u043B\u0435\u043D\u0438\u044F \u0437\u0430\u0432\u0438\u0441\u0438\u0442 \u043E\u0442 \u03BB), \u0434\u0438\u0444\u0440\u0430\u043A\u0446\u0438\u044F \u0438 \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0440\u0435\u043D\u0446\u0438\u044F (\u0444\u0430\u0437\u0430 \u0437\u0430\u0432\u0438\u0441\u0438\u0442
-// \u043E\u0442 \u03BB). \u041E\u0442\u0434\u0435\u043B\u044C\u043D\u044B\u0445 \xAB\u0441\u0438\u043B \u0440\u0430\u0434\u0443\u0433\u0438\xBB \u0432 \u043C\u043E\u0434\u0435\u043B\u0438 \u043D\u0435\u0442.
-const float3 VG_LAMBDA = float3(610.0, 550.0, 460.0);
-// \u041E\u0442\u043D\u043E\u0441\u0438\u0442\u0435\u043B\u044C\u043D\u043E\u0435 \u043E\u0442\u043A\u043B\u043E\u043D\u0435\u043D\u0438\u0435 \u043A\u0430\u043D\u0430\u043B\u0430 \u043F\u0440\u0438 \u0434\u0438\u0441\u043F\u0435\u0440\u0441\u0438\u0438, \u043D\u043E\u0440\u043C\u0438\u0440\u043E\u0432\u0430\u043D\u043E \u043F\u043E \u0437\u0435\u043B\u0451\u043D\u043E\u043C\u0443 (\u041A\u043E\u0448\u0438, n ~ A+B/\u03BB\xB2).
-// \u0417\u043D\u0430\u043A \u0432\u0430\u0436\u0435\u043D: \u0441\u0438\u043D\u0438\u0439 \u0433\u043D\u0451\u0442\u0441\u044F \u0421\u0418\u041B\u042C\u041D\u0415\u0415 \u043A\u0440\u0430\u0441\u043D\u043E\u0433\u043E, \u0438 \u043E\u0431\u0430 \u0432 \u043E\u0434\u043D\u0443 \u0441\u0442\u043E\u0440\u043E\u043D\u0443. \u0421\u0438\u043C\u043C\u0435\u0442\u0440\u0438\u0447\u043D\u0430\u044F \u043A\u0430\u0439\u043C\u0430,
-// \u043A\u043E\u0442\u043E\u0440\u0430\u044F \u0431\u044B\u043B\u0430 \u0437\u0434\u0435\u0441\u044C \u0440\u0430\u043D\u044C\u0448\u0435, \u0447\u0438\u0442\u0430\u0435\u0442\u0441\u044F \u0446\u0432\u0435\u0442\u043D\u043E\u0439 \u043E\u0431\u0432\u043E\u0434\u043A\u043E\u0439, \u0430 \u043D\u0435 \u0440\u0430\u0441\u0449\u0435\u043F\u043B\u0435\u043D\u0438\u0435\u043C \u043B\u0443\u0447\u0430.
-const float3 VG_CAUCHY = float3(-0.21, 0.0, 0.49);
-// \u041F\u043E\u043A\u0430\u0437\u0430\u0442\u0435\u043B\u044C \u043F\u0440\u0435\u043B\u043E\u043C\u043B\u0435\u043D\u0438\u044F \u043F\u043B\u0451\u043D\u043A\u0438. \u041D\u0435 \u0440\u0443\u0447\u043A\u0430: \u0443 \u0432\u0441\u0435\u0445 \u0442\u043E\u043D\u043A\u0438\u0445 \u043F\u043B\u0451\u043D\u043E\u043A \u043D\u0430 \u0441\u0442\u0435\u043A\u043B\u0435 \u043E\u043D \u043E\u043A\u043E\u043B\u043E \u044D\u0442\u043E\u0433\u043E.
-const float VG_FILM_IOR = 1.35;
-
-float vgLuma(float3 c) { return dot(c, float3(0.2126, 0.7152, 0.0722)); }
-
-// \u0412\u043E\u0441\u043F\u0440\u0438\u043D\u0438\u043C\u0430\u0435\u043C\u0430\u044F \u0441\u0432\u0435\u0442\u043B\u043E\u0442\u0430 \u0438 \u043E\u0431\u0440\u0430\u0442\u043D\u044B\u0439 \u043F\u0435\u0440\u0435\u0445\u043E\u0434 (CIE L*, \u043D\u043E\u0440\u043C\u0438\u0440\u043E\u0432\u0430\u043D\u043E \u0432 0\u20261). \u041D\u0443\u0436\u043D\u044B \u0442\u0440\u0435\u0431\u043E\u0432\u0430\u043D\u0438\u044E
-// \u0440\u0430\u0437\u043B\u0438\u0447\u0438\u043C\u043E\u0441\u0442\u0438: \u0433\u043B\u0430\u0437 \u0441\u0447\u0438\u0442\u0430\u0435\u0442 \u0448\u0430\u0433\u0438 \u0440\u0430\u0432\u043D\u044B\u043C\u0438 \u0432 L*, \u0430 \u043D\u0435 \u0432 \u044F\u0440\u043A\u043E\u0441\u0442\u0438, \u043F\u043E\u044D\u0442\u043E\u043C\u0443 \u0432 \u043B\u0438\u043D\u0435\u0439\u043D\u044B\u0445 \u0435\u0434\u0438\u043D\u0438\u0446\u0430\u0445
-// \u043E\u0434\u0438\u043D \u0438 \u0442\u043E\u0442 \u0436\u0435 \u0448\u0430\u0433 \u0432 \u0442\u0435\u043D\u044F\u0445 \u0442\u0435\u0440\u044F\u0435\u0442\u0441\u044F, \u0430 \u0432 \u0441\u0432\u0435\u0442\u0430\u0445 \u043A\u0440\u0438\u0447\u0438\u0442.
-float vgLstar(float y) {
-  return y > 0.008856 ? 1.16 * pow(y, 1.0 / 3.0) - 0.16 : 9.033 * y;
-}
-
-float vgUnLstar(float l) {
-  return l > 0.08 ? pow((l + 0.16) / 1.16, 3.0) : l / 9.033;
-}
-
-// \u0420\u0430\u0437\u0432\u043E\u0440\u043E\u0442 premultiplied \u0432 \u043E\u0431\u044B\u0447\u043D\u044B\u0439 \u0446\u0432\u0435\u0442. \u0414\u0435\u043B\u0435\u043D\u0438\u0435 \u043E\u0434\u043D\u043E \u0438 \u0432 float: \u0443 half \u043E\u043A\u043E\u043B\u043E \u043D\u0443\u043B\u044F \u0448\u0430\u0433
-// \u0441\u043B\u0438\u0448\u043A\u043E\u043C \u0433\u0440\u0443\u0431\u044B\u0439, \u0438 \u043D\u0435\u0441\u043A\u043E\u043B\u044C\u043A\u043E \u0434\u0435\u043B\u0435\u043D\u0438\u0439 \u043F\u043E\u0434\u0440\u044F\u0434 \u043F\u043E\u0434\u043D\u0438\u043C\u0430\u044E\u0442 \u0448\u0443\u043C.
-float3 vgUnpack(half4 c) {
-  float a = float(c.a);
-  return a > 0.004 ? float3(c.rgb) / a : float3(0.0);
-}
-
-// \u0417\u0430\u0445\u0432\u0430\u0442 \u043A\u043E\u043D\u0447\u0430\u0435\u0442\u0441\u044F \u043D\u0430 \u043A\u0440\u0430\u044E \u044D\u043A\u0440\u0430\u043D\u0430. \u0412\u044B\u0431\u043E\u0440\u043A\u0430, \u0443\u0448\u0435\u0434\u0448\u0430\u044F \u0437\u0430 \u043D\u0435\u0433\u043E, \u0432\u043E\u0437\u0432\u0440\u0430\u0449\u0430\u0435\u0442 \u043F\u0443\u0441\u0442\u043E\u0442\u0443, \u0438 \u0443
-// \u0441\u0442\u0435\u043A\u043B\u0430 \u0432\u043E \u0432\u0441\u044E \u0448\u0438\u0440\u0438\u043D\u0443 \u0432\u0434\u043E\u043B\u044C \u043B\u0435\u0432\u043E\u0439 \u0438 \u043F\u0440\u0430\u0432\u043E\u0439 \u043A\u0440\u043E\u043C\u043E\u043A \u043F\u043E\u044F\u0432\u043B\u044F\u043B\u0430\u0441\u044C \u043F\u043E\u043B\u043E\u0441\u0430 \u0432\u043E\u043E\u0431\u0449\u0435 \u0431\u0435\u0437
-// \u043F\u0440\u0435\u043B\u043E\u043C\u043B\u0435\u043D\u0438\u044F. \u041F\u0440\u0438\u0436\u0438\u043C\u0430\u0435\u043C \u043A\u043E\u043E\u0440\u0434\u0438\u043D\u0430\u0442\u0443 \u043A \u043F\u0440\u044F\u043C\u043E\u0443\u0433\u043E\u043B\u044C\u043D\u0438\u043A\u0443, \u0433\u0434\u0435 \u043A\u043E\u043D\u0442\u0435\u043D\u0442 \u0435\u0441\u0442\u044C: \u043A\u0440\u043E\u043C\u043A\u0430 \u0442\u043E\u0433\u0434\u0430
-// \u0441\u0436\u0438\u043C\u0430\u0435\u0442 \u043F\u043E\u0441\u043B\u0435\u0434\u043D\u0438\u0439 \u0434\u043E\u0441\u0442\u0443\u043F\u043D\u044B\u0439 \u043A\u0443\u0441\u043E\u043A \u0444\u043E\u043D\u0430, \u0430 \u043D\u0435 \u043F\u0440\u043E\u0432\u0430\u043B\u0438\u0432\u0430\u0435\u0442\u0441\u044F \u0432 \u0434\u044B\u0440\u0443.
-float2 vgInContent(float2 q) { return clamp(q, u_contentMin, u_contentMax); }
-
-// \u041E\u0442\u0442\u0435\u043D\u043E\u043A \u0431\u0435\u0437 \u0441\u0432\u0435\u0442\u043B\u043E\u0442\u044B. \u041D\u0443\u0436\u0435\u043D \u0442\u0430\u043C, \u0433\u0434\u0435 \u0446\u0432\u0435\u0442 \u0431\u0435\u0440\u0443\u0442 \u0443 \u043A\u043E\u043D\u0442\u0435\u043D\u0442\u0430, \u0430 \u0441\u0432\u0435\u0442\u043B\u043E\u0442\u0443 \u043E\u0441\u0442\u0430\u0432\u043B\u044F\u044E\u0442 \u0441\u0432\u043E\u044E:
-// \u0434\u0435\u043B\u0438\u0442\u044C \u043D\u0430 \u0441\u0432\u0435\u0442\u043B\u043E\u0442\u0443 \u043D\u0430\u043F\u0440\u044F\u043C\u0443\u044E \u043D\u0435\u043B\u044C\u0437\u044F \u2014 \u0443 \u043D\u0430\u0441\u044B\u0449\u0435\u043D\u043D\u043E\u0433\u043E \u0441\u0438\u043D\u0435\u0433\u043E \u043E\u043D\u0430 0.07, \u0438 \u043C\u043D\u043E\u0436\u0438\u0442\u0435\u043B\u044C \u0443\u043B\u0435\u0442\u0430\u0435\u0442.
-float3 vgHue(float3 c) {
-  float l = vgLuma(c);
-  // \u041D\u0438\u0436\u0435 \u043F\u043E\u0440\u043E\u0433\u0430 \u0443 \u0446\u0432\u0435\u0442\u0430 \u043E\u0442\u0442\u0435\u043D\u043A\u0430 \u043D\u0435\u0442: \u0434\u0435\u043B\u0435\u043D\u0438\u0435 \u043D\u0430 \u043A\u043E\u043D\u0441\u0442\u0430\u043D\u0442\u0443 \u043D\u0435 \u043D\u043E\u0440\u043C\u0438\u0440\u0443\u0435\u0442, \u0430 \u0432\u043E\u0437\u0432\u0440\u0430\u0449\u0430\u0435\u0442 \u043F\u043E\u0447\u0442\u0438
-  // \u0447\u0451\u0440\u043D\u043E\u0435 \u2014 \u0438 \u0432\u0441\u0451, \u0447\u0442\u043E \u043A\u0440\u0430\u0441\u0438\u0442\u0441\u044F \u0442\u0430\u043A\u0438\u043C \xAB\u043E\u0442\u0442\u0435\u043D\u043A\u043E\u043C\xBB, \u0442\u0435\u0440\u044F\u0435\u0442 \u0441\u0432\u0435\u0442\u043B\u043E\u0442\u0443 \u0432\u043C\u0435\u0441\u0442\u0435 \u0441 \u043D\u0438\u043C. \u041D\u0430\u0434 \u0442\u0451\u043C\u043D\u044B\u043C
-  // \u0444\u043E\u043D\u043E\u043C \u0442\u0435\u043B\u043E \u043E\u0442 \u044D\u0442\u043E\u0433\u043E \u043D\u0435\u0434\u043E\u0431\u0438\u0440\u0430\u043B\u043E \u0432\u0442\u0440\u043E\u0435, \u0430 \u0442\u0440\u0435\u0431\u043E\u0432\u0430\u043D\u0438\u0435 \u0440\u0430\u0437\u043B\u0438\u0447\u0438\u043C\u043E\u0441\u0442\u0438 \u043D\u0435 \u043C\u043E\u0433\u043B\u043E \u0435\u0433\u043E \u0432\u044B\u0442\u044F\u043D\u0443\u0442\u044C.
-  if (l < 0.02) { return float3(1.0); }
-  return clamp(c / l, float3(0.0), float3(2.0));
-}
-
-// \u0418\u041D\u0422\u0415\u0420\u0424\u0415\u0420\u0415\u041D\u0426\u0418\u042F \u0432 \u0442\u043E\u043D\u043A\u043E\u0439 \u043F\u043B\u0451\u043D\u043A\u0435. \u041B\u0443\u0447, \u043E\u0442\u0440\u0430\u0436\u0451\u043D\u043D\u044B\u0439 \u043E\u0442 \u0432\u0435\u0440\u0445\u043D\u0435\u0439 \u0433\u0440\u0430\u043D\u0438\u0446\u044B, \u0438 \u043B\u0443\u0447, \u043E\u0442\u0440\u0430\u0436\u0451\u043D\u043D\u044B\u0439 \u043E\u0442
-// \u043D\u0438\u0436\u043D\u0435\u0439, \u043F\u0440\u0438\u0445\u043E\u0434\u044F\u0442 \u0441 \u0440\u0430\u0437\u043D\u043E\u0441\u0442\u044C\u044E \u0445\u043E\u0434\u0430 2\xB7n\xB7d\xB7cos\u03B8t. \u0413\u0434\u0435 \u043E\u043D\u0430 \u043A\u0440\u0430\u0442\u043D\u0430 \u0434\u043B\u0438\u043D\u0435 \u0432\u043E\u043B\u043D\u044B \u2014 \u043A\u0430\u043D\u0430\u043B
-// \u0443\u0441\u0438\u043B\u0438\u0432\u0430\u0435\u0442\u0441\u044F, \u0433\u0434\u0435 \u043F\u043E\u043B\u0443\u0446\u0435\u043B\u043E\u0439 \u2014 \u0433\u0430\u0441\u0438\u0442\u0441\u044F; \u0443 \u043A\u0430\u0436\u0434\u043E\u0433\u043E \u043A\u0430\u043D\u0430\u043B\u0430 \u0441\u0432\u043E\u044F \u03BB, \u043E\u0442\u0441\u044E\u0434\u0430 \u043F\u0435\u0440\u0435\u043B\u0438\u0432\u044B. \u03C0 \u0432 \u0444\u0430\u0437\u0435
-// \u2014 \u0441\u043A\u0430\u0447\u043E\u043A \u043F\u0440\u0438 \u043E\u0442\u0440\u0430\u0436\u0435\u043D\u0438\u0438 \u043E\u0442 \u0431\u043E\u043B\u0435\u0435 \u043F\u043B\u043E\u0442\u043D\u043E\u0439 \u0441\u0440\u0435\u0434\u044B.
-//
-// \u0412\u043E\u0437\u0432\u0440\u0430\u0449\u0430\u0435\u0442\u0441\u044F \u041E\u0422\u0422\u0415\u041D\u041E\u041A: \u0440\u0435\u0437\u0443\u043B\u044C\u0442\u0430\u0442 \u043D\u043E\u0440\u043C\u0438\u0440\u043E\u0432\u0430\u043D \u043D\u0430 \u0441\u0432\u043E\u0451 \u0441\u0440\u0435\u0434\u043D\u0435\u0435, \u043F\u043E\u044D\u0442\u043E\u043C\u0443 \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0440\u0435\u043D\u0446\u0438\u044F \u043A\u0440\u0430\u0441\u0438\u0442
-// \u043E\u0442\u0440\u0430\u0436\u0435\u043D\u0438\u0435, \u043D\u043E \u043D\u0435 \u0434\u0435\u043B\u0430\u0435\u0442 \u0435\u0433\u043E \u044F\u0440\u0447\u0435 \u0438\u043B\u0438 \u0442\u0435\u043C\u043D\u0435\u0435. \u0418\u043D\u0430\u0447\u0435 \u043D\u0430 \u0431\u0435\u043B\u043E\u043C \u0444\u043E\u043D\u0435 \u043E\u043D\u0430 \u0432\u044B\u0431\u0438\u0432\u0430\u043B\u0430 \u0431\u044B \u043A\u0430\u043D\u0430\u043B.
-float3 vgInterference(float cosI) {
-  float sinT2 = (1.0 - cosI * cosI) / (VG_FILM_IOR * VG_FILM_IOR);
-  float cosT = sqrt(max(1.0 - sinT2, 0.0));
-  float opd = 2.0 * VG_FILM_IOR * u_film * cosT;
-  float3 i = 0.5 + 0.5 * cos(VG_TAU * opd / VG_LAMBDA + 3.14159265);
-  return i / max((i.r + i.g + i.b) / 3.0, 0.001);
-}
-
-// \u0414\u0418\u0424\u0420\u0410\u041A\u0426\u0418\u042F \u043D\u0430 \u043A\u0440\u043E\u043C\u043A\u0435. \u0412\u043E\u043B\u043D\u0430, \u043E\u0431\u043E\u0433\u043D\u0443\u0432\u0448\u0430\u044F \u043A\u0440\u0430\u0439, \u043F\u0440\u0438\u0445\u043E\u0434\u0438\u0442 \u0432 \u0442\u043E\u0447\u043A\u0443 \u0434\u0432\u0443\u043C\u044F \u043F\u0443\u0442\u044F\u043C\u0438, \u0438 \u0440\u0430\u0437\u043D\u043E\u0441\u0442\u044C
-// \u0445\u043E\u0434\u0430 \u0440\u0430\u0441\u0442\u0451\u0442 \u043F\u043E \u043C\u0435\u0440\u0435 \u0443\u0434\u0430\u043B\u0435\u043D\u0438\u044F \u043E\u0442 \u043A\u0440\u0430\u044F. \u041F\u043E\u043B\u043E\u0441\u044B \u0442\u0435\u043C \u0447\u0430\u0449\u0435, \u0447\u0435\u043C \u043E\u0441\u0442\u0440\u0435\u0435 \u0444\u0430\u0441\u043A\u0430, \u2014 \u043F\u043E\u044D\u0442\u043E\u043C\u0443 \u0435\u0451
-// \u0448\u0438\u0440\u0438\u043D\u0430 \u0441\u0442\u043E\u0438\u0442 \u0432 \u0437\u043D\u0430\u043C\u0435\u043D\u0430\u0442\u0435\u043B\u0435. \u0422\u043E\u0436\u0435 \u043D\u043E\u0440\u043C\u0438\u0440\u0443\u0435\u0442\u0441\u044F \u043D\u0430 \u0441\u0440\u0435\u0434\u043D\u0435\u0435: \u044D\u0442\u043E \u0446\u0432\u0435\u0442, \u043D\u0435 \u044F\u0440\u043A\u043E\u0441\u0442\u044C.
-float3 vgDiffraction(float distFromEdge, float bevel) {
-  float phase = VG_TAU * 4.0 * distFromEdge / max(bevel, 1.0);
-  float3 d = 0.5 + 0.5 * cos(phase * (550.0 / VG_LAMBDA));
-  return d / max((d.r + d.g + d.b) / 3.0, 0.001);
-}
-
-// \u041C\u044F\u0433\u043A\u043E\u0435 \u0441\u0436\u0430\u0442\u0438\u0435 \u0432\u043C\u0435\u0441\u0442\u043E \u0436\u0451\u0441\u0442\u043A\u043E\u0433\u043E \u043A\u043B\u0430\u043C\u043F\u0430. \u041D\u0430 \u0431\u0435\u043B\u043E\u043C \u0444\u043E\u043D\u0435 \u0434\u043E\u0431\u0430\u0432\u043A\u0430 \u043E\u043A\u0440\u0443\u0436\u0435\u043D\u0438\u044F \u0432\u044B\u0431\u0438\u0432\u0430\u043B\u0430 \u043A\u0430\u043D\u0430\u043B \u0432
-// \u0435\u0434\u0438\u043D\u0438\u0446\u0443, \u0438 \u0441\u0442\u0435\u043A\u043B\u043E \u043F\u0440\u0435\u0432\u0440\u0430\u0449\u0430\u043B\u043E\u0441\u044C \u0432 \u043F\u043B\u043E\u0441\u043A\u043E\u0435 \u043F\u044F\u0442\u043D\u043E \u0431\u0435\u0437 \u0435\u0434\u0438\u043D\u043E\u0439 \u0434\u0435\u0442\u0430\u043B\u0438 \u2014 \u043F\u0440\u0438 \u0442\u043E\u043C \u0447\u0442\u043E \u0434\u0435\u0442\u0430\u043B\u044C
-// \u043F\u043E\u0434 \u043D\u0438\u043C \u0435\u0441\u0442\u044C. \u0417\u0434\u0435\u0441\u044C \u0432\u0441\u0451 \u0432\u044B\u0448\u0435 \u043F\u043E\u0440\u043E\u0433\u0430 \u0441\u0436\u0438\u043C\u0430\u0435\u0442\u0441\u044F \u0432 \u043E\u0441\u0442\u0430\u0442\u043E\u043A \u0434\u0438\u0430\u043F\u0430\u0437\u043E\u043D\u0430 \u0438 \u043D\u0438\u0447\u0435\u0433\u043E \u043D\u0435 \u0442\u0435\u0440\u044F\u0435\u0442\u0441\u044F.
-float vgHash(float2 p) {
-  return fract(sin(dot(p, float2(12.9898, 78.233))) * 43758.5453);
-}
-
-float3 vgSoftClip(float3 c) {
-  float3 over = max(c - 0.86, float3(0.0));
-  return min(c, float3(0.86)) + over * 0.14 / (0.14 + over);
-}
-
-
-// \u0421\u041E\u0411\u0421\u0422\u0412\u0415\u041D\u041D\u041E\u0415 \u0420\u0410\u0417\u041C\u042B\u0422\u0418\u0415. \u041F\u043B\u0430\u0442\u0444\u043E\u0440\u043C\u0435\u043D\u043D\u044B\u0439 \u0431\u043B\u044E\u0440 (dimezisBlurView) \u0443\u043C\u0435\u043D\u044C\u0448\u0430\u0435\u0442 \u0432\u044C\u044E\u0445\u0443, \u0440\u0430\u0437\u043C\u044B\u0432\u0430\u0435\u0442 \u0438
-// \u0440\u0430\u0441\u0442\u044F\u0433\u0438\u0432\u0430\u0435\u0442 \u043E\u0431\u0440\u0430\u0442\u043D\u043E, \u0430 \u043F\u043E\u043B\u043E\u0441\u044B \u043E\u0442 8-\u0431\u0438\u0442\u043D\u043E\u0433\u043E \u043E\u043A\u0440\u0443\u0433\u043B\u0435\u043D\u0438\u044F \u0440\u0430\u0437\u0431\u0438\u0432\u0430\u0435\u0442 \u0434\u0438\u0437\u0435\u0440\u0438\u043D\u0433\u043E\u043C \u2014 \u044D\u0442\u043E \u0438 \u0435\u0441\u0442\u044C
-// \u0437\u0435\u0440\u043D\u043E, \u043A\u043E\u0442\u043E\u0440\u043E\u0435 \u0432\u0438\u0434\u043D\u043E \u043D\u0430 \u0442\u0451\u043C\u043D\u044B\u0445 \u0443\u0447\u0430\u0441\u0442\u043A\u0430\u0445. \u041F\u043E\u044D\u0442\u043E\u043C\u0443 \u0437\u0430\u0445\u0432\u0430\u0442 \u043E\u0441\u0442\u0430\u0432\u043B\u0435\u043D \u0447\u0438\u0441\u0442\u044B\u043C (RenderNode \u0431\u0435\u0437
-// \u044D\u0444\u0444\u0435\u043A\u0442\u043E\u0432), \u0430 \u0440\u0430\u0437\u043C\u044B\u0432\u0430\u0435\u0442 \u0448\u0435\u0439\u0434\u0435\u0440: \u0443\u0441\u0440\u0435\u0434\u043D\u0435\u043D\u0438\u0435 \u043E\u0442\u0441\u0447\u0451\u0442\u043E\u0432 \u0432 float \u0441\u0430\u043C\u043E \u0441\u0433\u043B\u0430\u0436\u0438\u0432\u0430\u0435\u0442 \u043F\u043E\u043B\u043E\u0441\u044B \u0438
-// \u0441\u0432\u043E\u0435\u0433\u043E \u0448\u0443\u043C\u0430 \u043D\u0435 \u0434\u043E\u0431\u0430\u0432\u043B\u044F\u0435\u0442.
-//
-// \u041E\u0442\u0441\u0447\u0451\u0442\u044B \u0438\u0434\u0443\u0442 \u043F\u043E \u0441\u043F\u0438\u0440\u0430\u043B\u0438 \u0441 \u0437\u043E\u043B\u043E\u0442\u044B\u043C \u0443\u0433\u043B\u043E\u043C \u2014 \u0440\u0430\u0432\u043D\u043E\u043C\u0435\u0440\u043D\u043E\u0435 \u043F\u043E\u043A\u0440\u044B\u0442\u0438\u0435 \u0434\u0438\u0441\u043A\u0430 \u0431\u0435\u0437 \u0440\u0435\u0433\u0443\u043B\u044F\u0440\u043D\u043E\u0439 \u0441\u0435\u0442\u043A\u0438,
-// \u043D\u0430 \u043A\u043E\u0442\u043E\u0440\u043E\u0439 \u0431\u044B\u043B \u0431\u044B \u0432\u0438\u0434\u0435\u043D \u043C\u0443\u0430\u0440. \u0421\u043A\u043B\u0430\u0434\u044B\u0432\u0430\u0435\u043C PREMULTIPLIED \u2014 \u0442\u0430\u043A \u0443\u0441\u0440\u0435\u0434\u043D\u044F\u044E\u0442\u0441\u044F \u043F\u043E\u043B\u0443\u043F\u0440\u043E\u0437\u0440\u0430\u0447\u043D\u044B\u0435
-// \u043F\u0438\u043A\u0441\u0435\u043B\u0438, \u0440\u0430\u0437\u0432\u043E\u0440\u043E\u0442 \u043E\u0434\u0438\u043D \u0438 \u043E\u0431\u0449\u0438\u0439.
-float4 vgGather(float2 q, float radius, float2 seed) {
-  float4 acc = float4(content.eval(vgInContent(q)));
-  if (radius <= 0.25) { return acc; }
-  if (radius < 4.0) {
-    // \u041C\u0435\u043B\u043A\u0438\u0439 \u0440\u0430\u0437\u0431\u0440\u043E\u0441: \u0441\u043F\u0438\u0440\u0430\u043B\u044C \u0438\u0437 \u0434\u0432\u0443\u0445 \u0434\u0435\u0441\u044F\u0442\u043A\u043E\u0432 \u043E\u0442\u0441\u0447\u0451\u0442\u043E\u0432 \u043B\u043E\u0436\u0438\u0442\u0441\u044F \u0432 \u0442\u0435 \u0436\u0435 \u043D\u0435\u0441\u043A\u043E\u043B\u044C\u043A\u043E \u043F\u0438\u043A\u0441\u0435\u043B\u0435\u0439,
-    // \u0430 \u0441\u0442\u043E\u0438\u0442 \u0432\u043F\u044F\u0442\u0435\u0440\u043E \u0434\u043E\u0440\u043E\u0436\u0435. \u041A\u0440\u0435\u0441\u0442 \u043F\u043E \u0447\u0435\u0442\u044B\u0440\u0451\u043C \u0442\u043E\u0447\u043A\u0430\u043C \u0434\u0430\u0451\u0442 \u0442\u043E\u0442 \u0436\u0435 \u0440\u0435\u0437\u0443\u043B\u044C\u0442\u0430\u0442.
-    float r = radius * 0.7;
-    acc += float4(content.eval(vgInContent(q + float2(r, 0.0))))
-      + float4(content.eval(vgInContent(q - float2(r, 0.0))))
-      + float4(content.eval(vgInContent(q + float2(0.0, r))))
-      + float4(content.eval(vgInContent(q - float2(0.0, r))));
-    return acc * 0.2;
-  }
-  float ca = cos(2.39996323);
-  float sa = sin(2.39996323);
-  // \u0421\u043F\u0438\u0440\u0430\u043B\u044C \u0440\u0430\u0437\u0432\u043E\u0440\u0430\u0447\u0438\u0432\u0430\u0435\u0442\u0441\u044F \u043D\u0430 \u0421\u0412\u041E\u0419 \u0443\u0433\u043E\u043B \u0432 \u043A\u0430\u0436\u0434\u043E\u043C \u043F\u0438\u043A\u0441\u0435\u043B\u0435. \u0421 \u043E\u0431\u0449\u0438\u043C \u0434\u043B\u044F \u0432\u0441\u0435\u0445 \u0443\u0433\u043B\u043E\u043C \u0434\u0432\u0430
-  // \u0434\u0435\u0441\u044F\u0442\u043A\u0430 \u043E\u0442\u0441\u0447\u0451\u0442\u043E\u0432 \u043B\u043E\u0436\u0430\u0442\u0441\u044F \u0432 \u0441\u043E\u0441\u0435\u0434\u043D\u0438\u0445 \u043F\u0438\u043A\u0441\u0435\u043B\u044F\u0445 \u043E\u0434\u0438\u043D\u0430\u043A\u043E\u0432\u043E, \u0438 \u043D\u0430 \u043C\u0435\u043B\u043A\u043E\u0439 \u0444\u0430\u043A\u0442\u0443\u0440\u0435 \u043F\u043E\u0434 \u0441\u0442\u0435\u043A\u043B\u043E\u043C
-  // \u044D\u0442\u043E \u0447\u0438\u0442\u0430\u0435\u0442\u0441\u044F \u043D\u0435 \u0440\u0430\u0437\u043C\u044B\u0442\u0438\u0435\u043C, \u0430 \u043A\u043E\u043C\u043A\u0430\u043C\u0438. \u041F\u0438\u043A\u0441\u0435\u043B\u044C\u043D\u044B\u0439 \u043F\u043E\u0432\u043E\u0440\u043E\u0442 \u043F\u0440\u0435\u0432\u0440\u0430\u0449\u0430\u0435\u0442 \u0438\u0445 \u0432 \u043C\u0435\u043B\u043A\u043E\u0435 \u0437\u0435\u0440\u043D\u043E \u2014
-  // \u0440\u043E\u0432\u043D\u043E \u0442\u043E, \u0447\u0435\u043C \u0438 \u0432\u044B\u0433\u043B\u044F\u0434\u0438\u0442 \u043C\u0430\u0442\u043E\u0432\u0430\u044F \u043F\u043E\u0432\u0435\u0440\u0445\u043D\u043E\u0441\u0442\u044C.
-  float a0 = vgHash(seed) * 6.28318530718;
-  float2 dir = float2(cos(a0), sin(a0));
-  float wide = radius * 0.5;
-  int taps = int(clamp(float(VG_FROST_TAPS) * wide * wide, float(VG_FROST_TAPS), float(VG_FROST_TAPS_MAX)));
-  for (int i = 1; i <= VG_FROST_TAPS_MAX; i++) {
-    if (i > taps) { break; }
-    dir = float2(dir.x * ca - dir.y * sa, dir.x * sa + dir.y * ca);
-    float r = radius * sqrt(float(i) / float(taps));
-    acc += float4(content.eval(vgInContent(q + dir * r)));
-  }
-  return acc / float(taps + 1);
-}
-
-/* \u041F\u043E\u0442\u043E\u043B\u043E\u043A \u0440\u0430\u0441\u0441\u0435\u044F\u043D\u0438\u044F, dp. \u041F\u0440\u0438\u0432\u044F\u0437\u0430\u043D \u043A \u041C\u0410\u0421\u0428\u0422\u0410\u0411\u0423 \u0442\u043E\u0433\u043E, \u0447\u0442\u043E \u0440\u0430\u0441\u0441\u0435\u044F\u043D\u0438\u0435 \u043E\u0431\u044F\u0437\u0430\u043D\u043E \u0441\u043A\u0440\u044B\u0432\u0430\u0442\u044C: \u0441\u043F\u043E\u0440\u0438\u0442 \u0441
-   \u043D\u0430\u0434\u043F\u0438\u0441\u044C\u044E \u043D\u0430 \u0441\u0442\u0435\u043A\u043B\u0435 \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u043D\u044B\u0439 \u0442\u0435\u043A\u0441\u0442 \u043F\u043E\u0434 \u043D\u0438\u043C, \u0430 \u043E\u043D \u0432\u044B\u0441\u043E\u0442\u043E\u0439 11\u201314 dp, \u0438 \u0447\u0442\u043E\u0431\u044B \u0440\u0430\u0437\u0440\u0443\u0448\u0438\u0442\u044C
-   \u0441\u0442\u0440\u0443\u043A\u0442\u0443\u0440\u0443 \u0442\u0430\u043A\u043E\u0433\u043E \u0440\u0430\u0437\u043C\u0435\u0440\u0430, \u0440\u0430\u0434\u0438\u0443\u0441\u0430 \u043D\u0443\u0436\u043D\u043E \u043E\u043A\u043E\u043B\u043E \u0435\u0451 \u043F\u043E\u043B\u043E\u0432\u0438\u043D\u044B. \u041F\u0440\u0435\u0436\u043D\u0438\u0435 3.5 dp \u0431\u044B\u043B\u0438 \u043C\u0435\u043B\u044C\u0447\u0435
-   \u0441\u0442\u0440\u043E\u043A\u0438: \u0442\u043E\u043D\u043A\u0438\u0439 \u0442\u0435\u043A\u0441\u0442 \u043E\u043D\u0438 \u0441\u043C\u0430\u0437\u044B\u0432\u0430\u043B\u0438, \u0430 \u043F\u043E\u043B\u0443\u0436\u0438\u0440\u043D\u044B\u0439 \u0437\u0430\u0433\u043E\u043B\u043E\u0432\u043E\u043A \u043F\u0440\u043E\u0445\u043E\u0434\u0438\u043B \u0441\u043A\u0432\u043E\u0437\u044C \u0441\u0442\u0435\u043A\u043B\u043E \u0446\u0435\u043B\u044B\u043C. */
-const float VG_ADAPT_BLUR_MAX = 4.0;
-/* \u041D\u0430\u0441\u043A\u043E\u043B\u044C\u043A\u043E \u0431\u044B\u0441\u0442\u0440\u043E \u043E\u0442\u043A\u043B\u0438\u043A \u043D\u0430 \u0441\u0442\u0440\u0443\u043A\u0442\u0443\u0440\u0443 \u043F\u043E\u0434 \u0441\u0442\u0435\u043A\u043B\u043E\u043C \u0432\u044B\u0445\u043E\u0434\u0438\u0442 \u043D\u0430 \u043F\u043E\u043B\u043A\u0443. \u041F\u043E\u0434\u043E\u0431\u0440\u0430\u043D\u043E \u043F\u043E \u0440\u0435\u0434\u043A\u043E\u0439
-   \u0441\u0442\u0440\u0443\u043A\u0442\u0443\u0440\u0435: \u0441\u0442\u0440\u043E\u043A\u0430 \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u043D\u043E\u0433\u043E \u0442\u0435\u043A\u0441\u0442\u0430 \u043F\u043E\u0434 \u0441\u0442\u0435\u043A\u043B\u043E\u043C \u0434\u0430\u0451\u0442 busy \u043E\u043A\u043E\u043B\u043E 0.12 \u2014 \u0437\u0430\u043C\u0435\u0440 \u0437\u043E\u043D\u0434\u0430 \u043F\u043E\u0434
-   \u043F\u043B\u0430\u0448\u043A\u043E\u0439 \u0441 \u043F\u0440\u043E\u0435\u0437\u0436\u0430\u044E\u0449\u0438\u043C \u0441\u043F\u0438\u0441\u043A\u043E\u043C, \u2014 \u0438 \u043E\u043D\u0430 \u043E\u0431\u044F\u0437\u0430\u043D\u0430 \u0432\u044B\u0431\u0438\u0440\u0430\u0442\u044C \u0440\u0430\u0441\u0441\u0435\u044F\u043D\u0438\u0435 \u043F\u043E\u0447\u0442\u0438 \u0446\u0435\u043B\u0438\u043A\u043E\u043C. */
-const float VG_STRUCTURE_GAIN = 20.0;
-/* \u041F\u043B\u043E\u0442\u043D\u043E\u0441\u0442\u044C \u0442\u0435\u043B\u0430 \u043F\u0440\u0438 \u043F\u043E\u043B\u043D\u043E\u043C \u0442\u0440\u0435\u0431\u043E\u0432\u0430\u043D\u0438\u0438 \u0447\u0438\u0442\u0430\u0435\u043C\u043E\u0441\u0442\u0438. \u041F\u043E\u0442\u043E\u043B\u043E\u043A \u043D\u0438\u0437\u043A\u0438\u0439 \u043D\u0430\u043C\u0435\u0440\u0435\u043D\u043D\u043E: \u0432\u044B\u0448\u0435 \u0434\u0435\u0442\u0430\u043B\u044C
-   \u043F\u0435\u0440\u0435\u0441\u0442\u0430\u0451\u0442 \u043F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0442\u044C \u0442\u043E, \u0447\u0442\u043E \u043F\u043E\u0434 \u043D\u0435\u0439, \u0438 \u043F\u0440\u0435\u0432\u0440\u0430\u0449\u0430\u0435\u0442\u0441\u044F \u0432 \u043A\u0440\u0430\u0448\u0435\u043D\u0443\u044E \u043F\u043B\u0430\u0448\u043A\u0443 \u2014 \u0430 \u0447\u0443\u0436\u043E\u0439 \u0442\u0435\u043A\u0441\u0442
-   \u0432\u0441\u0451 \u0440\u0430\u0432\u043D\u043E \u0434\u0430\u0432\u0438\u0442 \u043D\u0435 \u043F\u043B\u043E\u0442\u043D\u043E\u0441\u0442\u044C\u044E, \u0430 \u0442\u0435\u043C, \u0447\u0442\u043E \u043E\u043D \u0440\u0435\u0437\u043A\u0438\u0439. */
-/* \u041F\u043E\u043B \u043E\u0441\u043D\u043E\u0432\u0430\u043D\u0438\u044F: \u0441\u0442\u043E\u043B\u044C\u043A\u043E \u0441\u0440\u0435\u0434\u044B \u0434\u0435\u0442\u0430\u043B\u044C \u0441 \u043A\u0440\u0430\u0441\u043A\u043E\u0439 \u0434\u0435\u0440\u0436\u0438\u0442 \u0412\u0421\u0415\u0413\u0414\u0410, \u043D\u0435\u0437\u0430\u0432\u0438\u0441\u0438\u043C\u043E \u043E\u0442 \u0442\u043E\u0433\u043E, \u0447\u0442\u043E \u043F\u043E\u0434
-   \u043D\u0435\u0439. \u041D\u0438\u0437\u043A\u0438\u0439 \u043D\u0430\u043C\u0435\u0440\u0435\u043D\u043D\u043E \u2014 \u0432\u044B\u0448\u0435 \u0434\u0435\u0442\u0430\u043B\u044C \u043F\u0435\u0440\u0435\u0441\u0442\u0430\u0451\u0442 \u0431\u044B\u0442\u044C \u043E\u043A\u043D\u043E\u043C \u043D\u0430\u0434 \u0441\u043F\u043E\u043A\u043E\u0439\u043D\u044B\u043C \u043F\u043E\u043B\u043E\u0442\u043D\u043E\u043C, \u0438 \u044D\u0442\u043E
-   \u043B\u043E\u0432\u0438\u0442 check:optics. */
-const float VG_GROUND_MIN = 0.50;
-/* \u041F\u043E\u0442\u043E\u043B\u043E\u043A: \u0434\u043E \u0441\u0442\u043E\u043B\u044C\u043A\u0438 \u043E\u0441\u043D\u043E\u0432\u0430\u043D\u0438\u0435 \u0434\u043E\u0445\u043E\u0434\u0438\u0442 \u043D\u0430\u0434 \u041F\u0401\u0421\u0422\u0420\u042B\u041C \u043F\u043E\u043B\u043E\u0442\u043D\u043E\u043C, \u0433\u0434\u0435 \u0447\u0443\u0436\u0430\u044F \u0441\u0442\u0440\u0443\u043A\u0442\u0443\u0440\u0430 \u0441\u043F\u043E\u0440\u0438\u0442 \u0441
-   \u043D\u0430\u0434\u043F\u0438\u0441\u044C\u044E. \u0420\u0430\u0437\u0432\u043E\u0434\u0438\u0442\u044C \u043F\u043E\u043B \u0438 \u043F\u043E\u0442\u043E\u043B\u043E\u043A \u043E\u0431\u044F\u0437\u0430\u0442\u0435\u043B\u044C\u043D\u043E: \u043E\u0434\u043D\u0438\u043C \u0447\u0438\u0441\u043B\u043E\u043C \u043B\u0438\u0431\u043E \u0442\u0435\u0440\u044F\u0435\u0442\u0441\u044F \u043F\u0440\u043E\u0437\u0440\u0430\u0447\u043D\u043E\u0441\u0442\u044C \u043D\u0430\u0434
-   \u0441\u043F\u043E\u043A\u043E\u0439\u043D\u044B\u043C \u0444\u043E\u043D\u043E\u043C, \u043B\u0438\u0431\u043E \u0447\u0443\u0436\u043E\u0439 \u0442\u0435\u043A\u0441\u0442 \u0432\u0441\u0442\u0430\u0451\u0442 \u0432\u0440\u043E\u0432\u0435\u043D\u044C \u0441 \u0441\u043E\u0431\u0441\u0442\u0432\u0435\u043D\u043D\u043E\u0439 \u043D\u0430\u0434\u043F\u0438\u0441\u044C\u044E \u0434\u0435\u0442\u0430\u043B\u0438. */
-const float VG_GROUND_MAX = 0.80;
-/* \u0412\u043E \u0441\u043A\u043E\u043B\u044C\u043A\u043E \u0440\u0430\u0437 \u043A\u0440\u043E\u043C\u043A\u0430 \u044F\u0440\u0447\u0435 \u0442\u043E\u0433\u043E \u043E\u0442\u0445\u043E\u0434\u0430, \u043A\u043E\u0442\u043E\u0440\u044B\u0439 \u043D\u0435 \u0434\u0430\u043B\u043E \u0442\u0435\u043B\u043E. \u0411\u043E\u043B\u044C\u0448\u0435 \u0435\u0434\u0438\u043D\u0438\u0446\u044B, \u043F\u043E\u0442\u043E\u043C\u0443 \u0447\u0442\u043E
-   \u043A\u0440\u043E\u043C\u043A\u0430 \u0443\u0437\u043A\u0430\u044F: \u0442\u043E\u0442 \u0436\u0435 \u0448\u0430\u0433 \u0441\u0432\u0435\u0442\u043B\u043E\u0442\u044B \u043D\u0430 \u043F\u043E\u043B\u043E\u0441\u043A\u0435 \u0432 \u043D\u0435\u0441\u043A\u043E\u043B\u044C\u043A\u043E \u043F\u0438\u043A\u0441\u0435\u043B\u0435\u0439 \u0447\u0438\u0442\u0430\u0435\u0442\u0441\u044F \u0441\u043B\u0430\u0431\u0435\u0435, \u0447\u0435\u043C \u043D\u0430
-   \u0432\u0441\u0435\u0439 \u043F\u043B\u043E\u0449\u0430\u0434\u0438 \u0434\u0435\u0442\u0430\u043B\u0438. */
-const float VG_RIM_GAIN = 3.2;
-
-half4 main(float2 xy) {
-  float2 p = vgTouchWarp(xy - u_center, u_touch, u_pull, u_touchPress, u_touchRadius, u_wave.x, u_wave.y);
-  float sd = vgScene(p, u_halfSize, u_corner, u_morphOffset, u_morphHalf, u_morphCorner, u_morphK);
-  if (sd > 1.0) { return half4(0.0); }
-
-  float bevel = max(u_bevel, 1.0);
-  float t = vgBevelT(sd, bevel);
-  float2 n = vgSceneNormal(p, u_halfSize, u_corner, u_morphOffset, u_morphHalf, u_morphCorner, u_morphK);
-
-  // \u0420\u0435\u0436\u0438\u043C \xAB\u0431\u044D\u043A\u0434\u0440\u043E\u043F\xBB \u043E\u0442\u0434\u0430\u0451\u0442 \u0441\u043E\u0434\u0435\u0440\u0436\u0438\u043C\u043E\u0435 \u043A\u0430\u043A \u0435\u0441\u0442\u044C \u2014 \u044D\u0442\u043E \u043E\u043F\u043E\u0440\u043D\u0430\u044F \u0442\u043E\u0447\u043A\u0430 \u0434\u043B\u044F \u0441\u0440\u0430\u0432\u043D\u0435\u043D\u0438\u044F \u043E\u043F\u0442\u0438\u043A\u0438.
-  float on = u_debug > 5.5 && u_debug < 6.5 ? 0.0 : 1.0;
-  float magnify = mix(1.0, u_magnify, on);
-  float2 s = u_center + p / magnify + n * (u_edgePush * on * pow(t, VG_FALLOFF));
-
-  // \u041F\u041B\u041E\u0429\u0410\u0414\u041D\u041E\u0415 \u0418\u041D\u0422\u0415\u0413\u0420\u0418\u0420\u041E\u0412\u0410\u041D\u0418\u0415. \u041D\u0430\u0441\u0442\u043E\u044F\u0449\u0430\u044F \u043B\u0438\u043D\u0437\u0430 \u0441\u043E\u0431\u0438\u0440\u0430\u0435\u0442 \u0441\u0432\u0435\u0442 \u0441 \u043F\u043B\u043E\u0449\u0430\u0434\u0438, \u0430 \u043C\u044B \u0431\u0435\u0440\u0451\u043C \u0442\u043E\u0447\u0435\u0447\u043D\u044B\u0435
-  // \u043E\u0442\u0441\u0447\u0451\u0442\u044B \u2014 \u043F\u043E\u044D\u0442\u043E\u043C\u0443 \u0442\u0430\u043C, \u0433\u0434\u0435 \u0441\u043C\u0435\u0449\u0435\u043D\u0438\u0435 \u0432\u044B\u0431\u043E\u0440\u043A\u0438 \u043C\u0435\u043D\u044F\u0435\u0442\u0441\u044F \u0431\u044B\u0441\u0442\u0440\u043E, \u043F\u043E \u0440\u0435\u0437\u043A\u043E\u043C\u0443 \u0444\u043E\u043D\u0443 \u0438\u0434\u0451\u0442 \u0437\u0435\u0440\u043D\u043E.
-  // \u0428\u0438\u0440\u0438\u043D\u0430 \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0438 \u0440\u0430\u0432\u043D\u0430 \u0441\u043A\u043E\u0440\u043E\u0441\u0442\u0438 \u0438\u0437\u043C\u0435\u043D\u0435\u043D\u0438\u044F \u0441\u043C\u0435\u0449\u0435\u043D\u0438\u044F \u043D\u0430 \u043F\u0438\u043A\u0441\u0435\u043B\u044C: \u0441\u043C\u0435\u0449\u0435\u043D\u0438\u0435 \u0440\u0430\u0441\u0442\u0451\u0442 \u043A\u0430\u043A
-  // edgePush \xB7 t^FALLOFF \u043F\u043E \u0432\u0441\u0435\u0439 \u0444\u0430\u0441\u043A\u0435, \u0437\u043D\u0430\u0447\u0438\u0442 \u0435\u0433\u043E \u043F\u0440\u043E\u0438\u0437\u0432\u043E\u0434\u043D\u0430\u044F \u043F\u043E \u044D\u043A\u0440\u0430\u043D\u0443 \u0435\u0441\u0442\u044C
-  // edgePush \xB7 FALLOFF \xB7 t^(FALLOFF\u22121) / bevel.
-  float footprint = u_edgePush * VG_FALLOFF * pow(t, VG_FALLOFF - 1.0) / bevel;
-  // \u0428\u0435\u0440\u043E\u0445\u043E\u0432\u0430\u0442\u043E\u0441\u0442\u0438 \u0437\u0434\u0435\u0441\u044C \u0411\u041E\u041B\u042C\u0428\u0415 \u041D\u0415\u0422: \u043E\u043D\u0430 \u043C\u0443\u0442\u0438\u0442 \u0432 \u0434\u0438\u0441\u043A\u043E\u0432\u043E\u043C \u0441\u0431\u043E\u0440\u0435 \u043D\u0438\u0436\u0435. \u041F\u043E\u043A\u0430 \u043E\u043D\u0430 \u0441\u0442\u043E\u044F\u043B\u0430 \u0438
-  // \u0442\u0443\u0442, \u0443 \u043B\u044E\u0431\u043E\u0433\u043E \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u0430 \u0441 \u043D\u0435\u043D\u0443\u043B\u0435\u0432\u043E\u0439 \u0448\u0435\u0440\u043E\u0445\u043E\u0432\u0430\u0442\u043E\u0441\u0442\u044C\u044E \u0440\u0430\u0437\u0431\u0440\u043E\u0441 \u0432 \u043F\u043B\u043E\u0441\u043A\u043E\u0439 \u0441\u0435\u0440\u0435\u0434\u0438\u043D\u0435 \u043F\u0435\u0440\u0435\u0441\u0442\u0430\u0432\u0430\u043B
-  // \u0432\u044B\u0440\u043E\u0436\u0434\u0430\u0442\u044C\u0441\u044F \u2014 \u0438 \u0442\u0435\u043B\u043E, \u0442\u043E \u0435\u0441\u0442\u044C \u043F\u043E\u0447\u0442\u0438 \u0432\u0441\u044F \u043F\u043B\u043E\u0449\u0430\u0434\u044C \u0434\u0435\u0442\u0430\u043B\u0438, \u0443\u0445\u043E\u0434\u0438\u043B\u043E \u0441 \u043E\u0434\u043D\u043E\u0439 \u0432\u044B\u0431\u043E\u0440\u043A\u0438 \u043D\u0430 \u0448\u0435\u0441\u0442\u044C.
-  float spread = max(u_spherical * t * t, footprint) * on;
-  float chroma = u_chroma * on * t * t;
-
-  float3 rgb;
-  float srcA;
-
-  if (chroma + spread < 0.25) {
-    // \u0412 \u043F\u043B\u043E\u0441\u043A\u043E\u043C \u0442\u0435\u043B\u0435 \u0440\u0430\u0437\u0431\u0440\u043E\u0441 \u0438 \u0445\u0440\u043E\u043C\u0430\u0442\u0438\u043A\u0430 \u0432\u044B\u0440\u043E\u0436\u0434\u0430\u044E\u0442\u0441\u044F: \u0432\u0441\u0435 \u043E\u0442\u0441\u0447\u0451\u0442\u044B \u043B\u0435\u0433\u043B\u0438 \u0431\u044B \u0432 \u041E\u0414\u041D\u0423 \u0442\u043E\u0447\u043A\u0443.
-    // \u0422\u0435\u043B\u043E \u2014 \u044D\u0442\u043E \u043F\u043E\u0447\u0442\u0438 \u0432\u0441\u044F \u043F\u043B\u043E\u0449\u0430\u0434\u044C \u0441\u0442\u0435\u043A\u043B\u0430, \u0430 \u0432\u044B\u0431\u043E\u0440\u043A\u0430 \u0442\u0435\u043A\u0441\u0442\u0443\u0440\u044B \u0437\u0434\u0435\u0441\u044C \u0441\u0430\u043C\u043E\u0435 \u0434\u043E\u0440\u043E\u0433\u043E\u0435, \u0447\u0442\u043E \u0435\u0441\u0442\u044C.
-    half4 c = content.eval(vgInContent(s));
-    srcA = float(c.a);
-    rgb = srcA > 0.004 ? float3(c.rgb) / srcA : float3(0.0);
-  } else {
-    // \u0414\u0418\u0421\u041F\u0415\u0420\u0421\u0418\u042F. \u041A\u0430\u0436\u0434\u044B\u0439 \u043A\u0430\u043D\u0430\u043B \u0438\u0434\u0451\u0442 \u043F\u043E \u0421\u0412\u041E\u0415\u0419 \u0442\u0440\u0430\u0435\u043A\u0442\u043E\u0440\u0438\u0438: \u0441\u043C\u0435\u0449\u0435\u043D\u0438\u0435 \u043A\u0430\u043D\u0430\u043B\u0430 \u043F\u0440\u043E\u043F\u043E\u0440\u0446\u0438\u043E\u043D\u0430\u043B\u044C\u043D\u043E
-    // \u0435\u0433\u043E \u043E\u0442\u043A\u043B\u043E\u043D\u0435\u043D\u0438\u044E \u043F\u043E \u041A\u043E\u0448\u0438, \u0438 \u0432\u0441\u0435 \u0442\u0440\u0438 \u2014 \u0432\u0434\u043E\u043B\u044C \u043E\u0434\u043D\u043E\u0439 \u043D\u043E\u0440\u043C\u0430\u043B\u0438. \u041F\u0430\u0440\u0430 \u043E\u0442\u0441\u0447\u0451\u0442\u043E\u0432 \u043D\u0430 \u043A\u0430\u043D\u0430\u043B
-    // \u0437\u0430\u043A\u0440\u044B\u0432\u0430\u0435\u0442 \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0443 (footprint), \u043E\u0434\u043D\u0430 \u2014 \u0446\u0432\u0435\u0442.
-    //
-    // content.eval \u043E\u0442\u0434\u0430\u0451\u0442 PREMULTIPLIED \u0446\u0432\u0435\u0442. \u0411\u0440\u0430\u0442\u044C .r/.g/.b \u0438\u0437 \u0420\u0410\u0417\u041D\u042B\u0425 \u0442\u043E\u0447\u0435\u043A \u0438 \u0441\u043A\u043B\u0435\u0438\u0432\u0430\u0442\u044C
-    // \u043D\u0430\u043F\u0440\u044F\u043C\u0443\u044E \u043D\u0435\u043B\u044C\u0437\u044F: \u0433\u0434\u0435 \u0430\u043B\u044C\u0444\u0430 \u043C\u0435\u0436\u0434\u0443 \u0432\u044B\u0431\u043E\u0440\u043A\u0430\u043C\u0438 \u043E\u0442\u043B\u0438\u0447\u0430\u0435\u0442\u0441\u044F, \u043A\u0430\u043D\u0430\u043B\u044B \u0434\u0435\u043B\u044F\u0442\u0441\u044F \u043D\u0430 \u0440\u0430\u0437\u043D\u044B\u0439
-    // \u043C\u043D\u043E\u0436\u0438\u0442\u0435\u043B\u044C \u0438 \u043D\u0430 \u0433\u0440\u0430\u043D\u0438\u0446\u0430\u0445 \u0441\u043E\u0434\u0435\u0440\u0436\u0438\u043C\u043E\u0433\u043E \u0432\u044B\u043B\u0435\u0437\u0430\u0435\u0442 \u0446\u0432\u0435\u0442\u043D\u0430\u044F \u043A\u0430\u0439\u043C\u0430, \u043A\u043E\u0442\u043E\u0440\u043E\u0439 \u0432 \u043A\u043E\u043D\u0442\u0435\u043D\u0442\u0435 \u043D\u0435\u0442.
-    // \u041F\u043E\u044D\u0442\u043E\u043C\u0443 \u0441\u043A\u043B\u0430\u0434\u044B\u0432\u0430\u0435\u043C premultiplied \u0438 \u0434\u0435\u043B\u0438\u043C \u041E\u0414\u0418\u041D \u0440\u0430\u0437 \u043D\u0430 \u043F\u0430\u0440\u0443, \u0432 float: half \u0443 \u043D\u0443\u043B\u044F
-    // \u043A\u0432\u0430\u043D\u0442\u0443\u0435\u0442\u0441\u044F \u0441\u043B\u0438\u0448\u043A\u043E\u043C \u0433\u0440\u0443\u0431\u043E.
-    float2 dR = n * (chroma * VG_CAUCHY.r);
-    float2 dG = n * (chroma * VG_CAUCHY.g);
-    float2 dB = n * (chroma * VG_CAUCHY.b);
-    float2 e = n * spread;
-    half4 c0 = content.eval(vgInContent(s + dR - e));
-    half4 c1 = content.eval(vgInContent(s + dR + e));
-    half4 c2 = content.eval(vgInContent(s + dG - e));
-    half4 c3 = content.eval(vgInContent(s + dG + e));
-    half4 c4 = content.eval(vgInContent(s + dB - e));
-    half4 c5 = content.eval(vgInContent(s + dB + e));
-
-    float aR = float(c0.a + c1.a) * 0.5;
-    float aG = float(c2.a + c3.a) * 0.5;
-    float aB = float(c4.a + c5.a) * 0.5;
-    rgb = float3(
-      aR > 0.004 ? float(c0.r + c1.r) * 0.5 / aR : 0.0,
-      aG > 0.004 ? float(c2.g + c3.g) * 0.5 / aG : 0.0,
-      aB > 0.004 ? float(c4.b + c5.b) * 0.5 / aB : 0.0);
-    srcA = (aR + aG + aB) / 3.0;
-  }
-
-  // \u041E\u0422\u0420\u0410\u0416\u0415\u041D\u0418\u0415. \u0421\u0447\u0438\u0442\u0430\u0435\u0442\u0441\u044F \u0437\u0434\u0435\u0441\u044C, \u0430 \u043D\u0435 \u0432 \u043F\u043E\u0432\u0435\u0440\u0445\u043D\u043E\u0441\u0442\u0438, \u043F\u043E\u0442\u043E\u043C\u0443 \u0447\u0442\u043E \u043E\u0442\u0440\u0430\u0436\u0435\u043D\u0438\u0435 \u2014 \u044D\u0442\u043E \u0444\u0443\u043D\u043A\u0446\u0438\u044F
-  // \u043E\u043A\u0440\u0443\u0436\u0435\u043D\u0438\u044F, \u0430 \u043E\u043A\u0440\u0443\u0436\u0435\u043D\u0438\u0435 \u0432\u0438\u0434\u043D\u043E \u0442\u043E\u043B\u044C\u043A\u043E \u043E\u0442\u0441\u044E\u0434\u0430: \u043F\u043E\u0432\u0435\u0440\u0445\u043D\u043E\u0441\u0442\u044C \u0440\u0438\u0441\u0443\u0435\u0442\u0441\u044F \u043F\u043E\u0432\u0435\u0440\u0445 \u043B\u0438\u043D\u0437\u044B \u0438
-  // \u0431\u044D\u043A\u0434\u0440\u043E\u043F\u0430 \u043D\u0435 \u0438\u043C\u0435\u0435\u0442 \u0432\u043E\u0432\u0441\u0435.
-  //
-  // \u0421\u043E\u0431\u0438\u0440\u0430\u0435\u043C \u0435\u0433\u043E \u0421\u041D\u0410\u0420\u0423\u0416\u0418 \u0444\u043E\u0440\u043C\u044B, \u0430 \u043D\u0435 \u0438\u0437-\u043F\u043E\u0434 \u0441\u0442\u0435\u043A\u043B\u0430: \u043D\u0430 \u0441\u043A\u043E\u043B\u044C\u0437\u044F\u0449\u0435\u043C \u0443\u0433\u043B\u0435 \u0432 \u0433\u043B\u0430\u0437 \u043F\u0440\u0438\u0445\u043E\u0434\u0438\u0442
-  // \u043E\u043A\u0440\u0443\u0436\u0435\u043D\u0438\u0435 \u0434\u0435\u0442\u0430\u043B\u0438, \u0430 \u043D\u0435 \u0442\u043E, \u0447\u0442\u043E \u0437\u0430 \u043D\u0435\u0439. \u041E\u0442\u0441\u044E\u0434\u0430 \u0438 \u043F\u043E\u0432\u0435\u0434\u0435\u043D\u0438\u0435 \u2014 \u044F\u0440\u043A\u0430\u044F \u043E\u0431\u043B\u043E\u0436\u043A\u0430 \u0440\u044F\u0434\u043E\u043C \u0437\u0430\u0436\u0438\u0433\u0430\u0435\u0442
-  // \u0431\u043B\u0438\u0436\u043D\u044E\u044E \u043A \u043D\u0435\u0439 \u043A\u0440\u043E\u043C\u043A\u0443, \u0430 \u043F\u043E\u0441\u0440\u0435\u0434\u0438 \u043F\u0443\u0441\u0442\u043E\u0439 \u0447\u0435\u0440\u043D\u043E\u0442\u044B \u0441\u0442\u0435\u043A\u043B\u043E \u0447\u0435\u0441\u0442\u043D\u043E \u043E\u0441\u0442\u0430\u0451\u0442\u0441\u044F \u0442\u0451\u043C\u043D\u044B\u043C.
-  //
-  // \u0411\u0435\u0440\u0451\u0442\u0441\u044F \u041F\u041B\u041E\u0429\u0410\u0414\u041A\u041E\u0419, \u0430 \u043D\u0435 \u0442\u043E\u0447\u043A\u043E\u0439: \u043A\u0440\u0438\u0432\u0430\u044F \u043F\u043E\u0432\u0435\u0440\u0445\u043D\u043E\u0441\u0442\u044C \u0441\u043E\u0431\u0438\u0440\u0430\u0435\u0442 \u0446\u0435\u043B\u044B\u0439 \u0442\u0435\u043B\u0435\u0441\u043D\u044B\u0439 \u0443\u0433\u043E\u043B, \u0438 \u043E\u0434\u0438\u043D
-  // \u0441\u0434\u0432\u0438\u043D\u0443\u0442\u044B\u0439 \u043E\u0442\u0441\u0447\u0451\u0442 \u2014 \u044D\u0442\u043E \u0447\u0438\u0441\u0442\u044B\u0439 \u043F\u0435\u0440\u0435\u043D\u043E\u0441 \u0431\u0435\u0437 \u0441\u0436\u0430\u0442\u0438\u044F, \u0442\u043E \u0435\u0441\u0442\u044C \u043D\u0435\u0438\u0441\u043A\u0430\u0436\u0451\u043D\u043D\u0430\u044F \u041A\u041E\u041F\u0418\u042F \u0441\u043E\u0441\u0435\u0434\u043D\u0435\u0433\u043E
-  // \u0441\u043E\u0434\u0435\u0440\u0436\u0438\u043C\u043E\u0433\u043E \u0432\u043D\u0443\u0442\u0440\u0438 \u0441\u0442\u0435\u043A\u043B\u0430 (material-lab.md E-33).
-  float slope = vgBevelSlope(t);
-  float3 N = normalize(float3(n * slope, 1.0));
-  float fres = u_fresnel * pow(1.0 - clamp(N.z, 0.0, 1.0), u_fresnelPower);
-
-  // \u041E\u0442\u0440\u0430\u0436\u0435\u043D\u0438\u0435 \u0436\u0438\u0432\u0451\u0442 \u043D\u0430 \u0424\u0410\u0421\u041A\u0415: \u0432 \u043F\u043B\u043E\u0441\u043A\u043E\u0439 \u0441\u0435\u0440\u0435\u0434\u0438\u043D\u0435 \u0424\u0440\u0435\u043D\u0435\u043B\u044C \u0440\u0430\u0432\u0435\u043D \u043D\u0443\u043B\u044E \u043F\u043E \u043F\u043E\u0441\u0442\u0440\u043E\u0435\u043D\u0438\u044E, \u0438 \u0432\u043E\u0441\u0435\u043C\u044C
-  // \u0432\u044B\u0431\u043E\u0440\u043E\u043A \u0442\u0430\u043C \u0443\u0445\u043E\u0434\u0438\u043B\u0438 \u0431\u044B \u0432\u043F\u0443\u0441\u0442\u0443\u044E \u043F\u043E \u0432\u0441\u0435\u0439 \u043F\u043B\u043E\u0449\u0430\u0434\u0438 \u0434\u0435\u0442\u0430\u043B\u0438. \u0422\u0435\u043B\u0443 \u0434\u043E\u0441\u0442\u0430\u0442\u043E\u0447\u043D\u043E \u0441\u0440\u0435\u0434\u043D\u0435\u0439 \u0441\u0432\u0435\u0442\u043B\u043E\u0442\u044B
-  // \u043E\u043A\u0440\u0435\u0441\u0442\u043D\u043E\u0441\u0442\u0438 \u2014 \u0435\u0451 \u0438 \u0442\u0430\u043A \u043F\u043E\u0441\u0447\u0438\u0442\u0430\u043B \u0437\u043E\u043D\u0434, \u0431\u0435\u0441\u043F\u043B\u0430\u0442\u043D\u043E.
-  float3 refl;
-  if (t > 0.02) {
-    float2 around = u_center + p + n * (u_reflectReach * mix(0.35, 1.0, clamp(slope / 3.2, 0.0, 1.0)));
-    // \u0414\u0432\u0430 \u043A\u043E\u043B\u044C\u0446\u0430, \u0430 \u043D\u0435 \u043E\u0434\u043D\u043E: \u0447\u0435\u0442\u044B\u0440\u0435 \u043E\u0442\u0441\u0447\u0451\u0442\u0430 \u043D\u0430 \u0440\u0430\u0434\u0438\u0443\u0441\u0435 \u0441\u0431\u043E\u0440\u0430 \u0443\u0441\u0440\u0435\u0434\u043D\u044F\u044E\u0442 \u0441\u043B\u0438\u0448\u043A\u043E\u043C \u0433\u0440\u0443\u0431\u043E, \u0438
-    // \u0442\u0435\u043A\u0441\u0442, \u043B\u0435\u0436\u0430\u0449\u0438\u0439 \u0420\u042F\u0414\u041E\u041C \u0441\u043E \u0441\u0442\u0435\u043A\u043B\u043E\u043C, \u043E\u0441\u0442\u0430\u0432\u0430\u043B\u0441\u044F \u0447\u0438\u0442\u0430\u0435\u043C\u044B\u043C \u0432\u043D\u0443\u0442\u0440\u0438 \u043D\u0435\u0433\u043E (E-33 \u2014 \u0442\u0430\u043C \u0436\u0435 \u043F\u0440\u043E \u0442\u043E,
-    // \u043F\u043E\u0447\u0435\u043C\u0443 \u043E\u0434\u0438\u043D \u043E\u0442\u0441\u0447\u0451\u0442 \u0432\u043E\u043E\u0431\u0449\u0435 \u043D\u0435\u0434\u043E\u043F\u0443\u0441\u0442\u0438\u043C). \u0412\u043E\u0441\u0435\u043C\u044C \u043F\u043E \u0434\u0432\u0443\u043C \u0440\u0430\u0434\u0438\u0443\u0441\u0430\u043C \u0440\u0430\u0437\u043C\u044B\u0432\u0430\u044E\u0442 \u0444\u043E\u0440\u043C\u0443, \u043D\u043E
-    // \u0441\u043E\u0445\u0440\u0430\u043D\u044F\u044E\u0442 \u0446\u0432\u0435\u0442 \u043E\u043A\u0440\u0443\u0436\u0435\u043D\u0438\u044F, \u0440\u0430\u0434\u0438 \u043A\u043E\u0442\u043E\u0440\u043E\u0433\u043E \u0432\u0441\u0451 \u0438 \u0431\u0435\u0440\u0451\u0442\u0441\u044F.
-    float p1 = u_reflectReach * 0.75;
-    float p2 = u_reflectReach * 0.4;
-    float d = 0.7071;
-    float4 rsum = float4(content.eval(vgInContent(around + float2(p1, 0.0))))
-      + float4(content.eval(vgInContent(around - float2(p1, 0.0))))
-      + float4(content.eval(vgInContent(around + float2(0.0, p1))))
-      + float4(content.eval(vgInContent(around - float2(0.0, p1))))
-      + float4(content.eval(vgInContent(around + float2(p2, p2) * d)))
-      + float4(content.eval(vgInContent(around + float2(-p2, p2) * d)))
-      + float4(content.eval(vgInContent(around + float2(p2, -p2) * d)))
-      + float4(content.eval(vgInContent(around + float2(-p2, -p2) * d)));
-    float ra = rsum.a * 0.125;
-    refl = ra > 0.004 ? rsum.rgb * 0.125 / ra : float3(0.0);
-  } else {
-    // \u0412 \u0442\u0435\u043B\u0435 \u0432\u044B\u0431\u043E\u0440\u043A\u0438 \u043D\u0435 \u0431\u0435\u0440\u0451\u043C \u0432\u043E\u0432\u0441\u0435, \u0430 \u0447\u0442\u043E\u0431\u044B \u043D\u0430 \u0433\u0440\u0430\u043D\u0438\u0446\u0435 \u0432\u0435\u0442\u0432\u0435\u0439 \u043D\u0435 \u043F\u043E\u044F\u0432\u0438\u043B\u0441\u044F \u0432\u0438\u0434\u0438\u043C\u044B\u0439 \u0441\u0435\u0440\u043F,
-    // \u0437\u0434\u0435\u0441\u044C \u0441\u0442\u043E\u0438\u0442 \u0440\u043E\u0432\u043D\u043E \u0442\u043E, \u0432\u043E \u0447\u0442\u043E \u043F\u0435\u0440\u0435\u0445\u043E\u0434\u0438\u0442 \u0441\u043C\u0435\u0441\u044C \u043D\u0438\u0436\u0435.
-    refl = u_probeLuma >= 0.0 ? u_probe : rgb;
-  }
-
-  // \u0421\u0432\u0435\u0442, \u0434\u043E\u0445\u043E\u0434\u044F\u0449\u0438\u0439 \u0434\u043E \u0442\u0435\u043B\u0430, \u043E\u0431\u044F\u0437\u0430\u043D \u0431\u044B\u0442\u044C \u0413\u041B\u0410\u0414\u041A\u0418\u041C \u043F\u043E \u0432\u0441\u0435\u0439 \u0434\u0435\u0442\u0430\u043B\u0438: \u043E\u043D \u0432\u0438\u0434\u0435\u043D \u043D\u0430 \u0432\u0441\u0435\u0439 \u043F\u043B\u043E\u0449\u0430\u0434\u0438,
-  // \u0430 \u0432\u044B\u0431\u043E\u0440\u043A\u0430 \u043E\u043A\u0440\u0435\u0441\u0442\u043D\u043E\u0441\u0442\u0438 \u0436\u0438\u0432\u0451\u0442 \u0442\u043E\u043B\u044C\u043A\u043E \u043D\u0430 \u0444\u0430\u0441\u043A\u0435. \u0421\u043C\u0435\u0441\u044C \u043D\u0435\u043F\u0440\u0435\u0440\u044B\u0432\u043D\u0430 \u043F\u043E \u043F\u043E\u0441\u0442\u0440\u043E\u0435\u043D\u0438\u044E \u2014 \u043F\u0440\u0438
-  // t \u2264 0.02 refl \u0438 \u0435\u0441\u0442\u044C \u043E\u0446\u0435\u043D\u043A\u0430 \u0437\u043E\u043D\u0434\u0430.
-  float3 ambient = mix(u_probeLuma >= 0.0 ? u_probe : rgb, refl, smoothstep(0.0, 0.2, t));
-
-  // \u0421\u041F\u0415\u041A\u0422\u0420\u0410\u041B\u042C\u041D\u0410\u042F \u041A\u0420\u041E\u041C\u041A\u0410. \u0418\u043D\u0442\u0435\u0440\u0444\u0435\u0440\u0435\u043D\u0446\u0438\u044F \u0438 \u0434\u0438\u0444\u0440\u0430\u043A\u0446\u0438\u044F \u2014 \u043E\u0431\u0430 \u0432\u043E\u043B\u043D\u043E\u0432\u044B\u0435, \u043E\u0431\u0430 \u0436\u0438\u0432\u0443\u0442 \u0432 \u043E\u0442\u0440\u0430\u0436\u0451\u043D\u043D\u043E\u043C
-  // \u043B\u0443\u0447\u0435 \u0438 \u043E\u0431\u0430 \u0437\u0430\u043C\u0435\u0442\u043D\u044B \u0442\u043E\u043B\u044C\u043A\u043E \u043D\u0430 \u0441\u043A\u043E\u043B\u044C\u0437\u044F\u0449\u0435\u043C \u0443\u0433\u043B\u0435. \u041F\u043E\u044D\u0442\u043E\u043C\u0443 \u044D\u0442\u043E \u043E\u0434\u0438\u043D \u043C\u043D\u043E\u0436\u0438\u0442\u0435\u043B\u044C \u041E\u0422\u0422\u0415\u041D\u041A\u0410 \u043A
-  // \u043E\u0442\u0440\u0430\u0436\u0435\u043D\u0438\u044E: ALU \u0431\u0435\u0437 \u0435\u0434\u0438\u043D\u043E\u0439 \u043B\u0438\u0448\u043D\u0435\u0439 \u0432\u044B\u0431\u043E\u0440\u043A\u0438 \u0442\u0435\u043A\u0441\u0442\u0443\u0440\u044B.
-  float3 spectral = float3(1.0);
-  if (u_iridescence > 0.001) {
-    spectral *= mix(float3(1.0), vgInterference(clamp(N.z, 0.0, 1.0)), u_iridescence);
-  }
-  if (u_diffraction > 0.001) {
-    // \u041F\u043E\u043B\u043E\u0441\u044B \u0436\u0438\u0432\u0443\u0442 \u0443 \u0441\u0430\u043C\u043E\u0439 \u043A\u0440\u043E\u043C\u043A\u0438: \u0434\u0430\u043B\u044C\u0448\u0435 \u0432 \u0442\u043E\u043B\u0449\u0435 \u0440\u0430\u0437\u043D\u043E\u0441\u0442\u044C \u0445\u043E\u0434\u0430 \u0442\u0435\u0440\u044F\u0435\u0442 \u043A\u043E\u0433\u0435\u0440\u0435\u043D\u0442\u043D\u043E\u0441\u0442\u044C.
-    float w = u_diffraction * smoothstep(0.45, 1.0, t);
-    spectral *= mix(float3(1.0), vgDiffraction((1.0 - t) * bevel, bevel), w);
-  }
-  // \u0421\u043F\u0435\u043A\u0442\u0440 \u0434\u043E\u043C\u0435\u0448\u0438\u0432\u0430\u0435\u0442\u0441\u044F \u0422\u041E\u041B\u042C\u041A\u041E \u0432 \u0437\u0435\u0440\u043A\u0430\u043B\u044C\u043D\u0443\u044E \u0447\u0430\u0441\u0442\u044C. \u0420\u0430\u043D\u044C\u0448\u0435 \u043E\u043D \u043C\u043D\u043E\u0436\u0438\u043B refl \u0446\u0435\u043B\u0438\u043A\u043E\u043C, \u0430 \u0442\u043E\u0442 \u0436\u0435
-  // refl \u0443\u0445\u043E\u0434\u0438\u0442 \u043F\u043E\u0442\u043E\u043C \u0432 \u043F\u043E\u0434\u0441\u0432\u0435\u0442\u043A\u0443 \u0442\u0435\u043B\u0430 \u2014 \u0438 \u043F\u0435\u0440\u0435\u043B\u0438\u0432\u044B \u043F\u043B\u0451\u043D\u043A\u0438 \u043A\u0440\u0430\u0441\u0438\u043B\u0438 \u0432\u0441\u044E \u0434\u0435\u0442\u0430\u043B\u044C \u0432 \u0446\u0432\u0435\u0442
-  // \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0440\u0435\u043D\u0446\u0438\u0438, \u0445\u043E\u0442\u044F \u0436\u0438\u0432\u0443\u0442 \u043E\u043D\u0438 \u0432 \u043E\u0442\u0440\u0430\u0436\u0451\u043D\u043D\u043E\u043C \u043B\u0443\u0447\u0435 \u043D\u0430 \u0441\u043A\u043E\u043B\u044C\u0437\u044F\u0449\u0435\u043C \u0443\u0433\u043B\u0435.
-  rgb = mix(rgb, refl * spectral, fres);
-
-  // \u041E\u0426\u0415\u041D\u041A\u0410 \u0424\u041E\u041D\u0410. \u041F\u0440\u0438\u0445\u043E\u0434\u0438\u0442 \u0438\u0437 \u043D\u0430\u0442\u0438\u0432\u043D\u043E\u0433\u043E \u0437\u043E\u043D\u0434\u0430 \u043E\u0434\u043D\u043E\u0439 \u0432\u0435\u043B\u0438\u0447\u0438\u043D\u043E\u0439 \u043D\u0430 \u0432\u0441\u044E \u043F\u043E\u0432\u0435\u0440\u0445\u043D\u043E\u0441\u0442\u044C: \u043E\u043D
-  // \u0440\u0435\u043D\u0434\u0435\u0440\u0438\u0442 \u0437\u0430\u0445\u0432\u0430\u0442 \u0432 \u0441\u0435\u0442\u043A\u0443 16\xD732 \u0438 \u0443\u0441\u0440\u0435\u0434\u043D\u044F\u0435\u0442 \u043F\u0440\u044F\u043C\u043E\u0443\u0433\u043E\u043B\u044C\u043D\u0438\u043A \u044D\u0442\u043E\u0433\u043E \u0441\u0442\u0435\u043A\u043B\u0430.
-  //
-  // \u0421\u0447\u0438\u0442\u0430\u0442\u044C \u0435\u0451 \u0437\u0434\u0435\u0441\u044C \u043F\u043E \u043E\u0442\u0441\u0447\u0451\u0442\u0430\u043C \u041D\u0415\u041B\u042C\u0417\u042F, \u0438 \u044D\u0442\u043E \u043D\u0435 \u043F\u0440\u043E \u044D\u043A\u043E\u043D\u043E\u043C\u0438\u044E. \u041F\u043B\u043E\u0442\u043D\u043E\u0441\u0442\u044C \u0442\u0435\u043B\u0430 \u2014 \u043D\u0435\u043B\u0438\u043D\u0435\u0439\u043D\u0430\u044F
-  // \u0444\u0443\u043D\u043A\u0446\u0438\u044F \u0441\u0432\u0435\u0442\u043B\u043E\u0442\u044B \u0441 \u0438\u0437\u043B\u043E\u043C\u043E\u043C: \u0442\u0430\u043C, \u0433\u0434\u0435 \u043E\u0442\u0441\u0447\u0451\u0442 \u0437\u0430\u0435\u0437\u0436\u0430\u043B \u043D\u0430 \u0431\u0443\u043A\u0432\u0443 \u043F\u043E\u0434 \u0441\u0442\u0435\u043A\u043B\u043E\u043C, \u043E\u0446\u0435\u043D\u043A\u0430 \u043F\u0440\u044B\u0433\u0430\u043B\u0430,
-  // \u0430 \u0441 \u043D\u0435\u0439 \u043F\u0440\u044B\u0433\u0430\u043B\u0430 \u0438 \u043F\u043B\u043E\u0442\u043D\u043E\u0441\u0442\u044C. \u041D\u0430 \u044D\u043A\u0440\u0430\u043D\u0435 \u044D\u0442\u043E \u0432\u044B\u0433\u043B\u044F\u0434\u0435\u043B\u043E \u043F\u0440\u0438\u0437\u0440\u0430\u0447\u043D\u044B\u043C\u0438 \u043A\u043E\u043F\u0438\u044F\u043C\u0438 \u0442\u0435\u043A\u0441\u0442\u0430 \u043D\u0430
-  // \u0440\u0430\u0441\u0441\u0442\u043E\u044F\u043D\u0438\u0438 \u0440\u0430\u0434\u0438\u0443\u0441\u0430 \u0432\u044B\u0431\u043E\u0440\u043A\u0438 \u2014 \u0440\u043E\u0432\u043D\u043E \u0442\u0430 \u0433\u0440\u0435\u0431\u0451\u043D\u043A\u0430, \u0447\u0442\u043E \u0438 \u0432 E-31, \u0442\u043E\u043B\u044C\u043A\u043E \u043F\u043E \u043F\u043B\u043E\u0442\u043D\u043E\u0441\u0442\u0438,
-  // \u0430 \u043D\u0435 \u043F\u043E \u0446\u0432\u0435\u0442\u0443. \u041D\u0438\u043A\u0430\u043A\u043E\u0435 \u0447\u0438\u0441\u043B\u043E \u043E\u0442\u0441\u0447\u0451\u0442\u043E\u0432 \u0435\u0451 \u043D\u0435 \u0443\u0431\u0438\u0440\u0430\u0435\u0442: \u043E\u043D\u0430 \u0432 \u0441\u0430\u043C\u043E\u0439 \u0434\u0438\u0441\u043A\u0440\u0435\u0442\u043D\u043E\u0441\u0442\u0438 \u043E\u0446\u0435\u043D\u043A\u0438.
-  //
-  // \u0417\u0430\u043E\u0434\u043D\u043E \u044D\u0442\u043E \u0434\u0435\u0448\u0435\u0432\u043B\u0435 \u043D\u0430 \u0447\u0435\u0442\u044B\u0440\u0435 \u0432\u044B\u0431\u043E\u0440\u043A\u0438 \u0442\u0435\u043A\u0441\u0442\u0443\u0440\u044B \u0441 \u043F\u0438\u043A\u0441\u0435\u043B\u044F \u0438 \u043C\u0435\u0434\u043B\u0435\u043D\u043D\u0435\u0435 \u043F\u043E \u0432\u0440\u0435\u043C\u0435\u043D\u0438 \u2014
-  // \u0430\u0434\u0430\u043F\u0442\u0430\u0446\u0438\u044F \u043E\u0431\u044F\u0437\u0430\u043D\u0430 \u0431\u044B\u0442\u044C \u043D\u0435\u0437\u0430\u043C\u0435\u0442\u043D\u043E\u0439, \u0430 \u043D\u0435 \u043C\u0433\u043D\u043E\u0432\u0435\u043D\u043D\u043E\u0439.
-  float3 wide;
-  float busy;
-  if (u_probeLuma >= 0.0) {
-    wide = u_probe;
-    busy = u_probeBusy;
-  } else {
-    // \u0417\u043E\u043D\u0434 \u0435\u0449\u0451 \u043D\u0435 \u043E\u0442\u0447\u0438\u0442\u0430\u043B\u0441\u044F (\u043F\u0435\u0440\u0432\u044B\u0435 \u043A\u0430\u0434\u0440\u044B) \u2014 \u0434\u0435\u0440\u0436\u0438\u043C\u0441\u044F \u043D\u0430 \u0441\u0432\u043E\u0438\u0445 \u043E\u0442\u0441\u0447\u0451\u0442\u0430\u0445, \u0447\u0442\u043E\u0431\u044B \u0441\u0442\u0435\u043A\u043B\u043E \u043D\u0435
-    // \u043C\u0438\u0433\u043D\u0443\u043B\u043E \u043D\u0435\u043F\u0440\u043E\u0437\u0440\u0430\u0447\u043D\u044B\u043C \u043D\u0430 \u0441\u0442\u0430\u0440\u0442\u0435.
-    float2 wx = float2(u_adaptRadius, 0.0);
-    float2 wy = float2(0.0, u_adaptRadius);
-    float3 w0 = vgUnpack(content.eval(vgInContent(s + wx)));
-    float3 w1 = vgUnpack(content.eval(vgInContent(s - wx)));
-    float3 w2 = vgUnpack(content.eval(vgInContent(s + wy)));
-    float3 w3 = vgUnpack(content.eval(vgInContent(s - wy)));
-    wide = (w0 + w1 + w2 + w3) * 0.25;
-    float lw = vgLuma(wide);
-    busy = max(max(abs(vgLuma(w0) - lw), abs(vgLuma(w1) - lw)),
-               max(abs(vgLuma(w2) - lw), abs(vgLuma(w3) - lw)));
-  }
-  // \u0421\u0432\u0435\u0442\u043B\u043E\u0442\u0430 \u0432 \u042D\u0422\u041E\u041C \u043C\u0435\u0441\u0442\u0435 \u043F\u043E\u0432\u0435\u0440\u0445\u043D\u043E\u0441\u0442\u0438, \u0430 \u043D\u0435 \u0441\u0440\u0435\u0434\u043D\u044F\u044F \u043F\u043E \u043D\u0435\u0439: \u043F\u043B\u043E\u0441\u043A\u043E\u0441\u0442\u044C \u0437\u043E\u043D\u0434\u0430, \u0437\u0430\u0436\u0430\u0442\u0430\u044F \u0432
-  // \u0438\u0437\u043C\u0435\u0440\u0435\u043D\u043D\u044B\u0439 \u0434\u0438\u0430\u043F\u0430\u0437\u043E\u043D, \u0447\u0442\u043E\u0431\u044B \u043D\u0430\u043A\u043B\u043E\u043D \u043D\u0435 \u0443\u0432\u043E\u0434\u0438\u043B \u043E\u0446\u0435\u043D\u043A\u0443 \u0437\u0430 \u043F\u0440\u0435\u0434\u0435\u043B\u044B \u0442\u043E\u0433\u043E, \u0447\u0442\u043E \u043F\u043E\u0434 \u0441\u0442\u0435\u043A\u043B\u043E\u043C \u0435\u0441\u0442\u044C.
-  float2 nrm = p / max(u_halfSize, float2(1.0));
-  float lumWide = u_probeLuma >= 0.0
-    ? clamp(u_probeLuma + dot(u_probeSlope, nrm), u_probeRange.x, u_probeRange.y)
-    : vgLuma(wide);
-
-  // \u0410\u0414\u0410\u041F\u0422\u0418\u0412\u041D\u041E\u0415 \u0420\u0410\u0421\u0421\u0415\u042F\u041D\u0418\u0415. \u041C\u0443\u0442\u0438\u0442\u044C \u0444\u043E\u043D \u043D\u0443\u0436\u043D\u043E \u0440\u043E\u0432\u043D\u043E \u0442\u0430\u043C, \u0433\u0434\u0435 \u043E\u043D \u043F\u0451\u0441\u0442\u0440\u044B\u0439: \u043D\u0430 \u0440\u043E\u0432\u043D\u043E\u0439 \u0437\u0430\u043B\u0438\u0432\u043A\u0435
-  // \u0440\u0430\u0437\u043C\u044B\u0442\u0438\u0435 \u043D\u0438\u0447\u0435\u0433\u043E \u043D\u0435 \u0434\u0430\u0451\u0442, \u0430 \u043D\u0430 \u0442\u0435\u043A\u0441\u0442\u0435 \u0438 \u043E\u0431\u043B\u043E\u0436\u043A\u0435 \u043E\u043D\u043E \u0438 \u0435\u0441\u0442\u044C \u0442\u043E, \u0447\u0442\u043E \u0434\u0435\u043B\u0430\u0435\u0442 \u043D\u0430\u0434\u043F\u0438\u0441\u044C \u043F\u043E\u0432\u0435\u0440\u0445
-  // \u0447\u0438\u0442\u0430\u0435\u043C\u043E\u0439. \u0421\u043C\u0435\u0448\u0438\u0432\u0430\u0442\u044C \u0441 \u0447\u0435\u0442\u044B\u0440\u044C\u043C\u044F \u0448\u0438\u0440\u043E\u043A\u0438\u043C\u0438 \u043E\u0442\u0441\u0447\u0451\u0442\u0430\u043C\u0438 \u041D\u0415\u041B\u042C\u0417\u042F \u2014 \u044D\u0442\u043E \u0433\u0440\u0435\u0431\u0451\u043D\u043A\u0430, \u0430 \u043D\u0435 \u0440\u0430\u0437\u043C\u044B\u0442\u0438\u0435:
-  // \u043D\u0430 \u0432\u044B\u0445\u043E\u0434\u0435 \u0447\u0435\u0442\u044B\u0440\u0435 \u0441\u043C\u0435\u0449\u0451\u043D\u043D\u044B\u0435 \u043A\u043E\u043F\u0438\u0438 (material-lab.md E-31). \u0428\u0438\u0440\u043E\u043A\u0438\u0435 \u043E\u0442\u0441\u0447\u0451\u0442\u044B \u0433\u043E\u0434\u044F\u0442\u0441\u044F \u0442\u043E\u043B\u044C\u043A\u043E
-  // \u043D\u0430 \u041E\u0426\u0415\u041D\u041A\u0423; \u0432\u0438\u0434\u0438\u043C\u043E\u0435 \u0440\u0430\u0437\u043C\u044B\u0442\u0438\u0435 \u0434\u0435\u043B\u0430\u0435\u0442 \u0447\u0435\u0441\u0442\u043D\u044B\u0439 \u0434\u0438\u0441\u043A\u043E\u0432\u044B\u0439 \u0441\u0431\u043E\u0440 \u043F\u043E \u0441\u043F\u0438\u0440\u0430\u043B\u0438.
-  //
-  // \u0420\u0430\u0441\u0441\u0435\u044F\u043D\u0438\u0435 \u0436\u0438\u0432\u0451\u0442 \u0432 \u0422\u041E\u041B\u0429\u0415, \u0430 \u043D\u0435 \u0432 \u043A\u0440\u043E\u043C\u043A\u0435: \u0443 \u0444\u0430\u0441\u043A\u0438 \u0440\u0430\u0431\u043E\u0442\u0430 \u0434\u0440\u0443\u0433\u0430\u044F \u2014 \u0433\u043D\u0443\u0442\u044C \u043B\u0443\u0447 \u0438 \u0440\u0430\u0441\u0449\u0435\u043F\u043B\u044F\u0442\u044C
-  // \u0435\u0433\u043E. \u0420\u0430\u0437\u043C\u044B\u0432\u0430\u044F \u0434\u0435\u0442\u0430\u043B\u044C \u0446\u0435\u043B\u0438\u043A\u043E\u043C, \u0430\u0434\u0430\u043F\u0442\u0430\u0446\u0438\u044F \u0441\u044A\u0435\u0434\u0430\u043B\u0430 \u0438 \u0434\u0438\u0441\u043F\u0435\u0440\u0441\u0438\u044E, \u0438 \u043F\u043E\u0434\u0445\u0432\u0430\u0442 \u0446\u0432\u0435\u0442\u0430.
-  // \u0420\u0430\u0441\u0441\u0435\u044F\u043D\u0438\u0435 \u0438\u0434\u0451\u0442 \u043E\u0442 \u0434\u0432\u0443\u0445 \u043F\u0440\u0438\u0447\u0438\u043D: \u043E\u0442 \u0440\u0430\u0437\u043C\u0430\u0445\u0430 \u0444\u043E\u043D\u0430 (\u043C\u0443\u0442\u0438\u0442\u044C \u0435\u0441\u0442\u044C \u0441\u043C\u044B\u0441\u043B \u0442\u0430\u043C, \u0433\u0434\u0435 \u043F\u043E\u0434 \u0441\u0442\u0435\u043A\u043B\u043E\u043C
-  // \u0420\u0410\u0417\u041D\u041E\u0415) \u0438 \u043E\u0442 \u0448\u0435\u0440\u043E\u0445\u043E\u0432\u0430\u0442\u043E\u0441\u0442\u0438 \u043F\u043E\u0432\u0435\u0440\u0445\u043D\u043E\u0441\u0442\u0438. \u041E\u0431\u0435 \u0436\u0438\u0432\u0443\u0442 \u0432 \u043E\u0434\u043D\u043E\u043C \u0434\u0438\u0441\u043A\u043E\u0432\u043E\u043C \u0441\u0431\u043E\u0440\u0435.
-  //
-  // \u041E\u043D\u043E \u041E\u0414\u041D\u041E \u0418 \u0422\u041E \u0416\u0415 \u043F\u043E \u0432\u0441\u0435\u0439 \u043B\u0438\u043D\u0437\u0435. \u0420\u0430\u043D\u044C\u0448\u0435 \u0437\u0434\u0435\u0441\u044C \u0441\u0442\u043E\u044F\u043B \u043C\u043D\u043E\u0436\u0438\u0442\u0435\u043B\u044C, \u0433\u0430\u0441\u0438\u0432\u0448\u0438\u0439 \u0440\u0430\u0441\u0441\u0435\u044F\u043D\u0438\u0435 \u043A
-  // \u0444\u0430\u0441\u043A\u0435, \u2014 \u0438 \u0434\u0435\u0442\u0430\u043B\u044C \u0447\u0438\u0442\u0430\u043B\u0430\u0441\u044C \u043A\u0430\u043A \u0448\u0430\u0440 \u0441 \u043C\u0443\u0442\u043D\u043E\u0439 \u0441\u0435\u0440\u0435\u0434\u0438\u043D\u043E\u0439 \u0438 \u0440\u0435\u0437\u043A\u0438\u043C \u043E\u0431\u043E\u0434\u043A\u043E\u043C: \u0434\u0432\u0430 \u0440\u0430\u0437\u043D\u044B\u0445
-  // \u0441\u0442\u0435\u043A\u043B\u0430 \u0432 \u043E\u0434\u043D\u043E\u0439 \u0444\u043E\u0440\u043C\u0435. \u041B\u0438\u043D\u0437\u0430 \u043E\u0431\u044F\u0437\u0430\u043D\u0430 \u0431\u044B\u0442\u044C \u043E\u0434\u043D\u043E\u0440\u043E\u0434\u043D\u043E\u0439 \u0441\u0440\u0435\u0434\u043E\u0439; \u0437\u0430 \u0440\u0435\u0437\u043A\u043E\u0441\u0442\u044C \u043A\u0440\u043E\u043C\u043A\u0438 \u043E\u0442\u0432\u0435\u0447\u0430\u0435\u0442
-  // \u0433\u0435\u043E\u043C\u0435\u0442\u0440\u0438\u044F, \u0430 \u043D\u0435 \u0440\u0430\u0437\u043D\u043E\u0435 \u043A\u043E\u043B\u0438\u0447\u0435\u0441\u0442\u0432\u043E \u043C\u0443\u0442\u0438 \u0432 \u0440\u0430\u0437\u043D\u044B\u0445 \u0435\u0451 \u043C\u0435\u0441\u0442\u0430\u0445.
-  //
-  // \u0412\u0435\u043B\u0438\u0447\u0438\u043D\u0430 \u043D\u0430\u043C\u0435\u0440\u0435\u043D\u043D\u043E \u0421\u041B\u0410\u0411\u0410\u042F. \u0420\u0430\u0437\u043C\u044B\u0442\u0438\u0435 \u0437\u0434\u0435\u0441\u044C \u0432\u0441\u043F\u043E\u043C\u043E\u0433\u0430\u0442\u0435\u043B\u044C\u043D\u043E\u0435: \u043E\u043D\u043E \u0441\u043C\u044F\u0433\u0447\u0430\u0435\u0442 \u0444\u0430\u043A\u0442\u0443\u0440\u0443 \u043F\u043E\u0434
-  // \u043D\u0430\u0434\u043F\u0438\u0441\u044C\u044E, \u043D\u043E \u0440\u0430\u0437\u0432\u043E\u0434\u0438\u0442 \u0441\u0432\u0435\u0442\u043B\u043E\u0442\u0443 \u043D\u0435 \u043E\u043D\u043E, \u0430 \u043F\u043B\u043E\u0442\u043D\u043E\u0441\u0442\u044C \u0442\u0435\u043B\u0430. \u0414\u0430\u0439 \u0435\u043C\u0443 \u0432\u043E\u043B\u044E \u2014 \u0438 \u0431\u0443\u043A\u0432\u044B \u043F\u043E\u0434
-  // \u0441\u0442\u0435\u043A\u043B\u043E\u043C \u043F\u0440\u0435\u0432\u0440\u0430\u0449\u0430\u044E\u0442\u0441\u044F \u0432 \u043A\u0430\u0448\u0443 \u0438\u0437 \u043F\u0438\u043A\u0441\u0435\u043B\u0435\u0439, \u0447\u0435\u0433\u043E \u043D\u0438\u043A\u0430\u043A\u0430\u044F \u0447\u0438\u0442\u0430\u0435\u043C\u043E\u0441\u0442\u044C \u043D\u0435 \u0441\u0442\u043E\u0438\u0442.
-  // \u041F\u043E\u0442\u043E\u043B\u043E\u043A \u0436\u0451\u0441\u0442\u043A\u0438\u0439 \u0438 \u043D\u0438\u0437\u043A\u0438\u0439. \u0424\u043E\u0440\u043C\u0443\u043B\u0430 \u0440\u0430\u0441\u0442\u0451\u0442 \u043A\u0430\u043A legibility \xD7 adaptRadius, \u0438 \u043D\u0430 \u043F\u0430\u043D\u0435\u043B\u0438 \u0441
-  // legibility 0.95 \u0434\u0430\u0432\u0430\u043B\u0430 10.5 dp \u2014 \u0440\u043E\u0432\u043D\u043E \u0442\u0430 \u043A\u0430\u0448\u0430, \u043E \u043A\u043E\u0442\u043E\u0440\u043E\u0439 \u043F\u0440\u0435\u0434\u0443\u043F\u0440\u0435\u0436\u0434\u0430\u0435\u0442 \u0430\u0431\u0437\u0430\u0446 \u0432\u044B\u0448\u0435:
-  // \u043E\u0431\u043B\u043E\u0436\u043A\u0430 \u043F\u043E\u0434 \u0442\u0435\u043A\u0441\u0442\u043E\u043C \u043F\u0440\u0435\u0432\u0440\u0430\u0449\u0430\u043B\u0430\u0441\u044C \u0432 \u043C\u0443\u0442\u043D\u043E\u0435 \u043F\u044F\u0442\u043D\u043E, \u0438 \u044D\u0442\u043E \u043F\u0440\u0438\u043D\u0438\u043C\u0430\u043B\u0438 \u0437\u0430 \u043F\u043B\u043E\u0445\u043E\u0435 \u043F\u0440\u0435\u043B\u043E\u043C\u043B\u0435\u043D\u0438\u0435.
-  // \u0427\u0438\u0442\u0430\u0435\u043C\u043E\u0441\u0442\u044C \u043E\u0431\u044F\u0437\u0430\u043D\u0430 \u043D\u0430\u0431\u0438\u0440\u0430\u0442\u044C\u0441\u044F \u041F\u041B\u041E\u0422\u041D\u041E\u0421\u0422\u042C\u042E \u0442\u0435\u043B\u0430 (busyFloor \u043D\u0438\u0436\u0435), \u0430 \u043D\u0435 \u0440\u0430\u0437\u043C\u044B\u0442\u0438\u0435\u043C.
-  //
-  // \u041E\u0422\u041A\u041B\u0418\u041A \u041D\u0410 \u0421\u0422\u0420\u0423\u041A\u0422\u0423\u0420\u0423 \u041D\u0410\u0421\u042B\u0429\u0410\u0415\u0422\u0421\u042F, \u0430 \u043D\u0435 \u0440\u0430\u0441\u0442\u0451\u0442 \u043B\u0438\u043D\u0435\u0439\u043D\u043E \u043F\u043E \u0441\u0440\u0435\u0434\u043D\u0435\u043C\u0443 \u043E\u0442\u043A\u043B\u043E\u043D\u0435\u043D\u0438\u044E. \u0421\u043F\u043E\u0440\u0438\u0442
-  // \u0441 \u043D\u0430\u0434\u043F\u0438\u0441\u044C\u044E \u043D\u0435
-  // \u043F\u043B\u043E\u0449\u0430\u0434\u044C \u0441\u0442\u0440\u0443\u043A\u0442\u0443\u0440\u044B, \u0430 \u0441\u0430\u043C \u0444\u0430\u043A\u0442 \u0435\u0451 \u043D\u0430\u043B\u0438\u0447\u0438\u044F: \u0441\u0442\u0440\u043E\u043A\u0430 \u0442\u0435\u043A\u0441\u0442\u0430 \u043F\u043E\u0434 \u0441\u0442\u0435\u043A\u043B\u043E\u043C \u0437\u0430\u043D\u0438\u043C\u0430\u0435\u0442 \u043F\u0440\u043E\u0446\u0435\u043D\u0442\u044B
-  // \u043F\u043B\u043E\u0449\u0430\u0434\u0438, \u0438 \u0432 \u0441\u0440\u0435\u0434\u043D\u0435\u043C \u043E\u0442\u043A\u043B\u043E\u043D\u0435\u043D\u0438\u0438 \u043E\u043D\u0430 \u0432\u0441\u0435\u0433\u0434\u0430 \u043C\u0430\u043B\u0430 \u2014 \u043B\u0438\u043D\u0435\u0439\u043D\u044B\u0439 \u043E\u0442\u043A\u043B\u0438\u043A \u043E\u0431\u0441\u043B\u0443\u0436\u0438\u0432\u0430\u043B \u0440\u043E\u0432\u043D\u043E \u0442\u043E\u0442
-  // \u0441\u043B\u0443\u0447\u0430\u0439, \u0440\u0430\u0434\u0438 \u043A\u043E\u0442\u043E\u0440\u043E\u0433\u043E \u0447\u0438\u0442\u0430\u0435\u043C\u043E\u0441\u0442\u044C \u0438 \u0437\u0430\u0432\u0435\u0434\u0435\u043D\u0430, \u0445\u0443\u0436\u0435 \u0432\u0441\u0435\u0433\u043E. \u0417\u0430\u043C\u0435\u0440: \u043F\u043E\u0434 \u043F\u043B\u0430\u0448\u043A\u043E\u0439 \u0441 \u043F\u0440\u043E\u0435\u0437\u0436\u0430\u044E\u0449\u0438\u043C
-  // \u0441\u043F\u0438\u0441\u043A\u043E\u043C busy = 0.12 \u0434\u0430\u0432\u0430\u043B 1.3 dp \u0440\u0430\u0441\u0441\u0435\u044F\u043D\u0438\u044F, \u0438 \u0442\u0435\u043A\u0441\u0442 \u0447\u0438\u0442\u0430\u043B\u0441\u044F \u0441\u043A\u0432\u043E\u0437\u044C \u0441\u0442\u0435\u043A\u043B\u043E \u043D\u0430\u0440\u0430\u0432\u043D\u0435 \u0441 \u0435\u0451
-  // \u0441\u043E\u0431\u0441\u0442\u0432\u0435\u043D\u043D\u043E\u0439 \u043D\u0430\u0434\u043F\u0438\u0441\u044C\u044E. \u041F\u043E\u0442\u043E\u043B\u043E\u043A \u043F\u0440\u0438 \u044D\u0442\u043E\u043C \u043E\u0441\u0442\u0430\u0451\u0442\u0441\u044F \u0438 \u043E\u0441\u0442\u0430\u0451\u0442\u0441\u044F \u043D\u0438\u0437\u043A\u0438\u043C \u2014 \u043E\u043D \u0438 \u0437\u0430\u0449\u0438\u0449\u0430\u0435\u0442
-  // \u043E\u0431\u043B\u043E\u0436\u043A\u0443 \u043E\u0442 \u043F\u0440\u0435\u0432\u0440\u0430\u0449\u0435\u043D\u0438\u044F \u0432 \u043A\u0430\u0448\u0443.
-  float structure = 1.0 - exp(-busy * VG_STRUCTURE_GAIN);
-  // \u0420\u0410\u0414\u0418\u0423\u0421 \u041C\u0415\u0420\u042F\u0415\u0422\u0421\u042F \u0412 \u0424\u041E\u041D\u0415, \u0410 \u041D\u0415 \u041D\u0410 \u042D\u041A\u0420\u0410\u041D\u0415. \u0423 \u0444\u0430\u0441\u043A\u0438 \u043B\u0438\u043D\u0437\u0430 \u0441\u0436\u0438\u043C\u0430\u0435\u0442 \u0444\u043E\u043D: \u0448\u0438\u0440\u043E\u043A\u0430\u044F \u043F\u043E\u043B\u043E\u0441\u0430
-  // \u0441\u043E\u0434\u0435\u0440\u0436\u0438\u043C\u043E\u0433\u043E \u0443\u043A\u043B\u0430\u0434\u044B\u0432\u0430\u0435\u0442\u0441\u044F \u0432 \u0443\u0437\u043A\u0443\u044E \u043F\u043E\u043B\u043E\u0441\u043A\u0443 \u044D\u043A\u0440\u0430\u043D\u0430, \u0438 footprint \u2014 \u044D\u0442\u043E \u0440\u043E\u0432\u043D\u043E \u0441\u043A\u043E\u0440\u043E\u0441\u0442\u044C
-  // \u0441\u0436\u0430\u0442\u0438\u044F, \u043E\u043D\u0430 \u0443\u0436\u0435 \u043F\u043E\u0441\u0447\u0438\u0442\u0430\u043D\u0430 \u0432\u044B\u0448\u0435 \u0434\u043B\u044F \u043F\u043B\u043E\u0449\u0430\u0434\u043D\u043E\u0433\u043E \u0438\u043D\u0442\u0435\u0433\u0440\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F. \u0420\u0430\u0434\u0438\u0443\u0441, \u0437\u0430\u0434\u0430\u043D\u043D\u044B\u0439 \u0432
-  // \u044D\u043A\u0440\u0430\u043D\u043D\u044B\u0445 \u043F\u0438\u043A\u0441\u0435\u043B\u044F\u0445, \u0443 \u0444\u0430\u0441\u043A\u0438 \u043F\u043E\u043A\u0440\u044B\u0432\u0430\u0435\u0442 \u0432 (1 + footprint) \u0440\u0430\u0437 \u043C\u0435\u043D\u044C\u0448\u0435 \u0444\u043E\u043D\u0430, \u0447\u0435\u043C \u0432 \u043F\u043B\u043E\u0441\u043A\u043E\u0439
-  // \u0441\u0435\u0440\u0435\u0434\u0438\u043D\u0435, \u2014 \u0438 \u0441\u0442\u0440\u0443\u043A\u0442\u0443\u0440\u0430, \u043A\u043E\u0442\u043E\u0440\u0443\u044E \u0432 \u0442\u0435\u043B\u0435 \u0440\u0430\u0441\u0441\u0435\u044F\u043D\u0438\u0435 \u0443\u0431\u0438\u0440\u0430\u043B\u043E, \u0443 \u043A\u0440\u043E\u043C\u043A\u0438 \u0432\u044B\u0436\u0438\u0432\u0430\u043B\u0430 \u0438 \u0432\u0434\u043E\u0431\u0430\u0432\u043E\u043A
-  // \u0443\u0441\u0438\u043B\u0438\u0432\u0430\u043B\u0430\u0441\u044C \u0441\u0436\u0430\u0442\u0438\u0435\u043C. \u0417\u0430\u043C\u0435\u0440: \u0441\u0442\u0440\u043E\u043A\u0430 \u0441\u043F\u0438\u0441\u043A\u0430 \u043F\u043E\u0434 \u043F\u043B\u0430\u0448\u043A\u043E\u0439 \u0434\u0430\u0432\u0430\u043B\u0430 199 \u043F\u0440\u043E\u0442\u0438\u0432 158 \u0443 \u0441\u043E\u0431\u0441\u0442\u0432\u0435\u043D\u043D\u043E\u0439
-  // \u043D\u0430\u0434\u043F\u0438\u0441\u0438 \u0434\u0435\u0442\u0430\u043B\u0438, \u0438 \u0432\u0441\u044F \u043F\u043E\u043B\u043E\u0441\u0430 \u0441\u0438\u0434\u0435\u043B\u0430 \u0432 \u0444\u0430\u0441\u043A\u0435, \u0430 \u0432 \u0441\u0435\u0440\u0435\u0434\u0438\u043D\u0435 \u0435\u0451 \u043D\u0435 \u0431\u044B\u043B\u043E.
-  // \u0420\u0430\u0441\u0441\u0435\u044F\u043D\u0438\u0435 \u0432\u0435\u0440\u043D\u0443\u043B\u043E\u0441\u044C \u043A \u0421\u0412\u041E\u0415\u0419, \u043C\u044F\u0433\u043A\u043E\u0439 \u0440\u043E\u043B\u0438 \u0438 \u0441\u043D\u043E\u0432\u0430 \u0440\u0430\u0441\u0442\u0451\u0442 \u043B\u0438\u043D\u0435\u0439\u043D\u043E \u043F\u043E \u043F\u0435\u0441\u0442\u0440\u043E\u0442\u0435. \u0427\u0438\u0442\u0430\u0435\u043C\u043E\u0441\u0442\u044C
-  // \u043D\u0430\u0431\u0438\u0440\u0430\u0435\u0442 \u043F\u043E\u0434\u043B\u043E\u0436\u043A\u0430 \u043F\u043E\u0434 \u043A\u0440\u0430\u0441\u043A\u043E\u0439 (vgVeil \u0432 surface-shader.ts), \u0430 \u043E\u043D\u0430 \u0434\u0430\u0451\u0442 \u0442\u0443 \u0436\u0435 \u0440\u0430\u0431\u043E\u0442\u0443 \u0411\u0415\u0417
-  // \u0448\u0443\u043C\u0430: \u0434\u0438\u0441\u043A\u043E\u0432\u044B\u0439 \u0441\u0431\u043E\u0440 \u043E\u0446\u0435\u043D\u0438\u0432\u0430\u0435\u0442 \u0444\u043E\u043D \u0442\u043E\u0447\u0435\u0447\u043D\u044B\u043C\u0438 \u043F\u0440\u043E\u0431\u0430\u043C\u0438, \u0438 \u043D\u0430 \u0440\u0435\u0437\u043A\u043E\u043C \u0442\u0435\u043A\u0441\u0442\u0435 \u0434\u0430\u0436\u0435 \u043F\u0440\u0438 \u043F\u043E\u043B\u0443\u0441\u043E\u0442\u043D\u0435
-  // \u043F\u0440\u043E\u0431 \u043E\u0441\u0442\u0430\u0451\u0442\u0441\u044F \xB110 \u0438\u0437 255 \u2014 \u0434\u0435\u0442\u0430\u043B\u044C \u043F\u043E\u043A\u0440\u044B\u0432\u0430\u0435\u0442\u0441\u044F \u043A\u0440\u0443\u043F\u043E\u0439. \u0420\u0430\u0434\u0438\u0443\u0441, \u043D\u0430 \u043A\u043E\u0442\u043E\u0440\u043E\u043C \u043A\u0440\u0443\u043F\u044B \u043D\u0435 \u0432\u0438\u0434\u043D\u043E,
-  // \u0442\u0435\u043A\u0441\u0442 \u043F\u043E\u0434 \u0441\u0442\u0435\u043A\u043B\u043E\u043C \u043D\u0435 \u0440\u0430\u0437\u0440\u0443\u0448\u0430\u0435\u0442, \u043F\u043E\u044D\u0442\u043E\u043C\u0443 \u0433\u043D\u0430\u0442\u044C\u0441\u044F \u0437\u0430 \u043D\u0438\u043C \u043D\u0435\u0447\u0435\u043C.
-  float adaptBlur = max(
-    min(busy * u_legibility * u_adaptRadius * 0.5, VG_ADAPT_BLUR_MAX)
-      * min(1.0 + footprint, VG_FOOTPRINT_MAX),
-    u_frost);
-  if (adaptBlur > 0.5) {
-    float reach = max(u_reach - length(p), 1.0);
-    float4 g = vgGather(s, min(adaptBlur, reach), xy);
-    float ga = g.a;
-    float3 blurred = ga > 0.004 ? g.rgb / ga : float3(0.0);
-    rgb = mix(rgb, blurred, smoothstep(0.5, 2.0, adaptBlur));
-  }
-  // \u0421\u0432\u0435\u0442\u043B\u043E\u0442\u0430 \u043C\u0435\u0441\u0442\u0430 \u2014 \u044D\u0442\u043E \u043E\u0446\u0435\u043D\u043A\u0430 \u0437\u043E\u043D\u0434\u0430, \u0430 \u043D\u0435 \u0441\u0432\u0435\u0442\u043B\u043E\u0442\u0430 \u042D\u0422\u041E\u0413\u041E \u043F\u0438\u043A\u0441\u0435\u043B\u044F. \u041F\u043E\u0434\u043C\u0435\u0448\u0438\u0432\u0430\u0442\u044C \u0441\u044E\u0434\u0430
-  // \u043F\u0438\u043A\u0441\u0435\u043B\u044C \u043D\u0435\u043B\u044C\u0437\u044F \u043F\u043E \u0442\u043E\u0439 \u0436\u0435 \u043F\u0440\u0438\u0447\u0438\u043D\u0435, \u043F\u043E \u043A\u043E\u0442\u043E\u0440\u043E\u0439 \u043E\u0446\u0435\u043D\u043A\u0430 \u0443\u0435\u0445\u0430\u043B\u0430 \u0432 \u0437\u043E\u043D\u0434: \u0438\u0437\u043B\u043E\u043C \u043F\u043B\u043E\u0442\u043D\u043E\u0441\u0442\u0438
-  // \u043F\u0440\u0435\u0432\u0440\u0430\u0449\u0430\u0435\u0442 \u043B\u044E\u0431\u0443\u044E \u0432\u044B\u0441\u043E\u043A\u0443\u044E \u0447\u0430\u0441\u0442\u043E\u0442\u0443 \u0432 \u0432\u0438\u0434\u0438\u043C\u0443\u044E \u0441\u0442\u0440\u0443\u043A\u0442\u0443\u0440\u0443.
-  float local = lumWide;
-
-  // \u0422\u0415\u041B\u041E \u0421\u0422\u0415\u041A\u041B\u0410. \u0421\u0447\u0438\u0442\u0430\u0435\u0442\u0441\u044F \u0417\u0414\u0415\u0421\u042C, \u0430 \u043D\u0435 \u0432 \u043F\u043E\u0432\u0435\u0440\u0445\u043D\u043E\u0441\u0442\u0438, \u043F\u043E \u0442\u043E\u0439 \u0436\u0435 \u043F\u0440\u0438\u0447\u0438\u043D\u0435, \u0447\u0442\u043E \u0438 \u043E\u0442\u0440\u0430\u0436\u0435\u043D\u0438\u0435:
-  // \u0444\u043E\u043D \u0432\u0438\u0434\u0435\u043D \u0442\u043E\u043B\u044C\u043A\u043E \u043E\u0442\u0441\u044E\u0434\u0430. \u041F\u043E\u043A\u0430 \u0442\u0438\u043D\u0442 \u0440\u0438\u0441\u043E\u0432\u0430\u043B\u0441\u044F \u043F\u043E\u0432\u0435\u0440\u0445, \u043E\u043D \u0431\u044B\u043B \u043E\u0431\u044F\u0437\u0430\u043D \u0431\u044B\u0442\u044C \u043E\u0434\u0438\u043D\u0430\u043A\u043E\u0432\u044B\u043C \u043D\u0430
-  // \u0432\u0441\u0435\u0439 \u0434\u0435\u0442\u0430\u043B\u0438 \u2014 \u0442\u043E\u0447\u0435\u0447\u043D\u043E\u0439 \u0430\u0434\u0430\u043F\u0442\u0430\u0446\u0438\u0438 \u043D\u0435 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u043E\u0432\u0430\u043B\u043E \u0432 \u043F\u0440\u0438\u043D\u0446\u0438\u043F\u0435.
-  //
-  // \u0426\u0435\u043B\u044C \u2014 \u0433\u0430\u0440\u0430\u043D\u0442\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0440\u0430\u0437\u0434\u0435\u043B\u0435\u043D\u0438\u0435 \u043F\u043E \u0441\u0432\u0435\u0442\u043B\u043E\u0442\u0435 \u0441 \u0442\u0435\u043C, \u0447\u0442\u043E \u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u0435 \u0440\u0438\u0441\u0443\u0435\u0442 \u041F\u041E\u0412\u0415\u0420\u0425 \u0441\u0442\u0435\u043A\u043B\u0430.
-  // \u0423\u043D\u0438\u0444\u043E\u0440\u043C\u0430 u_ink \u0437\u0434\u0435\u0441\u044C \u041F\u041E\u041B\u042F\u0420\u041D\u041E\u0421\u0422\u042C \u043D\u0430\u0434\u043F\u0438\u0441\u0438 (1 \u0441\u0432\u0435\u0442\u043B\u0430\u044F, 0 \u0442\u0451\u043C\u043D\u0430\u044F), \u0430 \u043D\u0435 \u0435\u0451 \u0441\u0432\u0435\u0442\u043B\u043E\u0442\u0430: \u0442\u0440\u0435\u0431\u043E\u0432\u0430\u043D\u0438\u044F
-  // \u0441\u0447\u0438\u0442\u0430\u044E\u0442\u0441\u044F \u043D\u0430 \u043A\u043E\u043D\u0446\u0430\u0445 \u0438 \u0441\u043C\u0435\u0448\u0438\u0432\u0430\u044E\u0442\u0441\u044F \u043F\u043E \u043F\u043E\u043B\u044F\u0440\u043D\u043E\u0441\u0442\u0438. \u0415\u0441\u043B\u0438 \u043F\u043E\u0434\u0441\u0442\u0430\u0432\u043B\u044F\u0442\u044C \u0442\u0435\u043A\u0443\u0449\u0443\u044E \u0441\u0432\u0435\u0442\u043B\u043E\u0442\u0443, \u0442\u043E
-  // \u043D\u0430 \u043F\u0435\u0440\u0435\u043A\u0440\u0430\u0441\u043A\u0435 \u043D\u0430\u0434\u043F\u0438\u0441\u0438 ink \u043F\u0440\u043E\u0445\u043E\u0434\u0438\u0442 \u0447\u0435\u0440\u0435\u0437 \u0441\u0435\u0440\u0435\u0434\u0438\u043D\u0443 \u2014 \u0430 \u0441\u0435\u0440\u0430\u044F \u043D\u0430\u0434\u043F\u0438\u0441\u044C \u0442\u0440\u0435\u0431\u0443\u0435\u0442 \u043E\u0442 \u0442\u0435\u043B\u0430
-  // \u043C\u0430\u043A\u0441\u0438\u043C\u0443\u043C\u0430, \u0438 \u0441\u0442\u0435\u043A\u043B\u043E \u043D\u0430 \u043F\u043E\u043B\u043F\u0443\u0442\u0438 \u043D\u044B\u0440\u044F\u0435\u0442 \u0442\u0435\u043C\u043D\u0435\u0435, \u0447\u0435\u043C \u0432 \u043E\u0431\u043E\u0438\u0445 \u043A\u043E\u043D\u0435\u0447\u043D\u044B\u0445 \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u044F\u0445.
-  float strict = clamp(u_legibility * 2.0, 0.0, 1.0);
-  float capLight = mix(VG_BODY_CAP_LOOSE, VG_BODY_CAP_TIGHT, strict);
-  float floorDark = 1.0 - capLight;
-  float pol = clamp(u_ink, 0.0, 1.0);
-
-  // \u0420\u0410\u0417\u041D\u041E\u0420\u041E\u0414\u041D\u042B\u0419 \u0424\u041E\u041D. \u041A\u043E\u0433\u0434\u0430 \u043F\u043E\u0434 \u0441\u0442\u0435\u043A\u043B\u043E\u043C \u0438 \u0447\u0451\u0440\u043D\u043E\u0435, \u0438 \u0431\u0435\u043B\u043E\u0435 \u0441\u0440\u0430\u0437\u0443, \u0440\u0430\u0437\u0434\u0435\u043B\u0435\u043D\u0438\u044F \u043F\u043E \u0441\u0432\u0435\u0442\u043B\u043E\u0442\u0435 \u043D\u0435
-  // \u0445\u0432\u0430\u0442\u0430\u0435\u0442 \u043D\u0438 \u043F\u0440\u0438 \u043A\u0430\u043A\u043E\u0439 \u043F\u043E\u043B\u044F\u0440\u043D\u043E\u0441\u0442\u0438: \u043D\u0430\u0434 \u043E\u0434\u043D\u043E\u0439 \u043F\u043E\u043B\u043E\u0432\u0438\u043D\u043E\u0439 \u043D\u0430\u0434\u043F\u0438\u0441\u044C \u0442\u043E\u043D\u0435\u0442 \u0432 \u043B\u044E\u0431\u043E\u043C \u0441\u043B\u0443\u0447\u0430\u0435. \u0422\u043E\u0433\u0434\u0430
-  // \u0441\u0442\u0435\u043A\u043B\u043E \u0434\u043E\u0433\u043E\u043D\u044F\u0435\u0442 \u041F\u041B\u041E\u0422\u041D\u041E\u0421\u0422\u042C\u042E \u2014 \u0440\u043E\u0432\u043D\u043E \u0442\u043E, \u0447\u0442\u043E \u0434\u0435\u043B\u0430\u0435\u0442 \u043D\u0430\u0441\u0442\u043E\u044F\u0449\u0435\u0435 \u0441\u0442\u0435\u043A\u043B\u043E \u0448\u0435\u0440\u043E\u0445\u043E\u0432\u0430\u0442\u043E\u0441\u0442\u044C\u044E:
-  // \u043F\u0435\u0440\u0435\u0441\u0442\u0430\u0451\u0442 \u0431\u044B\u0442\u044C \u043E\u043A\u043D\u043E\u043C. \u0412\u0435\u043B\u0438\u0447\u0438\u043D\u0443 \u0437\u0430\u0434\u0430\u0451\u0442 legibility, \u043F\u043E\u0432\u043E\u0434 \u2014 \u043F\u0435\u0441\u0442\u0440\u043E\u0442\u0430; \u043E\u0442\u043A\u043B\u0438\u043A \u043D\u0430\u0441\u044B\u0449\u0430\u0435\u0442\u0441\u044F
-  // \u0440\u0430\u043D\u043E, \u043F\u043E\u0442\u043E\u043C\u0443 \u0447\u0442\u043E \u0441\u043F\u043E\u0440\u0438\u0442 \u0441 \u043D\u0430\u0434\u043F\u0438\u0441\u044C\u044E \u043D\u0435 \u043F\u043B\u043E\u0449\u0430\u0434\u044C \u0441\u0442\u0440\u0443\u043A\u0442\u0443\u0440\u044B, \u0430 \u0441\u0430\u043C \u0444\u0430\u043A\u0442 \u0435\u0451 \u043D\u0430\u043B\u0438\u0447\u0438\u044F.
-  // \u041F\u043E\u043B \u0437\u0430\u0434\u0430\u0451\u0442 \u0421\u0410\u041C\u0410 legibility, \u0430 \u043F\u0435\u0441\u0442\u0440\u043E\u0442\u0430 \u043C\u043E\u0436\u0435\u0442 \u0442\u043E\u043B\u044C\u043A\u043E \u0434\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0441\u0432\u0435\u0440\u0445\u0443. \u0421\u0442\u0430\u0432\u0438\u0442\u044C \u0435\u0433\u043E \u0432
-  // \u0437\u0430\u0432\u0438\u0441\u0438\u043C\u043E\u0441\u0442\u044C \u043E\u0442 \u043F\u0435\u0441\u0442\u0440\u043E\u0442\u044B \u043D\u0435\u043B\u044C\u0437\u044F \u043F\u043E \u0434\u0432\u0443\u043C \u043F\u0440\u0438\u0447\u0438\u043D\u0430\u043C \u0441\u0440\u0430\u0437\u0443: \u0437\u043E\u043D\u0434 \u0443\u0441\u0440\u0435\u0434\u043D\u044F\u0435\u0442, \u0438 \u0441\u0442\u0440\u043E\u043A\u0443 \u0442\u0435\u043A\u0441\u0442\u0430 \u043F\u043E\u0434
-  // \u0448\u0438\u0440\u043E\u043A\u043E\u0439 \u0434\u0435\u0442\u0430\u043B\u044C\u044E \u043E\u043D \u0432 \u043F\u0435\u0441\u0442\u0440\u043E\u0442\u0435 \u043F\u043E\u0447\u0442\u0438 \u043D\u0435 \u043F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0435\u0442 (\u0437\u0430\u043C\u0435\u0440: busy 0.12 \u0442\u0430\u043C, \u0433\u0434\u0435 \u043F\u043E\u0434 \u0441\u0442\u0435\u043A\u043B\u043E\u043C
-  // \u0435\u0434\u0443\u0442 \u0434\u0432\u0435 \u0441\u0442\u0440\u043E\u043A\u0438) \u2014 \u0430 \u043D\u0430 \u0434\u0432\u0438\u0436\u0435\u043D\u0438\u0438 \u043F\u043E\u043B \u0445\u043E\u0434\u0438\u043B \u0431\u044B \u0432\u0432\u0435\u0440\u0445-\u0432\u043D\u0438\u0437 \u0432\u043C\u0435\u0441\u0442\u0435 \u0441 \u043E\u0446\u0435\u043D\u043A\u043E\u0439, \u0438 \u0442\u0435\u043B\u043E \u0433\u0443\u043B\u044F\u043B\u043E
-  // \u0431\u044B \u043F\u043E \u044F\u0440\u043A\u043E\u0441\u0442\u0438. \u0420\u0430\u0437\u043B\u0438\u0447\u0438\u043C\u043E\u0441\u0442\u044C \u0434\u0435\u0442\u0430\u043B\u0438 \u043F\u0440\u0438 \u044D\u0442\u043E\u043C \u043D\u0435 \u0441\u0442\u0440\u0430\u0434\u0430\u0435\u0442: \u0435\u0451 \u043D\u0435\u0441\u0451\u0442 \u043A\u0440\u043E\u043C\u043A\u0430 \u043D\u0438\u0436\u0435, \u0430 \u043D\u0435 \u0442\u0435\u043B\u043E.
-  float busyFloor = max(u_legibility * VG_GROUND_MIN,
-                        structure * mix(0.06, VG_GROUND_MAX, u_legibility));
-
-  // \u0422\u0440\u0435\u0431\u043E\u0432\u0430\u043D\u0438\u0435 \u0413\u0410\u0421\u041D\u0415\u0422 \u0432\u043C\u0435\u0441\u0442\u0435 \u0441 legibility: \u0434\u0435\u0442\u0430\u043B\u044C, \u043F\u043E\u0432\u0435\u0440\u0445 \u043A\u043E\u0442\u043E\u0440\u043E\u0439 \u043D\u0438\u0447\u0435\u0433\u043E \u043D\u0435 \u0440\u0438\u0441\u0443\u044E\u0442, \u0440\u0430\u0437\u0432\u043E\u0434\u0438\u0442\u044C
-  // \u0441\u0432\u0435\u0442\u043B\u043E\u0442\u0443 \u043D\u0435 \u0441 \u0447\u0435\u043C, \u0438 \u043C\u043E\u0434\u0435\u043B\u044C \u043E\u0431\u0435\u0449\u0430\u0435\u0442 \u0435\u0439 \u043F\u0440\u043E\u0441\u0442\u043E \u043F\u0440\u043E\u0437\u0440\u0430\u0447\u043D\u043E\u0435 \u0441\u0442\u0435\u043A\u043B\u043E (material.ts).
-  float demand = clamp(u_legibility * 4.0, 0.0, 1.0);
-
-  // \u0422\u0418\u041D\u0422 \u0421\u0420\u0415\u0414\u042B \u0417\u0410\u0414\u0410\u0401\u0422 \u041F\u041E\u041B\u042F\u0420\u041D\u041E\u0421\u0422\u042C \u041D\u0410\u0414\u041F\u0418\u0421\u0418: \u0441\u0432\u0435\u0442\u043B\u043E\u0439 \u043D\u0443\u0436\u043D\u0430 \u0442\u0451\u043C\u043D\u0430\u044F \u0441\u0440\u0435\u0434\u0430, \u0442\u0451\u043C\u043D\u043E\u0439 \u2014 \u0441\u0432\u0435\u0442\u043B\u0430\u044F. \u042D\u0442\u043E
-  // \u043D\u0435 \u043E\u0444\u043E\u0440\u043C\u043B\u0435\u043D\u0438\u0435, \u0430 \u0443\u0441\u043B\u043E\u0432\u0438\u0435 \u0447\u0438\u0442\u0430\u0435\u043C\u043E\u0441\u0442\u0438: \u043A \u0442\u0438\u043D\u0442\u0443 \u043F\u0440\u0438\u0442\u044F\u0433\u0438\u0432\u0430\u0435\u0442\u0441\u044F \u0412\u0421\u0401, \u0447\u0442\u043E \u0432\u0438\u0434\u043D\u043E \u0441\u043A\u0432\u043E\u0437\u044C \u0441\u0442\u0435\u043A\u043B\u043E,
-  // \u0438 \u0432\u043C\u0435\u0441\u0442\u0435 \u0441 \u0444\u043E\u043D\u043E\u043C \u043F\u0440\u0438\u0442\u044F\u0433\u0438\u0432\u0430\u0435\u0442\u0441\u044F \u0447\u0443\u0436\u043E\u0439 \u0442\u0435\u043A\u0441\u0442 \u043F\u043E\u0434 \u043D\u0438\u043C. \u0421\u0442\u043E\u0438\u043B\u043E \u0443\u0432\u0435\u0441\u0442\u0438 \u0442\u0438\u043D\u0442 \u043E\u0442 \u043F\u043E\u043B\u044F\u0440\u043D\u043E\u0441\u0442\u0438 \u2014
-  // \u0438 \u0447\u0443\u0436\u0430\u044F \u0441\u0442\u0440\u043E\u043A\u0430 \u0441\u0442\u0430\u043D\u043E\u0432\u0438\u043B\u0430\u0441\u044C \u044F\u0440\u0447\u0435 \u0441\u043E\u0431\u0441\u0442\u0432\u0435\u043D\u043D\u043E\u0439 \u043D\u0430\u0434\u043F\u0438\u0441\u0438 \u0434\u0435\u0442\u0430\u043B\u0438.
-  //
-  // \u041D\u043E \u043F\u043E\u043B\u044F\u0440\u043D\u043E\u0441\u0442\u044C \u0440\u0435\u0448\u0430\u0435\u0442 \u0440\u043E\u0432\u043D\u043E \u0432 \u0442\u043E\u0439 \u043C\u0435\u0440\u0435, \u0432 \u043A\u0430\u043A\u043E\u0439 \u043D\u0430\u0434\u043F\u0438\u0441\u044C \u0432\u043E\u043E\u0431\u0449\u0435 \u0435\u0441\u0442\u044C. \u0422\u0430\u043C, \u0433\u0434\u0435 \u043F\u043E\u0432\u0435\u0440\u0445 \u0441\u0442\u0435\u043A\u043B\u0430
-  // \u043D\u0435 \u0440\u0438\u0441\u0443\u044E\u0442 \u043D\u0438\u0447\u0435\u0433\u043E, \u043E\u0431\u0441\u043B\u0443\u0436\u0438\u0432\u0430\u0442\u044C \u0435\u0439 \u043D\u0435\u0447\u0435\u0433\u043E, \u0438 \u0441\u0440\u0435\u0434\u0430 \u043A\u0440\u0430\u0441\u0438\u0442\u0441\u044F \u0442\u0430\u043A, \u0447\u0442\u043E\u0431\u044B \u0434\u0435\u0442\u0430\u043B\u044C \u041E\u0422\u041E\u0428\u041B\u0410 \u041E\u0422
-  // \u0424\u041E\u041D\u0410 \u2014 \u044D\u0442\u043E \u0435\u0434\u0438\u043D\u0441\u0442\u0432\u0435\u043D\u043D\u043E\u0435, \u0447\u0442\u043E \u043E\u0442 \u043D\u0435\u0451 \u0442\u0430\u043C \u0442\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F. \u041F\u043E\u043A\u0430 \u043F\u043E\u043B\u044F\u0440\u043D\u043E\u0441\u0442\u044C \u0440\u0435\u0448\u0430\u043B\u0430 \u0438 \u0432 \u044D\u0442\u043E\u043C \u0441\u043B\u0443\u0447\u0430\u0435,
-  // \u043F\u0443\u0441\u0442\u044B\u0435 \u043A\u043D\u043E\u043F\u043A\u0438 \u0442\u0435\u0440\u044F\u043B\u0438 \u0442\u0435\u043B\u043E: \u0442\u0438\u043D\u0442 \u043F\u043E \u043F\u043E\u043B\u044F\u0440\u043D\u043E\u0441\u0442\u0438 \u0441\u043C\u043E\u0442\u0440\u0435\u043B \u0442\u0443\u0434\u0430 \u0436\u0435, \u043A\u0443\u0434\u0430 \u0438 \u0444\u043E\u043D.
-  float dirEarly = local < 0.5 ? 1.0 : -1.0;
-  float away = local < 0.5 ? VG_TINT_LIGHT : VG_TINT_DARK;
-  float tintLuma = mix(away, mix(VG_TINT_LIGHT, VG_TINT_DARK, pol), demand);
-
-  // \u0421\u043A\u043E\u043B\u044C\u043A\u043E \u0441\u0440\u0435\u0434\u044B \u043D\u0443\u0436\u043D\u043E, \u0447\u0442\u043E\u0431\u044B \u0443\u0432\u0435\u0441\u0442\u0438 \u0441\u0432\u0435\u0442\u043B\u043E\u0442\u0443 \u043F\u043E\u0434 \u043D\u0430\u0434\u043F\u0438\u0441\u044C\u044E \u0437\u0430 \u043F\u043E\u0440\u043E\u0433. \u0421\u0447\u0438\u0442\u0430\u0435\u0442\u0441\u044F \u043F\u043E \u041C\u0415\u0421\u0422\u0423:
-  // \u0442\u043E\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435 \u0433\u0440\u0430\u0434\u0438\u0435\u043D\u0442\u043D\u043E\u0435, \u0438 \u043D\u0430\u0434 \u0441\u0432\u0435\u0442\u043B\u043E\u0439 \u043F\u043E\u043B\u043E\u0432\u0438\u043D\u043E\u0439 \u043E\u043D\u043E \u043C\u043E\u0436\u0435\u0442 \u0431\u044B\u0442\u044C \u043F\u043B\u043E\u0442\u043D\u0435\u0435, \u0447\u0435\u043C \u043D\u0430\u0434 \u0442\u0451\u043C\u043D\u043E\u0439.
-  float needForLight = local > capLight
-    ? clamp((local - capLight) / max(local - VG_TINT_DARK, 1e-4), 0.0, 0.92)
-    : 0.0;
-  float needForDark = local < floorDark
-    ? clamp((floorDark - local) / max(VG_TINT_LIGHT - local, 1e-4), 0.0, 0.92)
-    : 0.0;
-  float needForInk = mix(needForDark, needForLight, pol) * demand;
-
-  // \u0420\u0410\u0417\u041B\u0418\u0427\u0418\u041C\u041E\u0421\u0422\u042C \u0421\u0410\u041C\u041E\u0419 \u0414\u0415\u0422\u0410\u041B\u0418. \u041D\u0430\u0434 \u043E\u0434\u043D\u043E\u0440\u043E\u0434\u043D\u044B\u043C \u0444\u043E\u043D\u043E\u043C \u043F\u0440\u0435\u043B\u043E\u043C\u043B\u044F\u0442\u044C \u043D\u0435\u0447\u0435\u0433\u043E, \u0438 \u0441\u0442\u0435\u043A\u043B\u043E \u0447\u0435\u0441\u0442\u043D\u043E
-  // \u0438\u0441\u0447\u0435\u0437\u0430\u0435\u0442 \u2014 \u0434\u043B\u044F \u043A\u0443\u0441\u043A\u0430 \u0444\u043E\u043D\u0430 \u044D\u0442\u043E \u043F\u0440\u0430\u0432\u0438\u043B\u044C\u043D\u043E, \u0434\u043B\u044F \u044D\u043B\u0435\u043C\u0435\u043D\u0442\u0430 \u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u044F \u043D\u0435\u0434\u043E\u043F\u0443\u0441\u0442\u0438\u043C\u043E. \u041F\u0440\u043E\u0433\u0440\u0435\u0441\u0441
-  // \u0438\u0434\u0451\u0442 \u044D\u0442\u0438\u043C \u0436\u0435 \u043A\u0430\u043D\u0430\u043B\u043E\u043C: \u0441\u044B\u0433\u0440\u0430\u043D\u043D\u0430\u044F \u0447\u0430\u0441\u0442\u044C \u2014 \u0443\u0447\u0430\u0441\u0442\u043E\u043A, \u043E\u0442 \u043A\u043E\u0442\u043E\u0440\u043E\u0433\u043E \u0442\u0440\u0435\u0431\u0443\u044E\u0442 \u0411\u041E\u041B\u042C\u0428\u0415\u0413\u041E \u043E\u0442\u0445\u043E\u0434\u0430.
-  float sep = u_presence + VG_PROGRESS_PRESENCE * vgProgress(p, u_halfSize, u_progress);
-
-  // \u041E\u0442\u043E\u0439\u0442\u0438 \u043E\u0442 \u0444\u043E\u043D\u0430 \u0422\u0415\u041B\u041E\u041C \u043C\u043E\u0436\u043D\u043E \u0442\u043E\u043B\u044C\u043A\u043E \u0435\u0441\u043B\u0438 \u0442\u0438\u043D\u0442 \u0441\u043C\u043E\u0442\u0440\u0438\u0442 \u0412 \u0421\u0422\u041E\u0420\u041E\u041D\u0423 \u041E\u0422 \u0444\u043E\u043D\u0430. \u041D\u0430\u0434 \u0441\u0432\u0435\u0442\u043B\u044B\u043C \u0444\u043E\u043D\u043E\u043C \u0443
-  // \u0441\u0432\u0435\u0442\u043B\u043E\u0439 \u043D\u0430\u0434\u043F\u0438\u0441\u0438 \u0442\u0430\u043A \u0438 \u0435\u0441\u0442\u044C \u2014 \u0442\u0451\u043C\u043D\u0430\u044F \u0441\u0440\u0435\u0434\u0430 \u0443\u0432\u043E\u0434\u0438\u0442 \u0442\u0435\u043B\u043E \u0432\u043D\u0438\u0437, \u0438 \u044D\u0442\u043E \u0436\u0435 \u0434\u0432\u0438\u0436\u0435\u043D\u0438\u0435 \u0438 \u0440\u0430\u0437\u0434\u0435\u043B\u044F\u0435\u0442.
-  // \u041D\u0430\u0434 \u0422\u0401\u041C\u041D\u042B\u041C \u0444\u043E\u043D\u043E\u043C \u0442\u0438\u043D\u0442 \u0442\u043E\u0436\u0435 \u0442\u0451\u043C\u043D\u044B\u0439, \u0438\u0434\u0442\u0438 \u0442\u0435\u043B\u0443 \u043D\u0435\u043A\u0443\u0434\u0430: \u0442\u0435\u043C\u043D\u0435\u0435 \u043F\u043E\u0447\u0442\u0438 \u0447\u0451\u0440\u043D\u043E\u0433\u043E \u043D\u0435 \u0431\u044B\u0432\u0430\u0435\u0442.
-  float toward = (tintLuma - local) * dirEarly;
-
-  // \u041F\u041B\u041E\u0422\u041D\u041E\u0421\u0422\u042C \u0421\u0427\u0418\u0422\u0410\u0415\u0422\u0421\u042F \u041F\u041E \u041A\u0420\u0410\u0419\u041D\u0415\u0419 \u0421\u0412\u0415\u0422\u041B\u041E\u0422\u0415, \u0410 \u041D\u0415 \u041F\u041E \u0422\u0418\u041D\u0422\u0423. \u0414\u0435\u043B\u0438\u0442\u044C \u0442\u0440\u0435\u0431\u0443\u0435\u043C\u044B\u0439 \u043E\u0442\u0445\u043E\u0434 \u043D\u0430
-  // \u0440\u0430\u0441\u0441\u0442\u043E\u044F\u043D\u0438\u0435 \u043E\u0442 \u0442\u0438\u043D\u0442\u0430 \u0434\u043E \u0444\u043E\u043D\u0430 \u043D\u0435\u043B\u044C\u0437\u044F: \u043E\u043D\u0438 \u043C\u043E\u0433\u0443\u0442 \u0441\u043E\u0432\u043F\u0430\u0441\u0442\u044C. \u0421\u0432\u0435\u0442\u043B\u0430\u044F \u043D\u0430\u0434\u043F\u0438\u0441\u044C \u0434\u0430\u0451\u0442 \u0442\u0438\u043D\u0442 0.11,
-  // \u0442\u0451\u043C\u043D\u044B\u0439 \u0444\u043E\u043D \u2014 \u0442\u043E\u0436\u0435 0.11, \u0438 \u0442\u0440\u0435\u0431\u043E\u0432\u0430\u043D\u0438\u0435 \u0432 0.05 \u043F\u0440\u043E\u0441\u0438\u0442 \u043F\u043B\u043E\u0442\u043D\u043E\u0441\u0442\u044C 14 \u2014 \u0442\u043E \u0435\u0441\u0442\u044C \u0443\u043F\u0438\u0440\u0430\u0435\u0442\u0441\u044F \u0432
-  // \u043A\u043B\u0430\u043C\u043F\u0443, \u0438 \u0441\u0442\u0435\u043A\u043B\u043E \u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u0441\u044F \u043D\u0435\u043F\u0440\u043E\u0437\u0440\u0430\u0447\u043D\u043E\u0439 \u043F\u043B\u0430\u0448\u043A\u043E\u0439. \u0420\u0430\u0441\u0441\u0442\u043E\u044F\u043D\u0438\u0435 \u0434\u043E \u041A\u0420\u0410\u042F \u0434\u0438\u0430\u043F\u0430\u0437\u043E\u043D\u0430 \u043C\u0430\u043B\u043E \u043D\u0435
-  // \u0431\u044B\u0432\u0430\u0435\u0442, \u043F\u043E\u044D\u0442\u043E\u043C\u0443 \u0432\u0435\u043B\u0438\u0447\u0438\u043D\u0430 \u0437\u0434\u0435\u0441\u044C \u0432\u0441\u0435\u0433\u0434\u0430 \u043E\u0441\u043C\u044B\u0441\u043B\u0435\u043D\u043D\u0430\u044F, \u0430 \u0441\u043A\u043E\u043B\u044C\u043A\u043E \u0442\u0435\u043B\u043E \u0432 \u0438\u0442\u043E\u0433\u0435 \u043D\u0435 \u0434\u043E\u0431\u0440\u0430\u043B\u043E \u2014
-  // \u0441\u0447\u0438\u0442\u0430\u0435\u0442 unmet \u043D\u0438\u0436\u0435 \u0438 \u043E\u0442\u0434\u0430\u0451\u0442 \u043A\u0440\u043E\u043C\u043A\u0435.
-  float densityForSep = clamp(sep / max(abs(away - local), 1e-4), 0.0, 0.92);
-  float density = max(max(u_bodyDensity, busyFloor), max(needForInk, densityForSep));
-
-  // \u0426\u0412\u0415\u0422 \u0422\u0415\u041B\u0410. \u041E\u0442\u0442\u0435\u043D\u043E\u043A \u0441\u0440\u0435\u0434\u044B \u0437\u0430\u0434\u0430\u043D \u0435\u0451 \u043F\u043B\u043E\u0442\u043D\u043E\u0441\u0442\u044C\u044E, \u043D\u043E \u0442\u0435\u043B\u043E \u0435\u0449\u0451 \u0438 \u041A\u0420\u0410\u0421\u0418\u0422\u0421\u042F \u0441\u043E\u0434\u0435\u0440\u0436\u0438\u043C\u044B\u043C: \u0441\u0432\u0435\u0442
-  // \u0433\u0443\u043B\u044F\u0435\u0442 \u0432\u043D\u0443\u0442\u0440\u0438 \u0441\u0442\u0435\u043A\u043B\u0430 \u043C\u043D\u043E\u0433\u043E\u043A\u0440\u0430\u0442\u043D\u043E \u0438 \u0443\u043D\u043E\u0441\u0438\u0442 \u0441 \u0441\u043E\u0431\u043E\u0439 \u0446\u0432\u0435\u0442 \u0442\u043E\u0433\u043E, \u0447\u0442\u043E \u043F\u043E\u0434 \u043D\u0438\u043C \u0438 \u0432\u043E\u043A\u0440\u0443\u0433 \u043D\u0435\u0433\u043E.
-  // \u041F\u043E\u044D\u0442\u043E\u043C\u0443 \u0440\u044F\u0434\u043E\u043C \u0441 \u0436\u0451\u043B\u0442\u043E\u0439 \u043E\u0431\u043B\u043E\u0436\u043A\u043E\u0439 \u0442\u0435\u043F\u043B\u0435\u0435\u0442 \u0432\u0441\u0451 \u0442\u0435\u043B\u043E, \u0430 \u043D\u0435 \u043E\u0434\u043D\u0430 \u043A\u0440\u043E\u043C\u043A\u0430. \u0421\u0432\u0435\u0442\u043B\u043E\u0442\u0430 \u043F\u0440\u0438 \u044D\u0442\u043E\u043C
-  // \u043E\u0441\u0442\u0430\u0451\u0442\u0441\u044F \u0441\u0432\u043E\u044F \u2014 \u043E\u043D\u0430 \u0432\u044B\u043F\u043E\u043B\u043D\u044F\u0435\u0442 \u0440\u0430\u0431\u043E\u0442\u0443 \u043F\u043E \u0440\u0430\u0437\u0434\u0435\u043B\u0435\u043D\u0438\u044E \u0441 \u043D\u0430\u0434\u043F\u0438\u0441\u044C\u044E.
-  float3 tintHue = mix(vgHue(u_bodyTint), vgHue(wide * 0.5 + ambient * 0.5), u_colorPickup);
-
-  float3 tint = tintHue * tintLuma;
-  rgb = mix(rgb, tint, density);
-
-  // \u0421\u0412\u0415\u0422 \u041E\u041A\u0420\u0423\u0416\u0415\u041D\u0418\u042F. \u0421\u0442\u0435\u043A\u043B\u043E \u043D\u0430 \u0447\u0451\u0440\u043D\u043E\u043C \u043D\u0435 \u0431\u044B\u0432\u0430\u0435\u0442 \u0434\u044B\u0440\u043E\u0439: \u0434\u043E \u043D\u0435\u0433\u043E \u0434\u043E\u0445\u043E\u0434\u0438\u0442 \u0441\u0432\u0435\u0442 \u043E\u0442 \u0442\u043E\u0433\u043E, \u0447\u0442\u043E
-  // \u043B\u0435\u0436\u0438\u0442 \u0440\u044F\u0434\u043E\u043C. \u0411\u0435\u0440\u0451\u043C \u0446\u0432\u0435\u0442 \u043E\u043A\u0440\u0435\u0441\u0442\u043D\u043E\u0441\u0442\u0438 (\u0442\u043E\u0442 \u0436\u0435 \u043E\u0442\u0441\u0447\u0451\u0442, \u0447\u0442\u043E \u0438 \u0443 \u043E\u0442\u0440\u0430\u0436\u0435\u043D\u0438\u044F), \u043F\u043E\u044D\u0442\u043E\u043C\u0443 \u043A\u0440\u043E\u043C\u043A\u0430
-  // \u0438 \u0442\u0435\u043B\u043E \u043E\u043A\u0440\u0430\u0448\u0438\u0432\u0430\u044E\u0442\u0441\u044F \u0412 \u0426\u0412\u0415\u0422 \u041A\u041E\u041D\u0422\u0415\u041D\u0422\u0410. \u041D\u0430 \u0441\u0432\u0435\u0442\u043B\u043E\u043C \u0444\u043E\u043D\u0435 \u0434\u043E\u0431\u0430\u0432\u043A\u0430 \u0441\u0430\u043C\u0430 \u0441\u0445\u043E\u0434\u0438\u0442 \u043D\u0430 \u043D\u0435\u0442.
-  // \u0414\u043E\u0431\u0430\u0432\u043A\u0430 \u041E\u0414\u041D\u0410 \u0418 \u0422\u0410 \u0416\u0415 \u043F\u043E \u0432\u0441\u0435\u0439 \u0434\u0435\u0442\u0430\u043B\u0438. \u0420\u0430\u043D\u044C\u0448\u0435 \u043E\u043D\u0430 \u0448\u043B\u0430 \u043C\u043D\u043E\u0436\u0438\u0442\u0435\u043B\u0435\u043C mix(0.35, 1.0, t) \u2014
-  // \u0432\u0442\u0440\u043E\u0435 \u0441\u043B\u0430\u0431\u0435\u0435 \u0432 \u0441\u0435\u0440\u0435\u0434\u0438\u043D\u0435, \u0447\u0435\u043C \u0443 \u0444\u0430\u0441\u043A\u0438, \u2014 \u0438 \u043D\u0430 \u0442\u0435\u043B\u0435 \u044D\u0442\u043E \u0447\u0438\u0442\u0430\u043B\u043E\u0441\u044C \u043F\u044F\u0442\u043D\u043E\u043C \u0434\u0440\u0443\u0433\u043E\u0433\u043E \u0442\u043E\u043D\u0430 \u043F\u043E
-  // \u0446\u0435\u043D\u0442\u0440\u0443: \u0442\u0430 \u0436\u0435 \u0431\u043E\u043B\u0435\u0437\u043D\u044C \xAB\u0434\u0432\u0443\u0445 \u0441\u0442\u0451\u043A\u043E\u043B \u0432 \u043E\u0434\u043D\u043E\u0439 \u0444\u043E\u0440\u043C\u0435\xBB, \u0442\u043E\u043B\u044C\u043A\u043E \u0442\u043E\u043D\u043E\u043C, \u0430 \u043D\u0435 \u043C\u0443\u0442\u044C\u044E. \u041A\u0440\u043E\u043C\u043A\u0443
-  // \u0432\u044B\u0434\u0435\u043B\u044F\u0435\u0442 \u0424\u0440\u0435\u043D\u0435\u043B\u044C, \u0443 \u043D\u0435\u0433\u043E \u043D\u0430 \u044D\u0442\u043E \u0441\u0432\u043E\u0451 \u043E\u0441\u043D\u043E\u0432\u0430\u043D\u0438\u0435.
-  rgb += ambient * u_edgeLight * (0.12 + 0.55 * (1.0 - local));
-
-  // \u041D\u0415\u0414\u041E\u0411\u0420\u0410\u041D\u041D\u0410\u042F \u0420\u0410\u0417\u041B\u0418\u0427\u0418\u041C\u041E\u0421\u0422\u042C \u0423\u0425\u041E\u0414\u0418\u0422 \u0412 \u041A\u0420\u041E\u041C\u041A\u0423. \u041D\u0430\u0434 \u0442\u0451\u043C\u043D\u044B\u043C \u0444\u043E\u043D\u043E\u043C \u0442\u0435\u043B\u043E \u043E\u0442\u043E\u0439\u0442\u0438 \u043D\u0435 \u043C\u043E\u0436\u0435\u0442: \u0441\u0432\u0435\u0442\u043B\u043E\u0439
-  // \u043D\u0430\u0434\u043F\u0438\u0441\u0438 \u043D\u0443\u0436\u043D\u0430 \u0442\u0451\u043C\u043D\u0430\u044F \u0441\u0440\u0435\u0434\u0430, \u0430 \u0442\u0435\u043C\u043D\u0435\u0435 \u043F\u043E\u0447\u0442\u0438 \u0447\u0451\u0440\u043D\u043E\u0433\u043E \u0444\u043E\u043D\u0430 \u043D\u0435 \u0431\u044B\u0432\u0430\u0435\u0442. \u0422\u044F\u043D\u0443\u0442\u044C \u0442\u0435\u043B\u043E \u0432 \u0441\u0432\u0435\u0442\u043B\u043E\u0435
-  // \u0440\u0430\u0434\u0438 \u0440\u0430\u0437\u043B\u0438\u0447\u0438\u043C\u043E\u0441\u0442\u0438 \u043D\u0435\u043B\u044C\u0437\u044F \u2014 \u0432\u043C\u0435\u0441\u0442\u0435 \u0441 \u0442\u0435\u043B\u043E\u043C \u0441\u0432\u0435\u0442\u043B\u0435\u0435\u0442 \u0438 \u0447\u0443\u0436\u043E\u0439 \u0442\u0435\u043A\u0441\u0442 \u043F\u043E\u0434 \u0441\u0442\u0435\u043A\u043B\u043E\u043C, \u043E\u043D
-  // \u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u0441\u044F \u044F\u0440\u0447\u0435 \u0441\u043E\u0431\u0441\u0442\u0432\u0435\u043D\u043D\u043E\u0439 \u043D\u0430\u0434\u043F\u0438\u0441\u0438 \u0434\u0435\u0442\u0430\u043B\u0438, \u0438 \u0434\u0435\u0442\u0430\u043B\u044C \u043F\u0435\u0440\u0435\u0441\u0442\u0430\u0451\u0442 \u0431\u044B\u0442\u044C \u0447\u0438\u0442\u0430\u0435\u043C\u043E\u0439.
-  //
-  // \u041F\u043E\u044D\u0442\u043E\u043C\u0443 \u043E\u0441\u0442\u0430\u0442\u043E\u043A \u0442\u0440\u0435\u0431\u043E\u0432\u0430\u043D\u0438\u044F \u0431\u0435\u0440\u0451\u0442 \u043D\u0430 \u0441\u0435\u0431\u044F \u0424\u0410\u0421\u041A\u0410: \u0441\u043E\u0431\u0441\u0442\u0432\u0435\u043D\u043D\u044B\u0439 \u0441\u0432\u0435\u0442 \u043F\u043E \u043A\u0440\u043E\u043C\u043A\u0435, \u043D\u0435 \u0437\u0430\u043D\u044F\u0442\u044B\u0439 \u0443
-  // \u043E\u043A\u0440\u0443\u0436\u0435\u043D\u0438\u044F. \u042D\u0442\u043E \u0438 \u0435\u0441\u0442\u044C \xAB\u0441\u0442\u0435\u043A\u043B\u043E \u043D\u0430 \u0442\u0451\u043C\u043D\u043E\u043C \u0444\u043E\u043D\u0435 \u0447\u0435\u0441\u0442\u043D\u0435\u0435 \u0447\u0438\u0442\u0430\u0442\u044C \u043A\u0440\u043E\u043C\u043A\u043E\u0439, \u0447\u0435\u043C \u0437\u0430\u043B\u0438\u0432\u043A\u043E\u0439\xBB \u2014 \u0437\u0434\u0435\u0441\u044C
-  // \u043E\u043D\u043E \u041F\u041E\u0421\u0427\u0418\u0422\u0410\u041D\u041E, \u0430 \u043D\u0435 \u0437\u0430\u044F\u0432\u043B\u0435\u043D\u043E: \u0441\u043A\u043E\u043B\u044C\u043A\u043E \u0442\u0435\u043B\u043E \u043D\u0435 \u0434\u043E\u0431\u0440\u0430\u043B\u043E, \u0441\u0442\u043E\u043B\u044C\u043A\u043E \u043A\u0440\u043E\u043C\u043A\u0430 \u0438 \u043F\u043E\u043B\u0443\u0447\u0438\u0442, \u0438 \u043D\u0430\u0434
-  // \u0441\u0432\u0435\u0442\u043B\u044B\u043C \u0444\u043E\u043D\u043E\u043C, \u0433\u0434\u0435 \u0442\u0435\u043B\u043E \u0441\u043F\u0440\u0430\u0432\u043B\u044F\u0435\u0442\u0441\u044F \u0441\u0430\u043C\u043E, \u043A\u0440\u043E\u043C\u043A\u0438 \u043D\u0435\u0442 \u0432\u043E\u0432\u0441\u0435.
-  // \u0417\u043D\u0430\u043A \u0443 \u043A\u0440\u043E\u043C\u043A\u0438 \u0422\u041E\u0422 \u0416\u0415, \u0427\u0422\u041E \u0423 \u0412\u0421\u0415\u0413\u041E \u041E\u0421\u0422\u0410\u041B\u042C\u041D\u041E\u0413\u041E \u2014 \u043E\u0442 \u0444\u043E\u043D\u0430: \u043D\u0430\u0434 \u0442\u0451\u043C\u043D\u044B\u043C \u043F\u043E\u043B\u043E\u0442\u043D\u043E\u043C \u043E\u043D\u0430 \u0441\u0432\u0435\u0442\u043B\u0435\u0435\u0442,
-  // \u043D\u0430\u0434 \u0441\u0432\u0435\u0442\u043B\u044B\u043C \u0442\u0435\u043C\u043D\u0435\u0435\u0442. \u041F\u043E\u043A\u0430 \u043E\u043D\u0430 \u0432\u0441\u0435\u0433\u0434\u0430 \u0434\u043E\u0431\u0430\u0432\u043B\u044F\u043B\u0430 \u0441\u0432\u0435\u0442\u0430, \u043D\u0430\u0434 \u043F\u043E\u0447\u0442\u0438 \u0431\u0435\u043B\u044B\u043C \u043F\u043E\u043B\u043E\u0442\u043D\u043E\u043C \u0435\u0451 \u043F\u0440\u043E\u0441\u0442\u043E
-  // \u043D\u0435 \u0431\u044B\u043B\u043E \u0432\u0438\u0434\u043D\u043E \u2014 \u0441\u0432\u0435\u0442 \u043F\u043E \u0441\u0432\u0435\u0442\u0443, \u2014 \u0438 \u0434\u0435\u0442\u0430\u043B\u044C \u0442\u0430\u043C \u043F\u0440\u043E\u043F\u0430\u0434\u0430\u043B\u0430 \u0446\u0435\u043B\u0438\u043A\u043E\u043C.
-  float unmet = max(sep - max(density * toward, 0.0), 0.0);
-  rgb += float3(dirEarly * unmet * VG_RIM_GAIN * pow(t, 3.0));
-
-  if (u_debug > 9.5 && u_debug < 10.5) { rgb = spectral * 0.5; }
-  if (u_debug > 10.5) { rgb = float3(density, sep, max(sep - max(density * toward, 0.0), 0.0)); }
-
-  // \u0421\u0436\u0430\u0442\u0438\u0435 \u2014 \u043F\u043E\u0441\u043B\u0435\u0434\u043D\u0438\u043C, \u043F\u043E \u0438\u0442\u043E\u0433\u043E\u0432\u043E\u043C\u0443 \u0446\u0432\u0435\u0442\u0443.
-  //
-  // \u0414\u0438\u0437\u0435\u0440\u0430 \u0437\u0434\u0435\u0441\u044C \u041D\u0415\u0422. \u041E\u043D \u0441\u0442\u043E\u044F\u043B, \u043F\u043E\u043A\u0430 \u0441\u0432\u0435\u0442\u043B\u043E\u0442\u0430 \u0444\u043E\u043D\u0430 \u043E\u0446\u0435\u043D\u0438\u0432\u0430\u043B\u0430\u0441\u044C \u043F\u043E \u043F\u0438\u043A\u0441\u0435\u043B\u044E: \u0442\u0435\u043B\u043E \u0431\u044B\u043B\u043E \u0433\u043B\u0430\u0434\u043A\u043E\u0439
-  // \u0444\u0443\u043D\u043A\u0446\u0438\u0435\u0439 \u043A\u043E\u043E\u0440\u0434\u0438\u043D\u0430\u0442\u044B, \u0438 \u0432\u043E\u0441\u044C\u043C\u0438\u0431\u0438\u0442\u043D\u044B\u0439 \u0432\u044B\u0432\u043E\u0434 \u0448\u0451\u043B \u043F\u043E\u043B\u043E\u0441\u0430\u043C\u0438. \u0422\u0435\u043F\u0435\u0440\u044C \u043E\u0446\u0435\u043D\u043A\u0430 \u043F\u0440\u0438\u0445\u043E\u0434\u0438\u0442 \u0438\u0437 \u0437\u043E\u043D\u0434\u0430
-  // \u043E\u0434\u043D\u0438\u043C \u0447\u0438\u0441\u043B\u043E\u043C \u043D\u0430 \u043F\u043E\u0432\u0435\u0440\u0445\u043D\u043E\u0441\u0442\u044C, \u0442\u0438\u043D\u0442 \u0434\u0430\u0451\u0442 \u043F\u043E\u0441\u0442\u043E\u044F\u043D\u043D\u043E\u0435 \u0441\u043C\u0435\u0449\u0435\u043D\u0438\u0435, \u0430 \u043F\u043E\u0441\u0442\u043E\u044F\u043D\u043D\u0430\u044F \u043D\u0435 \u0431\u0430\u043D\u0434\u0438\u0442 \u2014
-  // \u0440\u0430\u0437\u0431\u0438\u0432\u0430\u0442\u044C \u043D\u0435\u0447\u0435\u0433\u043E. \u041E\u0441\u0442\u0430\u043B\u0430\u0441\u044C \u0431\u044B \u0442\u043E\u043B\u044C\u043A\u043E \u043A\u0440\u0443\u043F\u0430 \u043D\u0430 \u0440\u043E\u0432\u043D\u043E\u0439 \u0437\u0430\u043B\u0438\u0432\u043A\u0435, \u043A\u043E\u0442\u043E\u0440\u043E\u0439 \u0442\u0430\u043C \u0432\u0437\u044F\u0442\u044C\u0441\u044F \u043D\u0435\u043E\u0442\u043A\u0443\u0434\u0430.
-  rgb = vgSoftClip(rgb);
-
-  // \u0410\u043B\u044C\u0444\u0430 \u0432\u044B\u0431\u043E\u0440\u043E\u043A \u043E\u0431\u044F\u0437\u0430\u043D\u0430 \u0434\u043E\u0436\u0438\u0442\u044C \u0434\u043E \u0440\u0435\u0437\u0443\u043B\u044C\u0442\u0430\u0442\u0430: \u0440\u0430\u0437\u0432\u0435\u0440\u043D\u0443\u0442\u044C \u0446\u0432\u0435\u0442 \u043F\u043E \u0438\u0441\u0445\u043E\u0434\u043D\u043E\u0439 \u0430\u043B\u044C\u0444\u0435, \u0430 \u0432\u0435\u0440\u043D\u0443\u0442\u044C
-  // \u0441 \u0447\u0443\u0436\u043E\u0439 (\u043C\u0430\u0441\u043A\u043E\u0439 \u0444\u043E\u0440\u043C\u044B) \u2014 \u0437\u043D\u0430\u0447\u0438\u0442 \u0441\u0434\u0435\u043B\u0430\u0442\u044C \u043F\u0440\u043E\u0437\u0440\u0430\u0447\u043D\u044B\u0439 \u0431\u044D\u043A\u0434\u0440\u043E\u043F \u043D\u0435\u043F\u0440\u043E\u0437\u0440\u0430\u0447\u043D\u044B\u043C \u0438 \u0437\u0430\u0441\u0432\u0435\u0442\u0438\u0442\u044C \u0435\u0433\u043E.
-  float alpha = srcA * (1.0 - smoothstep(-1.0, 1.0, sd));
-  return half4(half3(clamp(rgb, float3(0.0), float3(1.0)) * alpha), half(alpha));
-}
-`;
-  var SURFACE_SHADER = `
-uniform shader u_icon;
-/** \u0426\u0432\u0435\u0442\u043D\u043E\u0439 \u043A\u043E\u043D\u0442\u0435\u043D\u0442 \u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u044F \u041D\u0410 \u0441\u0442\u0435\u043A\u043B\u0435 \u2014 \u043E\u0431\u043B\u043E\u0436\u043A\u0430, \u043C\u0438\u043D\u0438\u0430\u0442\u044E\u0440\u0430. \u041E\u0442\u0434\u0435\u043B\u044C\u043D\u044B\u0439 \u0441\u043B\u043E\u0439 \u043E\u0442 \u043C\u0430\u0441\u043A\u0438 \u043A\u0440\u0430\u0441\u043A\u0438:
- *  \u0442\u0430 \u043E\u0434\u043D\u043E\u043A\u0430\u043D\u0430\u043B\u044C\u043D\u0430\u044F \u0438 \u043A\u0440\u0430\u0441\u0438\u0442\u0441\u044F \u043F\u043E\u043B\u044F\u0440\u043D\u043E\u0441\u0442\u044C\u044E, \u0430 \u044D\u0442\u043E\u0442 \u043D\u0435\u0441\u0451\u0442 \u0441\u0432\u043E\u0439 \u0446\u0432\u0435\u0442 \u043A\u0430\u043A \u0435\u0441\u0442\u044C. */
-uniform shader u_overlay;
-
-uniform float2 u_center;
-uniform float2 u_halfSize;
-uniform float  u_corner;
-uniform float  u_bevel;
-uniform float  u_thickness;
-uniform float2 u_morphOffset;
-uniform float2 u_morphHalf;
-uniform float  u_morphCorner;
-uniform float  u_morphK;
-
-uniform float  u_press;
-uniform float  u_active;
-uniform float2 u_light;
-
-uniform float  u_specular;
-uniform float  u_specularPower;
-uniform float  u_edgeDensity;
-uniform float  u_dispersion;
-uniform float  u_refraction;
-uniform float4 u_tint;
-uniform float  u_shadow;
-uniform float  u_shadowReach;
-uniform float  u_presence;
-uniform float  u_progress;
-uniform float  u_debug;
-
-uniform float  u_iconOn;
-uniform float  u_overlayOn;
-uniform float  u_iconScale;
-uniform float4 u_inkIdle;
-uniform float4 u_inkActive;
-uniform float2 u_touch;
-uniform float2 u_pull;
-uniform float  u_touchPress;
-uniform float  u_touchRadius;
-uniform float2 u_wave;
-
-${VG_SDF}
-
-const float VG_FALLOFF = ${VG_FALLOFF};
-
-/* \u0422\u043E\u043B\u0449\u0438\u043D\u0430, \u043D\u0430 \u043A\u043E\u0442\u043E\u0440\u043E\u0439 \u043E\u0442\u043A\u0430\u043B\u0438\u0431\u0440\u043E\u0432\u0430\u043D\u043E \u043F\u043E\u0433\u043B\u043E\u0449\u0435\u043D\u0438\u0435: \u043F\u0440\u0438 \u043D\u0435\u0439 \u043F\u043E\u043B\u043E\u0441\u0430 \u0441\u043E\u0432\u043F\u0430\u0434\u0430\u0435\u0442 \u0441 \u043F\u0440\u0435\u0436\u043D\u0438\u043C \u0441\u0442\u0435\u043A\u043B\u043E\u043C. */
-const float VG_REF_THICKNESS = 0.18;
-// \u041F\u043B\u043E\u0442\u043D\u043E\u0441\u0442\u044C \u0442\u0438\u043D\u0442\u0430 \u0432 \u043F\u043B\u043E\u0441\u043A\u043E\u0439 \u0441\u0435\u0440\u0435\u0434\u0438\u043D\u0435; \u0443 \u0444\u0430\u0441\u043A\u0438 \u043E\u043D\u0430 \u043C\u043D\u043E\u0436\u0438\u0442\u0441\u044F \u043D\u0430 u_edgeDensity.
-const float VG_BODY_DENSITY = 0.19;
-/* \u0413\u043B\u0443\u0431\u0438\u043D\u0430 \u043A\u0440\u0430\u0441\u043A\u0438 \u043F\u043E\u0434 \u043F\u043E\u0432\u0435\u0440\u0445\u043D\u043E\u0441\u0442\u044C\u044E, dp. \u041D\u0430 \u0441\u0442\u043E\u043B\u044C\u043A\u043E \u0435\u0451 \u0443\u0432\u043E\u0434\u0438\u0442 \u043D\u043E\u0440\u043C\u0430\u043B\u044C \u0443 \u0441\u0430\u043C\u043E\u0439 \u043A\u0440\u043E\u043C\u043A\u0438. */
-const float VG_INK_DEPTH = 4.0;
-
-half4 vgPack(half3 c, float a) { return half4(c * half(a), half(a)); }
-
-half3 vgHeat(float v) {
-  float x = clamp(v, 0.0, 1.0);
-  return half3(half(clamp(x * 2.2 - 0.2, 0.0, 1.0)),
-               half(clamp(1.0 - abs(x - 0.5) * 2.2, 0.0, 1.0)),
-               half(clamp(1.2 - x * 2.4, 0.0, 1.0)));
-}
-
-half4 main(float2 xy) {
-  float2 p = vgTouchWarp(xy - u_center, u_touch, u_pull, u_touchPress, u_touchRadius, u_wave.x, u_wave.y);
-
-  // \u041E\u0431\u0440\u0430\u0442\u043D\u0430\u044F \u0434\u0435\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u044F: \u0432\u0434\u043E\u043B\u044C \u0432\u0435\u043A\u0442\u043E\u0440\u0430 \u0442\u044F\u0433\u0438 \u0440\u0430\u0441\u0442\u044F\u0436\u0435\u043D\u0438\u0435 A, \u043F\u043E\u043F\u0435\u0440\u0451\u043A \u0441\u0436\u0430\u0442\u0438\u0435 1/sqrt(A). \u0420\u043E\u0432\u043D\u043E
-  // \u044D\u0442\u043E\u0442 \u0437\u0430\u043A\u043E\u043D \u043F\u043E\u0432\u0442\u043E\u0440\u044F\u0435\u0442 \u0442\u0440\u0430\u043D\u0441\u0444\u043E\u0440\u043C \u0436\u0438\u0432\u043E\u0439 \u043F\u043E\u0434\u043B\u043E\u0436\u043A\u0438 \u043F\u043E\u0434 \u043A\u0430\u043D\u0432\u0430\u0441\u043E\u043C, \u0438\u043D\u0430\u0447\u0435 \u043E\u043D\u0438 \u0440\u0430\u0437\u044A\u0435\u0437\u0436\u0430\u044E\u0442\u0441\u044F.
-  // \u0413\u0435\u043E\u043C\u0435\u0442\u0440\u0438\u0438 \u0434\u0432\u0438\u0436\u0435\u043D\u0438\u044F \u0437\u0434\u0435\u0441\u044C \u041D\u0415\u0422 \u2014 \u043D\u0438 \u0442\u044F\u0433\u0438, \u043D\u0438 \u0432\u0437\u0434\u0443\u0442\u0438\u044F \u043E\u0442 \u043D\u0430\u0436\u0430\u0442\u0438\u044F. \u0412\u0441\u0451 \u044D\u0442\u043E \u0434\u0435\u043B\u0430\u0435\u0442 \u043E\u0434\u0438\u043D
-  // \u0442\u0440\u0430\u043D\u0441\u0444\u043E\u0440\u043C \u043E\u0431\u0451\u0440\u0442\u043A\u0438, \u043E\u043D \u0436\u0435 \u043D\u0435\u0441\u0451\u0442 \u043D\u0430\u0442\u0438\u0432\u043D\u0443\u044E \u043B\u0438\u043D\u0437\u0443: \u0448\u0435\u0439\u0434\u0435\u0440 \u0435\u0451 \u043D\u0435 \u0434\u043E\u0441\u0442\u0430\u0451\u0442, \u0430 \u0434\u0432\u0430 \u043A\u043E\u043D\u0432\u0435\u0439\u0435\u0440\u0430
-  // \u043D\u0430 \u043E\u0434\u043D\u043E \u0434\u0432\u0438\u0436\u0435\u043D\u0438\u0435 \u0440\u0430\u0441\u0445\u043E\u0434\u044F\u0442\u0441\u044F \u043D\u0430 \u043A\u0430\u0434\u0440, \u0438 \u0441\u043B\u043E\u0438 \u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u0441\u044F \u0432\u0438\u0434\u043D\u043E \u043F\u043E \u043E\u0442\u0434\u0435\u043B\u044C\u043D\u043E\u0441\u0442\u0438.
-
-  float halfMin = max(min(u_halfSize.x, u_halfSize.y), 1.0);
-  float bevel = max(u_bevel, 1.0);
-
-  float sd = vgScene(p, u_halfSize, u_corner, u_morphOffset, u_morphHalf, u_morphCorner, u_morphK);
-  float t = vgBevelT(sd, bevel);
-  float2 n = vgSceneNormal(p, u_halfSize, u_corner, u_morphOffset, u_morphHalf, u_morphCorner, u_morphK);
-  float3 N = normalize(float3(n * vgBevelSlope(t), 1.0));
-  float3 V = float3(0.0, 0.0, 1.0);
-
-  float bloom = 1.0 + u_press * 0.45;
-
-  // \u041F\u0440\u043E\u0433\u0440\u0435\u0441\u0441 \u2014 \u0430\u043A\u0442\u0438\u0432\u043D\u043E\u0435 \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u0435, \u0441\u0442\u0430\u0432\u0448\u0435\u0435 \u043F\u043E\u043B\u0435\u043C: \u0441\u044B\u0433\u0440\u0430\u043D\u043D\u0430\u044F \u0447\u0430\u0441\u0442\u044C \u0431\u043B\u0435\u0441\u0442\u0438\u0442 \u0438 \u0441\u0432\u0435\u0442\u0438\u0442\u0441\u044F \u0440\u043E\u0432\u043D\u043E
-  // \u043D\u0430\u0441\u0442\u043E\u043B\u044C\u043A\u043E, \u043D\u0430\u0441\u043A\u043E\u043B\u044C\u043A\u043E \u0431\u043B\u0435\u0441\u0442\u0438\u0442 \u0430\u043A\u0442\u0438\u0432\u043D\u0430\u044F \u0434\u0435\u0442\u0430\u043B\u044C \u0446\u0435\u043B\u0438\u043A\u043E\u043C. \u041A\u0440\u0430\u0441\u043A\u0443 \u044D\u0442\u043E \u041D\u0415 \u0442\u0440\u043E\u0433\u0430\u0435\u0442: \u043F\u0435\u0440\u0435\u043A\u0440\u0430\u0448\u0438\u0432\u0430\u0442\u044C
-  // \u043D\u0430\u0434\u043F\u0438\u0441\u044C \u043F\u043E \u0445\u043E\u0434\u0443 \u0442\u0440\u0435\u043A\u0430 \u0437\u043D\u0430\u0447\u0438\u0442 \u043C\u0435\u043D\u044F\u0442\u044C \u0435\u0451 \u043F\u043E\u0441\u0440\u0435\u0434\u0438 \u0441\u043B\u043E\u0432\u0430.
-  float lit = max(u_active, vgProgress(p, u_halfSize, u_progress));
-
-  float3 L1 = normalize(float3(u_light * 0.86, 0.42));
-  float3 L2 = normalize(float3(-u_light * 0.78, 0.50));
-  float bevelMask = smoothstep(0.10, 0.55, t);
-  float s1 = pow(max(dot(reflect(-L1, N), V), 0.0), u_specularPower) * 0.85;
-  float s2 = pow(max(dot(reflect(-L2, N), V), 0.0), u_specularPower * 1.45) * 0.14;
-  float spec = (s1 + s2) * bevelMask * u_specular * bloom * (1.0 + lit * 0.30);
-
-  // \u0421\u0432\u0435\u0442\u044F\u0449\u0435\u0439\u0441\u044F \u043A\u0440\u043E\u043C\u043A\u0438 \u0437\u0434\u0435\u0441\u044C \u0431\u043E\u043B\u044C\u0448\u0435 \u041D\u0415\u0422. \u041E\u043D\u0430 \u0431\u044B\u043B\u0430 \u043E\u0442\u0440\u0430\u0436\u0435\u043D\u0438\u0435\u043C, \u043D\u0430\u0440\u0438\u0441\u043E\u0432\u0430\u043D\u043D\u044B\u043C \u0431\u0435\u043B\u044B\u043C \u043F\u043E\u0432\u0435\u0440\u0445, \u0438
-  // \u043F\u043E\u0442\u043E\u043C\u0443 \u0432\u044B\u0433\u043B\u044F\u0434\u0435\u043B\u0430 \u043E\u0434\u0438\u043D\u0430\u043A\u043E\u0432\u043E \u043D\u0430\u0434 \u0447\u0451\u0440\u043D\u044B\u043C \u0441\u043F\u0438\u0441\u043A\u043E\u043C \u0438 \u043D\u0430\u0434 \u0441\u0432\u0435\u0442\u043B\u043E\u0439 \u043E\u0431\u043B\u043E\u0436\u043A\u043E\u0439. \u041E\u0442\u0440\u0430\u0436\u0435\u043D\u0438\u0435
-  // \u0441\u0447\u0438\u0442\u0430\u0435\u0442 \u043B\u0438\u043D\u0437\u0430 (lens-shader.ts) \u2014 \u0442\u0430\u043C \u0432\u0438\u0434\u0435\u043D \u0431\u044D\u043A\u0434\u0440\u043E\u043F, \u0438 \u043A\u0440\u043E\u043C\u043A\u0430 \u0431\u0435\u0440\u0451\u0442 \u0446\u0432\u0435\u0442 \u043E\u0442 \u0442\u043E\u0433\u043E, \u0447\u0442\u043E
-  // \u0440\u0435\u0430\u043B\u044C\u043D\u043E \u043F\u043E\u0434 \u043D\u0435\u0439. \u0417\u0434\u0435\u0441\u044C \u043E\u0441\u0442\u0430\u0451\u0442\u0441\u044F \u0442\u043E\u043B\u044C\u043A\u043E \u0442\u043E, \u0447\u0442\u043E \u043E\u0442 \u043E\u043A\u0440\u0443\u0436\u0435\u043D\u0438\u044F \u043D\u0435 \u0437\u0430\u0432\u0438\u0441\u0438\u0442: \u0431\u043B\u0438\u043A \u043E\u0442 \u041D\u0410\u0428\u0415\u0413\u041E
-  // \u043A\u043B\u044E\u0447\u0435\u0432\u043E\u0433\u043E \u0441\u0432\u0435\u0442\u0430, \u043F\u043E\u0433\u043B\u043E\u0449\u0435\u043D\u0438\u0435 \u0441\u0440\u0435\u0434\u044B \u0438 \u0442\u0435\u043D\u044C.
-  float facing = dot(n, u_light);
-
-  // \u0422\u043E\u043B\u0449\u0438\u043D\u0430 \u043A\u0430\u043A \u043F\u043E\u0433\u043B\u043E\u0449\u0435\u043D\u0438\u0435: \u043F\u043E\u043B\u043E\u0441\u0430 \u0442\u0430\u043C, \u0433\u0434\u0435 \u043A\u0440\u043E\u043C\u043A\u0443 \u043D\u0435 \u043E\u0441\u0432\u0435\u0449\u0430\u0435\u0442 \u043D\u0438 \u043E\u0434\u0438\u043D \u0438\u0441\u0442\u043E\u0447\u043D\u0438\u043A. \u0420\u0430\u0441\u0442\u0451\u0442
-  // \u0441 \u0444\u0430\u0441\u043A\u043E\u0439, \u043F\u043E\u044D\u0442\u043E\u043C\u0443 \u0442\u043E\u043D\u043A\u043E\u0435 \u0441\u0442\u0435\u043A\u043B\u043E \u0441\u0430\u043C\u043E \u043F\u043E \u0441\u0435\u0431\u0435 \u043F\u0435\u0440\u0435\u0441\u0442\u0430\u0451\u0442 \xAB\u043D\u0430\u043B\u0438\u0432\u0430\u0442\u044C\u0441\u044F\xBB \u0443 \u043A\u0440\u0430\u044F.
-  float absorb = smoothstep(0.0, 0.70, t) * (1.0 - smoothstep(0.80, 1.0, t))
-    * (1.0 - abs(facing)) * 0.10 * (u_thickness / VG_REF_THICKNESS);
-
-  if (u_debug > 0.5) {
-    float inMask = 1.0 - smoothstep(-1.0, 1.0, sd);
-    if (u_debug < 1.5) {
-      float band = abs(fract(sd / (halfMin * 0.22)) - 0.5) * 2.0;
-      half3 c = sd < 0.0 ? half3(0.20, 0.62, 1.0) : half3(1.0, 0.42, 0.22);
-      return vgPack(c * half(0.25 + band * 0.75), 1.0);
-    }
-    if (u_debug < 2.5) { return vgPack(half3(1.0), inMask); }
-    if (u_debug < 3.5) { return vgPack(vgHeat(t), inMask); }
-    // \u0424\u0440\u0435\u043D\u0435\u043B\u044C \u0442\u0435\u043F\u0435\u0440\u044C \u0443 \u043B\u0438\u043D\u0437\u044B; \u0437\u0434\u0435\u0441\u044C \u043F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0435\u043C \u0435\u0433\u043E \u0424\u041E\u0420\u041C\u0423 \u2014 \u043D\u0430\u0441\u043A\u043E\u043B\u044C\u043A\u043E \u0432\u0437\u0433\u043B\u044F\u0434 \u0441\u043A\u043E\u043B\u044C\u0437\u044F\u0449\u0438\u0439.
-    if (u_debug < 4.5) { return vgPack(vgHeat(1.0 - clamp(N.z, 0.0, 1.0)), inMask); }
-    if (u_debug < 5.5) {
-      float push = pow(t, VG_FALLOFF) * u_refraction;
-      return vgPack(vgHeat(push), inMask);
-    }
-    if (u_debug < 6.5) { return half4(0.0); }
-    if (u_debug < 7.5) { return vgPack(half3(1.0), spec * inMask); }
-    // \u0420\u0430\u0441\u0449\u0435\u043F\u043B\u0435\u043D\u0438\u0435 \u0441\u0447\u0438\u0442\u0430\u0435\u0442 \u043B\u0438\u043D\u0437\u0430; \u0437\u0434\u0435\u0441\u044C \u2014 \u043F\u043E\u043B\u0435, \u043F\u043E \u043A\u043E\u0442\u043E\u0440\u043E\u043C\u0443 \u043E\u043D\u043E \u043D\u0430\u0440\u0430\u0441\u0442\u0430\u0435\u0442.
-    if (u_debug < 8.5) { return vgPack(vgHeat(u_dispersion * t * t), inMask); }
-    if (u_debug < 9.5) { return vgPack(half3(N * 0.5 + 0.5), inMask); }
-    // spectral \u0438 adapt \u043F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0435\u0442 \u041B\u0418\u041D\u0417\u0410 \u2014 \u043F\u043E\u0432\u0435\u0440\u0445\u043D\u043E\u0441\u0442\u044C \u043E\u0431\u044F\u0437\u0430\u043D\u0430 \u0443\u0439\u0442\u0438 \u0441 \u0434\u043E\u0440\u043E\u0433\u0438.
-    return half4(0.0);
-  }
-
-  // \u0422\u0435\u043D\u044C \u0438 \u043E\u0440\u0435\u043E\u043B \u0436\u0438\u0432\u0443\u0442 \u0421\u041D\u0410\u0420\u0423\u0416\u0418 \u0444\u043E\u0440\u043C\u044B: \u0432\u043D\u0443\u0442\u0440\u0438 \u0438\u0445 \u043C\u0435\u0441\u0442\u043E \u0437\u0430\u043D\u0438\u043C\u0430\u0435\u0442 \u0441\u0430\u043C\u043E \u0441\u0442\u0435\u043A\u043B\u043E. \u041E\u0442\u0440\u044B\u0432 \u043E\u0442
-  // \u043A\u043E\u043D\u0442\u0435\u043D\u0442\u0430 \u0434\u0435\u0440\u0436\u0438\u0442\u0441\u044F \u0438\u043C\u0435\u043D\u043D\u043E \u043D\u0430 \u0442\u0435\u043D\u0438 \u2014 \u0431\u0435\u0437 \u043D\u0435\u0451 \u043F\u043E\u0432\u0435\u0440\u0445\u043D\u043E\u0441\u0442\u044C \u043B\u0435\u0436\u0438\u0442 \u041D\u0410 \u043A\u0430\u0440\u0442\u0438\u043D\u043A\u0435, \u0430 \u043D\u0435 \u043D\u0430\u0434 \u043D\u0435\u0439.
-  // \u0422\u0435\u043D\u044C \u0436\u0438\u0432\u0451\u0442 \u0442\u043E\u043B\u044C\u043A\u043E \u0443 \u043A\u0440\u043E\u043C\u043A\u0438 \u0438 \u0441\u043D\u0430\u0440\u0443\u0436\u0438: \u043F\u0440\u0438 sd < \u22121 \u043C\u043D\u043E\u0436\u0438\u0442\u0435\u043B\u044C outside \u0438 \u0442\u0430\u043A \u043D\u043E\u043B\u044C.
-  // \u0421\u0447\u0438\u0442\u0430\u0442\u044C \u0435\u0451 \u0433\u043B\u0443\u0431\u043E\u043A\u043E \u0432\u043D\u0443\u0442\u0440\u0438 \u0444\u043E\u0440\u043C\u044B \u2014 \u044D\u0442\u043E \u043B\u0438\u0448\u043D\u044F\u044F \u041F\u041E\u041B\u041D\u0410\u042F \u043E\u0446\u0435\u043D\u043A\u0430 SDF \u043D\u0430 \u043A\u0430\u0436\u0434\u044B\u0439 \u0442\u0430\u043A\u043E\u0439 \u043F\u0438\u043A\u0441\u0435\u043B\u044C,
-  // \u0430 \u0442\u0435\u043B\u043E \u0437\u0430\u043D\u0438\u043C\u0430\u0435\u0442 \u043F\u043E\u0447\u0442\u0438 \u0432\u0441\u044E \u043F\u043B\u043E\u0449\u0430\u0434\u044C. \u0412\u0435\u0442\u0432\u043B\u0435\u043D\u0438\u0435 \u0437\u0434\u0435\u0441\u044C \u043F\u043E \u043A\u043E\u043E\u0440\u0434\u0438\u043D\u0430\u0442\u0435, \u043D\u043E \u0440\u0430\u0441\u0445\u043E\u0434\u044F\u0442\u0441\u044F \u0442\u043E\u043B\u044C\u043A\u043E
-  // \u043D\u0438\u0442\u0438 \u043D\u0430 \u0441\u0430\u043C\u043E\u0439 \u043A\u0440\u043E\u043C\u043A\u0435.
-  float shade = 0.0;
-  float halo = 0.0;
-  if (sd > -1.0) {
-    float outside = smoothstep(-1.0, 1.0, sd);
-    float sdDrop = vgScene(p - float2(0.0, u_shadowReach * 0.16), u_halfSize, u_corner,
-                           u_morphOffset, u_morphHalf, u_morphCorner, u_morphK);
-    float amb = 1.0 - smoothstep(0.0, u_shadowReach, max(sdDrop, 0.0));
-    float con = 1.0 - smoothstep(0.0, u_shadowReach * 0.22, max(sd, 0.0));
-    shade = (amb * amb * 0.22 + con * con * 0.18) * outside * u_shadow;
-    halo = 1.0 - smoothstep(0.0, u_shadowReach * 0.30, max(sd, 0.0));
-    halo = halo * halo * lit * 0.10 * outside;
-  }
-
-  if (sd > 1.0) {
-    return half4(half3(half(halo)), half(halo + shade * (1.0 - halo)));
-  }
-
-  float density = u_tint.w;
-  float inner = clamp(-sd / halfMin, 0.0, 1.0);
-  half3 col = half3(u_tint.rgb);
-
-  // \u0422\u0438\u043D\u0442 \u0421\u0412\u0415\u0422\u041B\u042B\u0419 \u0438 \u0441\u043B\u0430\u0431\u044B\u0439, \u0430 \u043D\u0435 \u0442\u0451\u043C\u043D\u044B\u0439: \u0442\u0451\u043C\u043D\u043E\u0435 \u0441\u0442\u0435\u043A\u043B\u043E \u043D\u0430 \u0442\u0451\u043C\u043D\u043E\u043C \u043A\u043E\u043D\u0442\u0435\u043D\u0442\u0435 \u0438\u0441\u0447\u0435\u0437\u0430\u0435\u0442, \u0438 \u0435\u0433\u043E
-  // \u043F\u0440\u0438\u0445\u043E\u0434\u0438\u0442\u0441\u044F \u0434\u0435\u0440\u0436\u0430\u0442\u044C \u0436\u0438\u0440\u043D\u043E\u0439 \u043A\u0440\u043E\u043C\u043A\u043E\u0439 \u2014 \u043E\u0442 \u044D\u0442\u043E\u0433\u043E \u043F\u043E\u0432\u0435\u0440\u0445\u043D\u043E\u0441\u0442\u044C \u0447\u0438\u0442\u0430\u0435\u0442\u0441\u044F \u0445\u0440\u043E\u043C\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u043E\u0439 \u0431\u0443\u0441\u0438\u043D\u043E\u0439.
-  // \u041F\u043B\u043E\u0442\u043D\u043E\u0441\u0442\u044C \u0442\u0438\u043D\u0442\u0430 \u0443 \u0444\u0430\u0441\u043A\u0438 \u2014 \u043E\u0442\u0434\u0435\u043B\u044C\u043D\u0430\u044F \u0432\u0435\u043B\u0438\u0447\u0438\u043D\u0430: \u0444\u0438\u0437\u0438\u0447\u0435\u0441\u043A\u0438 \u0444\u0430\u0441\u043A\u0430 \u0433\u043D\u0451\u0442 \u0441\u0432\u0435\u0442 \u0441\u0438\u043B\u044C\u043D\u0435\u0435, \u043D\u043E
-  // \u043C\u0443\u0442\u043D\u0435\u0435 \u041D\u0415 \u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u0441\u044F. \u0421\u0446\u0435\u043F\u043B\u0435\u043D\u043D\u044B\u0435, \u043E\u043D\u0438 \u0434\u0430\u0432\u0430\u043B\u0438 \u043C\u043E\u043B\u043E\u0447\u043D\u043E\u0435 \u043A\u043E\u043B\u044C\u0446\u043E \u043F\u043E \u0432\u0441\u0435\u043C\u0443 \u043E\u0431\u0432\u043E\u0434\u0443.
-  float body = mix(VG_BODY_DENSITY, VG_BODY_DENSITY * u_edgeDensity, smoothstep(0.10, 0.62, t)) * density;
-  float vignette = smoothstep(0.15, 1.0, inner) * 0.19 * density;
-  // \u041F\u0440\u0438\u0431\u0430\u0432\u043A\u0438 \u043F\u043B\u043E\u0442\u043D\u043E\u0441\u0442\u0438 \u043D\u0430 \u043D\u0430\u0436\u0430\u0442\u0438\u0435 \u0437\u0434\u0435\u0441\u044C \u041D\u0415\u0422. \u041E\u043D\u0430 \u0437\u0430\u0434\u0443\u043C\u044B\u0432\u0430\u043B\u0430\u0441\u044C \u043A\u0430\u043A \xAB\u0434\u0435\u0442\u0430\u043B\u044C \u0437\u0430\u043C\u0435\u0442\u043D\u0435\u0435 \u043F\u043E\u0434
-  // \u043F\u0430\u043B\u044C\u0446\u0435\u043C\xBB, \u043D\u043E \u0442\u044F\u043D\u0435\u0442 \u0442\u0435\u043B\u043E \u043A \u0442\u0438\u043D\u0442\u0443, \u0430 \u0442\u0438\u043D\u0442 \u0437\u0430\u0432\u0438\u0441\u0438\u0442 \u043E\u0442 \u043F\u043E\u043B\u044F\u0440\u043D\u043E\u0441\u0442\u0438: \u043D\u0430\u0434 \u0441\u0432\u0435\u0442\u043B\u044B\u043C \u0444\u043E\u043D\u043E\u043C
-  // (\u043F\u043E\u043B\u044F\u0440\u043D\u043E\u0441\u0442\u044C \u0442\u0451\u043C\u043D\u0430\u044F) \u043D\u0430\u0436\u0430\u0442\u0438\u0435 \u0422\u0415\u041C\u041D\u0418\u041B\u041E \u0434\u0435\u0442\u0430\u043B\u044C. \u041F\u0440\u0438\u0441\u0443\u0442\u0441\u0442\u0432\u0438\u0435 \u043F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u044E\u0442 \u0434\u0435\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u044F \u043F\u043E\u043B\u044F
-  // vgTouchWarp \u0438 \u0440\u0430\u0441\u0446\u0432\u0435\u0442\u0430\u044E\u0449\u0438\u0439 \u0431\u043B\u0438\u043A \u043D\u0438\u0436\u0435 \u2014 \u0438\u043C \u0437\u043D\u0430\u043A \u043F\u043E\u043B\u044F\u0440\u043D\u043E\u0441\u0442\u0438 \u0431\u0435\u0437\u0440\u0430\u0437\u043B\u0438\u0447\u0435\u043D.
-  float a = max(body, vignette);
-
-  // \u0426\u0432\u0435\u0442 \u0442\u0435\u043B\u0430 \u0430\u043A\u0442\u0438\u0432\u043D\u043E\u0441\u0442\u044C \u041D\u0415 \u0442\u0440\u043E\u0433\u0430\u0435\u0442. \u041F\u043E\u0434\u043C\u0435\u0448\u0438\u0432\u0430\u043D\u0438\u0435 \u0444\u0438\u043A\u0441\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u043E\u0433\u043E \u0441\u0435\u0440\u043E\u0433\u043E \u0441\u044E\u0434\u0430 \u043C\u0435\u043D\u044F\u043B\u043E \u0437\u043D\u0430\u043A
-  // \u044D\u0444\u0444\u0435\u043A\u0442\u0430 \u043E\u0442 \u0444\u043E\u043D\u0430: \u043D\u0430\u0434 \u0442\u0451\u043C\u043D\u044B\u043C \u0434\u0435\u0442\u0430\u043B\u044C \u0441\u0432\u0435\u0442\u043B\u0435\u043B\u0430, \u043D\u0430\u0434 \u0441\u0432\u0435\u0442\u043B\u044B\u043C \u2014 \u0442\u0435\u043C\u043D\u0435\u043B\u0430, \u0445\u043E\u0442\u044F \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u0435 \u043E\u0434\u043D\u043E
-  // \u0438 \u0442\u043E \u0436\u0435. \u0410\u043A\u0442\u0438\u0432\u043D\u043E\u0441\u0442\u044C \u043F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u044E\u0442 \u0431\u043B\u0438\u043A \u0438 \u043F\u043E\u0434\u0441\u0432\u0435\u0442\u043A\u0430 \u043A\u0440\u043E\u043C\u043A\u0438 \u0432\u044B\u0448\u0435: \u0438\u043C \u0444\u043E\u043D \u0431\u0435\u0437\u0440\u0430\u0437\u043B\u0438\u0447\u0435\u043D.
-  a = a + absorb;
-  col *= 1.0 - half(absorb * 1.2);
-
-  // \u0417\u041D\u0410\u0427\u041E\u041A \u041B\u0415\u0416\u0418\u0422 \u041F\u041E\u0414 \u041F\u041E\u0412\u0415\u0420\u0425\u041D\u041E\u0421\u0422\u042C\u042E, \u0430 \u043D\u0435 \u043D\u0430\u043A\u043B\u0435\u0435\u043D \u043D\u0430 \u043D\u0435\u0451: \u0440\u0430\u043D\u044C\u0448\u0435 \u043E\u043D \u043F\u043E\u0434\u043C\u0435\u0448\u0438\u0432\u0430\u043B\u0441\u044F \u043F\u043E\u0441\u043B\u0435\u0434\u043D\u0438\u043C,
-  // \u043F\u043E\u0432\u0435\u0440\u0445 \u0431\u043B\u0438\u043A\u0430, \u0438 \u0447\u0438\u0442\u0430\u043B\u0441\u044F \u043F\u043B\u043E\u0441\u043A\u0438\u043C \u0441\u0442\u0438\u043A\u0435\u0440\u043E\u043C \u043D\u0430 \u043E\u0431\u044A\u0451\u043C\u043D\u043E\u043C \u0441\u0442\u0435\u043A\u043B\u0435. \u0423 \u043A\u0440\u043E\u043C\u043A\u0438 \u0435\u0433\u043E \u0443\u0432\u043E\u0434\u0438\u0442 \u043D\u043E\u0440\u043C\u0430\u043B\u044C,
-  // \u043A\u0430\u043A \u0432\u0441\u0451, \u0447\u0442\u043E \u0432\u0438\u0434\u043D\u043E \u0441\u043A\u0432\u043E\u0437\u044C \u0441\u0442\u0435\u043A\u043B\u043E, \u0430 \u0431\u043B\u0438\u043A \u043B\u043E\u0436\u0438\u0442\u0441\u044F \u0421\u0412\u0415\u0420\u0425\u0423 \u2014 \u043E\u043D \u0436\u0438\u0432\u0451\u0442 \u043D\u0430 \u0441\u0430\u043C\u043E\u0439 \u043F\u043E\u0432\u0435\u0440\u0445\u043D\u043E\u0441\u0442\u0438.
-  //
-  // \u041D\u0438\u043A\u0430\u043A\u043E\u0439 \u0442\u0435\u043D\u0438 \u043F\u043E\u0434 \u0437\u043D\u0430\u0447\u043A\u043E\u043C \u0437\u0434\u0435\u0441\u044C \u041D\u0415\u0422. \u041E\u043D\u0430 \u0434\u0435\u043B\u0430\u043B\u0430\u0441\u044C \u0440\u0430\u0437\u043D\u0438\u0446\u0435\u0439 \u0434\u0432\u0443\u0445 \u0441\u043C\u0435\u0449\u0451\u043D\u043D\u044B\u0445 \u0432\u044B\u0431\u043E\u0440\u043E\u043A \u043C\u0430\u0441\u043A\u0438 \u0438
-  // \u0434\u0430\u0432\u0430\u043B\u0430 \u043F\u043E \u043A\u0440\u0430\u044E \u0432\u0442\u043E\u0440\u043E\u0439 \u043A\u043E\u043D\u0442\u0443\u0440 \u2014 \u0433\u0440\u0430\u043D\u0438\u0446\u044B \u0437\u043D\u0430\u0447\u043A\u0430 \u0432\u044B\u0433\u043B\u044F\u0434\u0435\u043B\u0438 \u0440\u0432\u0430\u043D\u044B\u043C\u0438.
-  // \u0421\u0414\u0412\u0418\u0413 \u041A\u0420\u0410\u0421\u041A\u0418 \u0417\u0410\u0414\u0410\u041D \u0415\u0401 \u0413\u041B\u0423\u0411\u0418\u041D\u041E\u0419, \u0410 \u041D\u0415 \u0428\u0418\u0420\u0418\u041D\u041E\u0419 \u0424\u0410\u0421\u041A\u0418. \u041A\u0440\u0430\u0441\u043A\u0430 \u043B\u0435\u0436\u0438\u0442 \u0443 \u0441\u0430\u043C\u043E\u0439 \u043F\u043E\u0432\u0435\u0440\u0445\u043D\u043E\u0441\u0442\u0438, \u0438
-  // \u0443\u0432\u043E\u0434\u0438\u0442 \u0435\u0451 \u0440\u043E\u0432\u043D\u043E \u0442\u0430 \u0442\u043E\u043D\u043A\u0430\u044F \u0442\u043E\u043B\u0449\u0430, \u0447\u0442\u043E \u043D\u0430\u0434 \u043D\u0435\u0439, \u2014 \u0430 \u043D\u0435 \u0442\u043E, \u043D\u0430\u0441\u043A\u043E\u043B\u044C\u043A\u043E \u0448\u0438\u0440\u043E\u043A\u0443\u044E \u0444\u0430\u0441\u043A\u0443 \u0441\u043D\u044F\u043B\u0438 \u0443
-  // \u044D\u0442\u043E\u0433\u043E \u043A\u0443\u0441\u043A\u0430 \u0441\u0442\u0435\u043A\u043B\u0430. \u0414\u043E\u043B\u0435\u0439 \u0444\u0430\u0441\u043A\u0438 \u044D\u0442\u043E \u0438 \u0431\u044B\u043B\u043E: \u043D\u0430 \u0442\u043E\u043D\u043A\u043E\u043C \u0441\u0442\u0435\u043A\u043B\u0435 \u0441\u0434\u0432\u0438\u0433 \u0432\u044B\u0445\u043E\u0434\u0438\u043B 4 dp \u0438 \u0432\u0441\u0451
-  // \u0441\u0445\u043E\u0434\u0438\u043B\u043E\u0441\u044C, \u0430 \u043D\u0430 \u0442\u043E\u043B\u0441\u0442\u043E\u043C \u2014 8, \u0438 \u043E\u0431\u043B\u043E\u0436\u043A\u0430, \u043E\u0442\u0431\u0438\u0442\u0430\u044F \u043E\u0442 \u043A\u0440\u0430\u044F \u043D\u0430 6, \u0440\u0430\u0441\u0442\u044F\u0433\u0438\u0432\u0430\u043B\u0430\u0441\u044C \u043A \u043A\u0440\u043E\u043C\u043A\u0435 \u0438
-  // \u0432\u044B\u043B\u0435\u0437\u0430\u043B\u0430 \u0437\u0430 \u0433\u0430\u0431\u0430\u0440\u0438\u0442. \u041F\u043E\u0442\u043E\u043B\u043E\u043A \u0430\u0431\u0441\u043E\u043B\u044E\u0442\u043D\u044B\u0439: \u0443 \u043A\u0440\u0430\u0441\u043A\u0438 \u043E\u0434\u043D\u0430 \u0433\u043B\u0443\u0431\u0438\u043D\u0430 \u043F\u0440\u0438 \u043B\u044E\u0431\u043E\u043C \u0441\u0442\u0435\u043A\u043B\u0435.
-  float2 inkShift = n * (min(u_bevel * 0.5, VG_INK_DEPTH) * t);
-  float2 inkUv = u_center + p - inkShift;
-
-  half4 ink = u_icon.eval(inkUv * u_iconScale) * half(u_iconOn);
-
-  // \u041F\u041E\u0414\u041B\u041E\u0416\u041A\u0410 \u041F\u041E\u0414 \u041A\u0420\u0410\u0421\u041A\u041E\u0419. \u0427\u0438\u0442\u0430\u0435\u043C\u043E\u0441\u0442\u044C \u2014 \u0442\u0440\u0435\u0431\u043E\u0432\u0430\u043D\u0438\u0435 \u041C\u0415\u0421\u0422\u041D\u041E\u0415, \u0430 \u043D\u0435 \u043E\u0431\u0449\u0435\u0435 \u043F\u043E \u0434\u0435\u0442\u0430\u043B\u0438. \u0413\u0430\u0441\u0438\u0442\u044C \u0444\u043E\u043D \u043F\u043E
-  // \u0432\u0441\u0435\u0439 \u043F\u043B\u043E\u0449\u0430\u0434\u0438 \u0437\u043D\u0430\u0447\u0438\u0442 \u043F\u043B\u0430\u0442\u0438\u0442\u044C \u043F\u0440\u043E\u0437\u0440\u0430\u0447\u043D\u043E\u0441\u0442\u044C\u044E \u0442\u0430\u043C, \u0433\u0434\u0435 \u0433\u0430\u0441\u0438\u0442\u044C \u043D\u0435\u0447\u0435\u0433\u043E: \u043F\u043E\u0434 \u043F\u0443\u0441\u0442\u044B\u043C \u043C\u0435\u0441\u0442\u043E\u043C \u0441\u0442\u0435\u043A\u043B\u043E
-  // \u043E\u0431\u044F\u0437\u0430\u043D\u043E \u043E\u0441\u0442\u0430\u0432\u0430\u0442\u044C\u0441\u044F \u0441\u0442\u0435\u043A\u043B\u043E\u043C. \u041F\u043B\u043E\u0442\u043D\u043E\u0441\u0442\u044C \u043F\u043E\u0434\u043D\u0438\u043C\u0430\u0435\u0442\u0441\u044F \u0442\u043E\u043B\u044C\u043A\u043E \u043F\u043E\u0434 \u0441\u0430\u043C\u043E\u0439 \u043A\u0440\u0430\u0441\u043A\u043E\u0439 \u0438 \u0432 \u043A\u0430\u0439\u043C\u0435
-  // \u0432\u043E\u043A\u0440\u0443\u0433 \u043D\u0435\u0451 \u2014 \u0442\u0430\u043A \u043D\u0430 \u0441\u0442\u0435\u043A\u043B\u0435 \u043C\u0430\u0442\u0438\u0440\u0443\u044E\u0442 \u0437\u043E\u043D\u0443 \u043F\u043E\u0434 \u0433\u0440\u0430\u0432\u0438\u0440\u043E\u0432\u043A\u043E\u0439, \u0430 \u043D\u0435 \u0432\u0435\u0441\u044C \u043B\u0438\u0441\u0442.
-  //
-  // \u041F\u043E\u043B\u0435 \u043A\u0430\u0439\u043C\u044B \u043F\u0440\u0438\u0445\u043E\u0434\u0438\u0442 \u0413\u041E\u0422\u041E\u0412\u042B\u041C, \u043A\u0440\u0430\u0441\u043D\u044B\u043C \u043A\u0430\u043D\u0430\u043B\u043E\u043C \u043C\u0430\u0441\u043A\u0438 (\u043A\u043E\u043D\u0442\u0440\u0430\u043A\u0442 \u043E\u043F\u0438\u0441\u0430\u043D \u0443 iconMask \u0432 \u0440\u0435\u043D\u0434\u0435\u0440\u0435\u0440\u0435):
-  // \u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u0435 \u0440\u0430\u0437\u043C\u044B\u0432\u0430\u0435\u0442 \u043A\u0440\u0430\u0441\u043A\u0443 \u043E\u0434\u0438\u043D \u0440\u0430\u0437 \u043D\u0430 \u043A\u0430\u0434\u0440 \u043D\u0430\u0441\u0442\u043E\u044F\u0449\u0438\u043C \u0433\u0430\u0443\u0441\u0441\u0438\u0430\u043D\u043E\u043C. \u0421\u0447\u0438\u0442\u0430\u0442\u044C \u044D\u0442\u043E \u043F\u043E\u043B\u0435 \u0437\u0434\u0435\u0441\u044C
-  // \u043D\u0435\u0447\u0435\u043C: \u043A\u043E\u043B\u044C\u0446\u043E \u043E\u0442\u0441\u0447\u0451\u0442\u043E\u0432 \u0432\u043E\u043A\u0440\u0443\u0433 \u043F\u0438\u043A\u0441\u0435\u043B\u044F \u2014 \u0442\u043E \u0436\u0435 \u043D\u0435\u0434\u043E\u0441\u044D\u043C\u043F\u043B\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435, \u0447\u0442\u043E \u0438 \u0432 \u0434\u0438\u0441\u043A\u043E\u0432\u043E\u043C \u0441\u0431\u043E\u0440\u0435,
-  // \u0438 \u043F\u043E\u0434\u043B\u043E\u0436\u043A\u0430 \u0432\u044B\u0445\u043E\u0434\u0438\u043B\u0430 \u0440\u0432\u0430\u043D\u043E\u0439, \u0441 \u0432\u0438\u0434\u0438\u043C\u043E\u0439 \u0433\u0440\u0430\u043D\u0438\u0446\u0435\u0439 \u0432\u043E\u043A\u0440\u0443\u0433 \u043A\u0430\u0436\u0434\u043E\u0439 \u0433\u0440\u0443\u043F\u043F\u044B \u0431\u0443\u043A\u0432.
-
-  half inkA = ink.g * half(mix(0.82, 1.0, u_active));
-  half3 inkCol = mix(half3(u_inkIdle.rgb), half3(u_inkActive.rgb), half(u_active));
-  col = col * (1.0 - inkA) + inkCol * inkA;
-
-  // \u0426\u0412\u0415\u0422\u041D\u041E\u0419 \u041A\u041E\u041D\u0422\u0415\u041D\u0422 \u041B\u0415\u0416\u0418\u0422 \u0422\u0410\u041C \u0416\u0415, \u0413\u0414\u0415 \u041A\u0420\u0410\u0421\u041A\u0410 \u2014 \u0432\u043D\u0443\u0442\u0440\u0438 \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u0430 \u0438 \u043D\u0430 \u0442\u043E\u0439 \u0436\u0435 \u043A\u043E\u043E\u0440\u0434\u0438\u043D\u0430\u0442\u0435. \u0418\u043D\u0430\u0447\u0435
-  // \u0434\u0435\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u044F \u0432\u0435\u0434\u0451\u0442 \u0438\u0445 \u043F\u043E\u0440\u043E\u0437\u043D\u044C: \u043F\u0440\u0438 \u043D\u0430\u0436\u0430\u0442\u0438\u0438 \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u0438 \u0430\u0440\u0442\u0438\u0441\u0442 \u0442\u0440\u044F\u0441\u0443\u0442\u0441\u044F \u0432\u043C\u0435\u0441\u0442\u0435 \u0441 \u043F\u043E\u0432\u0435\u0440\u0445\u043D\u043E\u0441\u0442\u044C\u044E,
-  // \u0430 \u043E\u0431\u043B\u043E\u0436\u043A\u0430 \u0441\u0442\u043E\u0438\u0442 \u043D\u0430 \u043C\u0435\u0441\u0442\u0435, \u043F\u043E\u0442\u043E\u043C\u0443 \u0447\u0442\u043E \u043E\u043D\u0430 \u0431\u044B\u043B\u0430 \u043E\u0442\u0434\u0435\u043B\u044C\u043D\u044B\u043C \u0441\u043B\u043E\u0435\u043C \u043F\u043E\u0432\u0435\u0440\u0445 \u0441\u0442\u0435\u043A\u043B\u0430. \u041F\u043E\u043B\u044F\u0440\u043D\u043E\u0441\u0442\u044C \u0435\u0433\u043E
-  // \u043D\u0435 \u0442\u0440\u043E\u0433\u0430\u0435\u0442 \u2014 \u0443 \u043D\u0435\u0433\u043E \u0441\u0432\u043E\u0439 \u0446\u0432\u0435\u0442, \u0438 \u043F\u043E\u0434\u043C\u0435\u043D\u044F\u0442\u044C \u0435\u0433\u043E \u043D\u0435\u0447\u0435\u043C.
-  half4 over = u_overlay.eval(inkUv * u_iconScale) * half(u_overlayOn);
-  col = col * (1.0 - over.a) + over.rgb * over.a;
-
-  col += half3(spec) * half3(0.98, 0.99, 1.0);
-
-  // \u0410\u043B\u044C\u0444\u0430 \u0431\u043B\u0438\u043A\u0430 \u0438\u0434\u0451\u0442 \u0432\u0440\u043E\u0432\u0435\u043D\u044C \u0441 \u0435\u0433\u043E \u044F\u0440\u043A\u043E\u0441\u0442\u044C\u044E: \u043F\u0440\u0438 \u0437\u0430\u043D\u0438\u0436\u0435\u043D\u043D\u043E\u0439 \u0430\u043B\u044C\u0444\u0435 premultiplied \u0440\u0435\u0437\u0443\u043B\u044C\u0442\u0430\u0442
-  // \u0433\u0430\u0441\u043D\u0435\u0442 \u0438 \u0431\u043B\u0438\u043A \u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u0441\u044F \u043D\u0435\u0432\u0438\u0434\u0438\u043C\u044B\u043C \u043D\u0430 \u0442\u0451\u043C\u043D\u043E\u043C \u0444\u043E\u043D\u0435.
-  a = clamp(a + spec, 0.0, 1.0);
-  a = max(a, max(float(inkA), float(over.a)));
-  a *= 1.0 - smoothstep(-1.0, 1.0, sd);
-
-  col = clamp(col, half3(0.0), half3(1.0));
-  return half4(col * half(a), half(a + shade * (1.0 - a)));
-}
-`;
-  var import_react = __toESM(require_react(), 1);
-  var TINT_DARK = 0.07;
-  var TINT_LIGHT = 0.94;
-  var BODY_CAP_LOOSE = 0.62;
-  var BODY_CAP_TIGHT = 0.38;
-  var MAX_DENSITY = 0.92;
-  var clamp3 = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
-  function bodyCap(legibility) {
-    return BODY_CAP_LOOSE + (BODY_CAP_TIGHT - BODY_CAP_LOOSE) * clamp3(legibility * 2, 0, 1);
-  }
-  function bodyDensityFor(local, legibility, bodyDensity2, polarity, spread = 0) {
-    const cap = bodyCap(legibility);
-    const need = polarity > 0.5 ? local > cap ? clamp3((local - cap) / Math.max(local - TINT_DARK, 1e-4), 0, MAX_DENSITY) : 0 : local < 1 - cap ? clamp3((1 - cap - local) / Math.max(TINT_LIGHT - local, 1e-4), 0, MAX_DENSITY) : 0;
-    const s = clamp3(spread, 0, 1);
-    const busyFloor = s * (0.15 + (0.85 - 0.15) * clamp3(legibility, 0, 1));
-    const demand = clamp3(legibility * 4, 0, 1);
-    return Math.max(bodyDensity2, need * demand, busyFloor);
-  }
-  function bodyLuma(local, legibility, bodyDensity2, polarity, spread = 0, edgeLight2 = 0) {
-    const tint = polarity > 0.5 ? TINT_DARK : TINT_LIGHT;
-    const density2 = bodyDensityFor(local, legibility, bodyDensity2, polarity, spread);
-    const lift = local * edgeLight2 * (0.12 + 0.55 * (1 - local));
-    return clamp3(local + (tint - local) * density2 + lift, 0, 1);
-  }
-  function shouldInkBeLight(sample, legibility, wasLight) {
-    const hi = sample.hi ?? sample.luma;
-    const decisive = sample.luma * 0.75 + hi * 0.25;
-    const cost = bodyDensityFor(decisive, legibility, 0, 1);
-    const wantsFlip = wasLight ? cost > FLIP_DENSITY : cost < RETURN_DENSITY;
-    return wantsFlip ? !wasLight : wasLight;
-  }
-  var FLIP_DENSITY = 0.48;
-  var RETURN_DENSITY = 0.4;
-  var CONFIRMATIONS = 3;
-  var NO_TOUCH = {
-    x: 0,
-    y: 0,
-    pullX: 0,
-    pullY: 0,
-    press: 0,
-    radius: 0,
-    waveAmp: 0,
-    wavePhase: 0
+  var NO_ACCESSIBILITY = {
+    reduceTransparency: false,
+    increaseContrast: false,
+    reduceMotion: false
   };
-  var NO_MORPH = { offsetX: 0, offsetY: 0, width: 0, height: 0, cornerRadius: 0, smoothing: 0 };
-  var NO_PROGRESS = -1;
-  var lensMagnify = (o) => 1 + (o.refractionScale - 1) * o.refraction;
-  var shapes = /* @__PURE__ */ new Map();
-  function channel(entries) {
-    const uniformValues = [];
-    let shape = shapes.get(entries.length);
-    let same = shape !== void 0;
-    for (let i = 0; i < entries.length; i += 1) {
-      const [name, value] = entries[i];
-      const v = typeof value === "number" ? [value] : value;
-      if (same && (shape.names[i] !== name || shape.sizes[i] !== v.length)) same = false;
-      for (const x of v) uniformValues.push(x);
+  function applyAccessibility(optics, mods = NO_ACCESSIBILITY) {
+    if (!mods.reduceTransparency && !mods.increaseContrast) return optics;
+    const out = { ...optics };
+    if (mods.reduceTransparency) {
+      out.blur = Math.max(out.blur, ACCESSIBILITY.frostMinDp);
+      out.bodyDensity = Math.max(out.bodyDensity, ACCESSIBILITY.obscureMin);
     }
-    if (!same) {
-      shape = {
-        names: entries.map((e) => e[0]),
-        sizes: entries.map((e) => typeof e[1] === "number" ? 1 : e[1].length)
-      };
-      shapes.set(entries.length, shape);
+    if (mods.increaseContrast) {
+      out.bodyDensity = Math.max(out.bodyDensity, ACCESSIBILITY.contrastDensity);
+      out.presence = Math.max(out.presence, ACCESSIBILITY.contrastPresence);
+      out.legibility = 1;
     }
-    return { uniformNames: shape.names, uniformSizes: shape.sizes, uniformValues };
-  }
-  function toLensProps(optics, geometry, density2, options = {}) {
-    const morph = options.morph ?? NO_MORPH;
-    const touch = options.touch ?? NO_TOUCH;
-    const g = options.groupProbe;
-    const group = g && g.length >= 9 ? [
-      ["u_probeLuma", g[0]],
-      ["u_probeBusy", g[1]],
-      ["u_probeRange", [g[2], g[3]]],
-      ["u_probeSlope", [g[4], g[5]]],
-      ["u_probe", [g[6], g[7], g[8]]]
-    ] : [];
-    const d = density2;
-    const halfW = geometry.width * d / 2;
-    const halfH = geometry.height * d / 2;
-    const halfMin = Math.min(halfW, halfH);
-    return {
-      shaderSource: LENS_SHADER,
-      glassWidth: geometry.width,
-      glassHeight: geometry.height,
-      ...channel([
-        ["u_halfSize", [halfW, halfH]],
-        ["u_corner", Math.min(geometry.cornerRadius * d, halfMin)],
-        ["u_bevel", Math.max(bevelDp(geometry, optics) * d, 1)],
-        ["u_magnify", lensMagnify(optics)],
-        ["u_edgePush", edgePushDp(geometry, optics) * d],
-        ["u_chroma", chromaDp(geometry, optics) * d],
-        ["u_spherical", sphericalDp(geometry, optics) * d],
-        // Мутность от шероховатости поверхности. Живёт в том же дисковом сборе, что и
-        // адаптивное рассеяние, и гасится к фаске: там работа другая — гнуть луч и расщеплять.
-        ["u_frost", optics.blur * d],
-        ["u_ink", optics.ink],
-        ["u_legibility", optics.legibility],
-        ["u_presence", optics.presence],
-        ["u_adaptRadius", optics.adaptRadius * d],
-        ["u_bodyTint", [optics.tint.r, optics.tint.g, optics.tint.b]],
-        ["u_bodyDensity", optics.bodyDensity],
-        ["u_edgeLight", optics.edgeLight],
-        ["u_fresnel", optics.fresnel],
-        ["u_fresnelPower", optics.fresnelPower],
-        // Кромка собирает свет в окрестности детали — это радиус вокруг формы, а не её фаска.
-        ["u_reflectReach", optics.gatherRadiusDp * d],
-        ["u_film", optics.film],
-        ["u_iridescence", optics.iridescence],
-        ["u_diffraction", optics.diffraction],
-        ["u_colorPickup", optics.colorPickup],
-        ["u_morphOffset", [morph.offsetX * d, morph.offsetY * d]],
-        ["u_morphHalf", [morph.width * d / 2, morph.height * d / 2]],
-        ["u_morphCorner", morph.cornerRadius * d],
-        ["u_morphK", morph.smoothing * d],
-        ["u_touch", [touch.x * d, touch.y * d]],
-        ["u_pull", [touch.pullX * d, touch.pullY * d]],
-        ["u_touchPress", touch.press],
-        ["u_touchRadius", touch.radius * d],
-        ["u_wave", [touch.waveAmp * d, touch.wavePhase]],
-        ["u_progress", options.progress ?? NO_PROGRESS],
-        ["u_debug", debugIndex(options.debug ?? "normal")],
-        ...group
-      ])
-    };
-  }
-  function toSurfaceUniforms(optics, geometry, options = {}) {
-    const morph = options.morph ?? NO_MORPH;
-    const touch = options.touch ?? NO_TOUCH;
-    const pad2 = surfacePadDp(geometry, options.dragLimit ?? 0, morph);
-    return {
-      u_center: [geometry.width / 2 + pad2, geometry.height / 2 + pad2],
-      u_halfSize: [geometry.width / 2, geometry.height / 2],
-      u_corner: Math.min(geometry.cornerRadius, halfMinDp(geometry)),
-      u_bevel: bevelDp(geometry, optics),
-      u_thickness: bevelFraction(geometry, optics),
-      u_morphOffset: [morph.offsetX, morph.offsetY],
-      u_morphHalf: [morph.width / 2, morph.height / 2],
-      u_morphCorner: morph.cornerRadius,
-      u_morphK: morph.smoothing,
-      u_specular: optics.specular,
-      u_specularPower: optics.specularPower,
-      u_edgeDensity: optics.edgeDensity,
-      u_dispersion: optics.dispersion,
-      u_refraction: optics.refraction,
-      // Плотность тинта гасится, когда тело считает линза: рисовать его дважды значит
-      // получить двойную заливку, а адаптация у поверхности всё равно невозможна — фона она
-      // не видит. Сам цвет остаётся: по нему идёт поглощение у кромки.
-      u_tint: [
-        optics.tint.r,
-        optics.tint.g,
-        optics.tint.b,
-        options.bodyInLens ? 0 : optics.tintStrength
-      ],
-      u_shadow: options.shadow ?? 1,
-      u_shadowReach: shadowReachDp(geometry),
-      u_touch: [touch.x, touch.y],
-      u_pull: [touch.pullX, touch.pullY],
-      u_touchPress: touch.press,
-      u_touchRadius: touch.radius,
-      u_wave: [touch.waveAmp, touch.wavePhase],
-      u_presence: optics.presence,
-      u_progress: options.progress ?? NO_PROGRESS,
-      u_debug: debugIndex(options.debug ?? "normal")
-    };
-  }
-  var REST_LIGHT = [-0.577, -0.817];
-  var DYNAMIC_UNIFORMS = ["u_press", "u_active", "u_light"];
-  var ICON_UNIFORMS = ["u_iconOn", "u_iconScale", "u_inkIdle", "u_inkActive"];
-  var OVERLAY_UNIFORMS = ["u_overlayOn"];
-  function sizeUniformName(sampler) {
-    return sampler.startsWith("u_") ? `${sampler}Size` : `u_${sampler}Size`;
-  }
-  function convertVecTypes(src) {
-    return src.replace(/\bfloat([234])\b/g, "vec$1");
-  }
-  function convertHalfTypes(src) {
-    return src.replace(/\bhalf([234])\b/g, "vec$1").replace(/\bhalf\b/g, "float");
-  }
-  function convertShaderUniforms(src) {
-    return src.replace(/uniform\s+shader\s+(\w+)\s*;/g, (_match, name) => {
-      return `uniform sampler2D ${name};
-uniform vec2 ${sizeUniformName(name)};`;
-    });
-  }
-  function convertEvalCalls(src) {
-    const samplers = /* @__PURE__ */ new Set();
-    const declRe = /uniform\s+sampler2D\s+(\w+)\s*;/g;
-    for (let m = declRe.exec(src); m; m = declRe.exec(src)) samplers.add(m[1]);
-    if (samplers.size === 0) return src;
-    const callRe = /(\w+)\.eval\(/g;
-    let out = "";
-    let cursor = 0;
-    for (let m = callRe.exec(src); m; m = callRe.exec(src)) {
-      const name = m[1];
-      if (!samplers.has(name)) continue;
-      const argStart = m.index + m[0].length;
-      let depth = 1;
-      let i = argStart;
-      while (i < src.length && depth > 0) {
-        if (src[i] === "(") depth += 1;
-        else if (src[i] === ")") depth -= 1;
-        i += 1;
-      }
-      const args = src.slice(argStart, i - 1);
-      out += src.slice(cursor, m.index);
-      out += `texture(${name}, (${args}) / ${sizeUniformName(name)})`;
-      cursor = i;
-      callRe.lastIndex = i;
-    }
-    out += src.slice(cursor);
     return out;
   }
-  function convertReturns(mainBody) {
-    return mainBody.replace(/\breturn\s+([^;]+);/g, "fragColor = $1; return;");
+  function contrastRimLuma(tintLuma) {
+    const light = tintLuma < 0.5;
+    return light ? Math.min(tintLuma + ACCESSIBILITY.contrastRim, BODY3.tintLight) : Math.max(tintLuma - ACCESSIBILITY.contrastRim, BODY3.tintDark);
   }
-  var ENTRY_RE = /half4\s+main\s*\(\s*float2\s+(\w+)\s*\)\s*\{/;
-  function convertEntryPoint(src) {
-    const match = ENTRY_RE.exec(src);
-    if (!match) {
-      throw new Error('vireglass/targets/glsl: entry point "half4 main(float2 xy)" not found');
+  function elasticAllowed(mods = NO_ACCESSIBILITY) {
+    return !mods.reduceMotion;
+  }
+  var GLASS_SCALE_DEFAULT = SCALE.default;
+  var clamp013 = (v) => v < 0 ? 0 : v > 1 ? 1 : v;
+  function applyGlassScale(optics, scale) {
+    const s = clamp013(scale);
+    if (s === GLASS_SCALE_DEFAULT) return optics;
+    if (s < GLASS_SCALE_DEFAULT) {
+      const k2 = s / GLASS_SCALE_DEFAULT;
+      return { ...optics, legibility: optics.legibility * k2, dimming: optics.dimming * k2 };
     }
-    const bodyStart = match.index + match[0].length;
-    let depth = 1;
-    let i = bodyStart;
-    while (i < src.length && depth > 0) {
-      if (src[i] === "{") depth += 1;
-      else if (src[i] === "}") depth -= 1;
-      i += 1;
-    }
-    const bodyEnd = i - 1;
-    const param = match[1];
-    const body = convertReturns(src.slice(bodyStart, bodyEnd));
-    const head = src.slice(0, match.index);
-    const tail = src.slice(i);
-    return `${head}void main() {
-  vec2 ${param} = vec2(gl_FragCoord.x, u_resolution.y - gl_FragCoord.y);
-${body}}${tail}`;
+    const k = (s - GLASS_SCALE_DEFAULT) / (1 - GLASS_SCALE_DEFAULT);
+    return { ...optics, bodyDensity: Math.max(optics.bodyDensity, SCALE.tintedDensity * k) };
   }
-  function addPrologue(src) {
-    return "#version 300 es\nprecision highp float;\n\nout vec4 fragColor;\nuniform vec2 u_resolution;\n\n" + src;
-  }
-  function toGLSL(shaderSource) {
-    let out = shaderSource;
-    out = convertEntryPoint(out);
-    out = convertShaderUniforms(out);
-    out = convertEvalCalls(out);
-    out = convertVecTypes(out);
-    out = convertHalfTypes(out);
-    out = addPrologue(out);
-    return out;
-  }
-  var FULLSCREEN_TRIANGLE_VERTEX_SOURCE = `#version 300 es
-const vec2 VG_POS[3] = vec2[3](vec2(-1.0, -1.0), vec2(3.0, -1.0), vec2(-1.0, 3.0));
-void main() {
-  gl_Position = vec4(VG_POS[gl_VertexID], 0.0, 1.0);
-}
-`;
-  function compileShader(gl, type, source) {
-    const shader = gl.createShader(type);
-    if (!shader) throw new Error("vireglass/web: gl.createShader \u0432\u0435\u0440\u043D\u0443\u043B null");
-    gl.shaderSource(shader, source);
-    gl.compileShader(shader);
-    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-      const log = gl.getShaderInfoLog(shader) ?? "(\u043D\u0435\u0442 \u043B\u043E\u0433\u0430)";
-      gl.deleteShader(shader);
-      throw new Error(`vireglass/web: \u0448\u0435\u0439\u0434\u0435\u0440 \u043D\u0435 \u0441\u043A\u043E\u043C\u043F\u0438\u043B\u0438\u0440\u043E\u0432\u0430\u043B\u0441\u044F:
-${log}`);
-    }
-    return shader;
-  }
-  function createProgram(gl, vertexSource, fragmentSource) {
-    const vertex = compileShader(gl, gl.VERTEX_SHADER, vertexSource);
-    const fragment = compileShader(gl, gl.FRAGMENT_SHADER, fragmentSource);
-    const program = gl.createProgram();
-    if (!program) throw new Error("vireglass/web: gl.createProgram \u0432\u0435\u0440\u043D\u0443\u043B null");
-    gl.attachShader(program, vertex);
-    gl.attachShader(program, fragment);
-    gl.linkProgram(program);
-    gl.deleteShader(vertex);
-    gl.deleteShader(fragment);
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      const log = gl.getProgramInfoLog(program) ?? "(\u043D\u0435\u0442 \u043B\u043E\u0433\u0430)";
-      gl.deleteProgram(program);
-      throw new Error(`vireglass/web: \u043F\u0440\u043E\u0433\u0440\u0430\u043C\u043C\u0430 \u043D\u0435 \u0441\u043B\u0438\u043D\u043A\u043E\u0432\u0430\u043B\u0430\u0441\u044C:
-${log}`);
-    }
-    return program;
-  }
-  function drawFullscreenTriangle(gl) {
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
-  }
-  function createTexture(gl, options) {
-    const texture = gl.createTexture();
-    if (!texture) throw new Error("vireglass/web: gl.createTexture \u0432\u0435\u0440\u043D\u0443\u043B null");
-    const internalFormat = options.internalFormat ?? gl.RGBA8;
-    const format = options.format ?? gl.RGBA;
-    const type = options.type ?? gl.UNSIGNED_BYTE;
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texImage2D(
-      gl.TEXTURE_2D,
-      0,
-      internalFormat,
-      options.width,
-      options.height,
-      0,
-      format,
-      type,
-      null
-    );
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.bindTexture(gl.TEXTURE_2D, null);
-    return texture;
-  }
-  function createFramebuffer(gl, texture) {
-    const fbo = gl.createFramebuffer();
-    if (!fbo) throw new Error("vireglass/web: gl.createFramebuffer \u0432\u0435\u0440\u043D\u0443\u043B null");
-    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
-    const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    if (status !== gl.FRAMEBUFFER_COMPLETE) {
-      throw new Error(`vireglass/web: FBO \u043D\u0435\u043F\u043E\u043B\u043E\u043D, \u0441\u0442\u0430\u0442\u0443\u0441 ${status}`);
-    }
-    return fbo;
-  }
-  function bindTextureAt(gl, unit, texture, program, uniformName) {
-    gl.activeTexture(gl.TEXTURE0 + unit);
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    const loc = gl.getUniformLocation(program, uniformName);
-    gl.uniform1i(loc, unit);
-  }
-  var PROBE_GRID_WIDTH = 48;
-  var PROBE_GRID_HEIGHT = 96;
-  var DOWNSAMPLE_FRAGMENT_SOURCE = `#version 300 es
-precision highp float;
-out vec4 fragColor;
-uniform sampler2D u_content;
-uniform vec2 u_contentSize;
-uniform vec2 u_gridSize;
+  var SCROLL_EDGE_ENGAGE_DP = SCROLL_EDGE.engageDp;
 
-// \u041E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435 \u044F\u0447\u0435\u0439\u043A\u0430 \u2192 UV \u0441\u043E\u0434\u0435\u0440\u0436\u0438\u043C\u043E\u0433\u043E. \u041D\u0415 \u0441\u043E\u043E\u0442\u0432\u0435\u0442\u0441\u0442\u0432\u0443\u0435\u0442 \u0432\u0438\u0434\u0438\u043C\u043E\u043C\u0443 \u0432\u0435\u0440\u0445\u0443/\u043D\u0438\u0437\u0443 \u043A\u0430\u043D\u0432\u0430\u0441\u0430 \u2014 \u044D\u0442\u043E
-// \u0432\u043D\u0443\u0442\u0440\u0435\u043D\u043D\u0438\u0439 \u043F\u0440\u043E\u0445\u043E\u0434, \u0435\u0433\u043E \u0431\u0443\u0444\u0435\u0440 \u043D\u0438\u043A\u043E\u0433\u0434\u0430 \u043D\u0435 \u043F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0435\u0442\u0441\u044F, \u0442\u043E\u043B\u044C\u043A\u043E \u0447\u0438\u0442\u0430\u0435\u0442\u0441\u044F \u043E\u0431\u0440\u0430\u0442\u043D\u043E \u043D\u0430 CPU \u0442\u043E\u0439
-// \u0436\u0435 \u0444\u043E\u0440\u043C\u0443\u043B\u043E\u0439 (\u0441\u043C. rectStats \u043D\u0438\u0436\u0435). \u0421\u043E\u0432\u043F\u0430\u0434\u0435\u043D\u0438\u0435 \u043D\u0430\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u044F \u0441 \u0431\u043B\u0438\u0442-\u043F\u0440\u043E\u0445\u043E\u0434\u043E\u043C \u043D\u0435 \u0442\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F.
-void main() {
-  vec2 uv = gl_FragCoord.xy / u_gridSize;
-  vec3 sum = vec3(0.0);
-  const int N = 5;
-  vec2 block = u_contentSize / u_gridSize;
-  vec2 origin = uv * u_contentSize;
-  for (int y = 0; y < N; y++) {
-    for (int x = 0; x < N; x++) {
-      vec2 p = origin + (vec2(float(x), float(y)) + 0.5) * (block / float(N));
-      sum += texture(u_content, p / u_contentSize).rgb;
+  // node_modules/vireglass/dist/dom.js
+  var SCALE_GAIN = 0.75;
+  var MAX_STEP_PX = 0.09;
+  var MAX_SCALE = 255 * MAX_STEP_PX;
+  var BEVEL_SAMPLES = 8;
+  function mapDensity(geometry, bevel, dpr) {
+    if (bevel <= 0) return dpr;
+    return Math.min(dpr, BEVEL_SAMPLES / bevel);
+  }
+  function encode(displacement, scale) {
+    const channel = Math.round(255 * (displacement / scale + 0.5));
+    return channel < 0 ? 0 : channel > 255 ? 255 : channel;
+  }
+  function bevelProfile(t) {
+    const raw = Math.min(t / Math.sqrt(Math.max(1 - t * t * BEVEL.sphere, BEVEL.floor)), BEVEL.slopeMax);
+    return raw / BEVEL.slopeMax;
+  }
+  function renderDisplacementPixels(optics, geometry, dpr, state = {}) {
+    const bevel = bevelDp(geometry, optics);
+    const density = mapDensity(geometry, bevel, dpr);
+    const width = Math.max(1, Math.round(geometry.width * density));
+    const height = Math.max(1, Math.round(geometry.height * density));
+    const rawScale = optics.refraction * thicknessDp(geometry, optics) * SCALE_GAIN;
+    const scale = Math.min(rawScale, MAX_SCALE);
+    const smoothing = state.smoothing ?? 0;
+    const shapes = [state.morph, state.morph2, ...state.morphs ?? []];
+    const data = new Uint8ClampedArray(width * height * 4);
+    const halfW = geometry.width / 2;
+    const halfH = geometry.height / 2;
+    for (let py = 0; py < height; py += 1) {
+      const y = (py + 0.5) / density - halfH;
+      for (let px = 0; px < width; px += 1) {
+        const x = (px + 0.5) / density - halfW;
+        const i = (py * width + px) * 4;
+        const [wx, wy] = state.touch ? touchWarp(x, y, state.touch) : [x, y];
+        const sd = sceneDistance(wx, wy, geometry.width, geometry.height, geometry.cornerRadius, smoothing, ...shapes);
+        const t = Math.min(Math.max((sd + bevel) / bevel, 0), 1);
+        if (t <= 0 || scale <= 0) {
+          data[i] = 128;
+          data[i + 1] = 128;
+          data[i + 2] = 128;
+          data[i + 3] = 255;
+          continue;
+        }
+        const [gx, gy] = sceneGradient(wx, wy, geometry.width, geometry.height, geometry.cornerRadius, smoothing, ...shapes);
+        const magnitude = bevelProfile(t) * (scale / 2);
+        const dx = -gx * magnitude;
+        const dy = -gy * magnitude;
+        data[i] = encode(dx, scale);
+        data[i + 1] = encode(dy, scale);
+        data[i + 2] = 128;
+        data[i + 3] = 255;
+      }
     }
+    return { data, width, height, scale };
   }
-  fragColor = vec4(sum / float(N * N), 1.0);
-}
-`;
-  function pickDownsampleFormat(gl) {
-    const hasFloat = gl.getExtension("EXT_color_buffer_float") !== null;
-    return hasFloat ? { internalFormat: gl.RGBA32F, type: gl.FLOAT, floatPrecision: true } : { internalFormat: gl.RGBA8, type: gl.UNSIGNED_BYTE, floatPrecision: false };
+  function hasCanvasSupport() {
+    return typeof document !== "undefined" && typeof document.createElement === "function";
   }
-  function luma(r, g, b) {
+  function buildDisplacementMap(optics, geometry, dpr, state = {}) {
+    if (!hasCanvasSupport()) {
+      throw new Error("vireglass/dom: buildDisplacementMap requires a DOM (canvas)");
+    }
+    const { data, width, height, scale } = renderDisplacementPixels(optics, geometry, dpr, state);
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("vireglass/dom: 2D canvas context unavailable");
+    const imageData = ctx.createImageData(width, height);
+    imageData.data.set(data);
+    ctx.putImageData(imageData, 0, 0);
+    return { url: canvas.toDataURL("image/png"), width, height, scale };
+  }
+  var TAU = 6.28318530718;
+  var LAMBDA = [LENS.lambdaR, LENS.lambdaG, LENS.lambdaB];
+  var clamp012 = (v) => v < 0 ? 0 : v > 1 ? 1 : v;
+  function toHue(v) {
+    const mean = Math.max((v[0] + v[1] + v[2]) / 3, 1e-3);
+    return [v[0] / mean, v[1] / mean, v[2] / mean];
+  }
+  function rimSlopeCurve(x) {
+    const k = 1 - clamp012(x);
+    return k * k * k / Math.pow(Math.max(1 - k * k * k * k, 1e-5), 0.75);
+  }
+  function surfaceSlope(e, bevel, rim, thick) {
+    if (e >= bevel || bevel <= 0) return 0;
+    return Math.min((thick - rim) / bevel * rimSlopeCurve(e / bevel), LENS.slopeMax);
+  }
+  function surfaceCosine(slope) {
+    return 1 / Math.sqrt(1 + slope * slope);
+  }
+  function interference(cosI, filmNm) {
+    const sinT2 = (1 - cosI * cosI) / (LENS.filmIor * LENS.filmIor);
+    const cosT = Math.sqrt(Math.max(1 - sinT2, 0));
+    const opd = 2 * LENS.filmIor * filmNm * cosT;
+    return toHue([
+      0.5 + 0.5 * Math.cos(TAU * opd / LAMBDA[0] + Math.PI),
+      0.5 + 0.5 * Math.cos(TAU * opd / LAMBDA[1] + Math.PI),
+      0.5 + 0.5 * Math.cos(TAU * opd / LAMBDA[2] + Math.PI)
+    ]);
+  }
+  function diffraction2(distFromEdge, bevel) {
+    const phase = TAU * SPECTRAL.diffractionFringes * distFromEdge / Math.max(bevel, 1);
+    const f = (lambda) => 0.5 + 0.5 * Math.cos(phase * SPECTRAL.referenceLambda / lambda);
+    return toHue([f(LAMBDA[0]), f(LAMBDA[1]), f(LAMBDA[2])]);
+  }
+  function smoothstep(edge0, edge1, x) {
+    const t = clamp012((x - edge0) / (edge1 - edge0));
+    return t * t * (3 - 2 * t);
+  }
+  function spectralHue(e, bevel, rim, thick, optics) {
+    let r = 1;
+    let g = 1;
+    let b = 1;
+    const t = 1 - clamp012(bevel > 0 ? e / bevel : 1);
+    if (optics.iridescence > 1e-3) {
+      const w = optics.iridescence * smoothstep(SPECTRAL.iridescenceOnset, 1, t);
+      if (w > 0) {
+        const cosI = clamp012(surfaceCosine(surfaceSlope(e, bevel, rim, thick)));
+        const i = interference(cosI, optics.film);
+        r += (i[0] - 1) * w;
+        g += (i[1] - 1) * w;
+        b += (i[2] - 1) * w;
+      }
+    }
+    if (optics.diffraction > 1e-3) {
+      const w = optics.diffraction * smoothstep(SPECTRAL.diffractionOnset, 1, t);
+      if (w > 0) {
+        const d = diffraction2(e, bevel);
+        r += (d[0] - 1) * w;
+        g += (d[1] - 1) * w;
+        b += (d[2] - 1) * w;
+      }
+    }
+    return [r, g, b];
+  }
+  var HEADROOM = 2;
+  var BEVEL_SAMPLES2 = 24;
+  function mapDensity2(bevel, dpr) {
+    if (bevel <= 0) return dpr;
+    return Math.min(dpr, BEVEL_SAMPLES2 / bevel);
+  }
+  function renderSpectralPixels(optics, geometry, dpr) {
+    const bevel = bevelDp(geometry, optics);
+    const density = mapDensity2(bevel, dpr);
+    const width = Math.max(1, Math.round(geometry.width * density));
+    const height = Math.max(1, Math.round(geometry.height * density));
+    const rim = rimDp(geometry, optics);
+    const thick = thicknessDp(geometry, optics);
+    const data = new Uint8ClampedArray(width * height * 4);
+    const halfW = geometry.width / 2;
+    const halfH = geometry.height / 2;
+    const neutral = Math.round(1 / HEADROOM * 255);
+    for (let py = 0; py < height; py += 1) {
+      const y = (py + 0.5) / density - halfH;
+      for (let px = 0; px < width; px += 1) {
+        const x = (px + 0.5) / density - halfW;
+        const i = (py * width + px) * 4;
+        const sd = sdfRoundedRect(x, y, geometry.width, geometry.height, geometry.cornerRadius);
+        const e = Math.max(-sd, 0);
+        if (e >= bevel) {
+          data[i] = neutral;
+          data[i + 1] = neutral;
+          data[i + 2] = neutral;
+          data[i + 3] = 255;
+          continue;
+        }
+        const [r, g, b] = spectralHue(e, bevel, rim, thick, optics);
+        data[i] = Math.round(r / HEADROOM * 255);
+        data[i + 1] = Math.round(g / HEADROOM * 255);
+        data[i + 2] = Math.round(b / HEADROOM * 255);
+        data[i + 3] = 255;
+      }
+    }
+    return { data, width, height, headroom: HEADROOM };
+  }
+  function hasSpectralEdge(optics) {
+    return optics.iridescence > 1e-3 || optics.diffraction > 1e-3;
+  }
+  function buildSpectralMap(optics, geometry, dpr) {
+    if (typeof document === "undefined" || typeof document.createElement !== "function") {
+      throw new Error("vireglass/dom: buildSpectralMap requires a DOM (canvas)");
+    }
+    const { data, width, height, headroom } = renderSpectralPixels(optics, geometry, dpr);
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("vireglass/dom: 2D canvas context unavailable");
+    const image = ctx.createImageData(width, height);
+    image.data.set(data);
+    ctx.putImageData(image, 0, 0);
+    return { url: canvas.toDataURL("image/png"), width, height, headroom };
+  }
+  var LIMIT = 24;
+  var store = /* @__PURE__ */ new Map();
+  function cached(key, build5) {
+    const hit = store.get(key);
+    if (hit !== void 0) {
+      store.delete(key);
+      store.set(key, hit);
+      return hit;
+    }
+    const value = build5();
+    store.set(key, value);
+    if (store.size > LIMIT) {
+      const oldest = store.keys().next();
+      if (!oldest.done) store.delete(oldest.value);
+    }
+    return value;
+  }
+  var GRID_COLS = 5;
+  var GRID_ROWS = 5;
+  function parseColor(value) {
+    const match = /rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+))?\s*\)/i.exec(value);
+    if (!match) return null;
+    const r = Number(match[1]);
+    const g = Number(match[2]);
+    const b = Number(match[3]);
+    const a = match[4] === void 0 ? 1 : Number(match[4]);
+    if (!Number.isFinite(r) || !Number.isFinite(g) || !Number.isFinite(b) || !Number.isFinite(a)) return null;
+    return { r, g, b, a };
+  }
+  function luma2(r, g, b) {
     return 0.2126 * r + 0.7152 * g + 0.0722 * b;
   }
-  function rectStats(buffer, floatPrecision, gridW, gridH, contentWidth, contentHeight, rect) {
-    const x0 = rect.centerX - rect.halfWidth;
-    const x1 = rect.centerX + rect.halfWidth;
-    const y0 = rect.centerY - rect.halfHeight;
-    const y1 = rect.centerY + rect.halfHeight;
+  function statsFromSamples(samples) {
+    const n = samples.length;
+    if (n === 0) return { luma: 0.5, busy: 0, lo: 0.5, hi: 0.5, r: 0.5, g: 0.5, b: 0.5 };
     const lumas = [];
-    const nx = [];
-    const ny = [];
     let sr = 0;
     let sg = 0;
     let sb = 0;
-    const norm2 = floatPrecision ? 1 : 255;
-    for (let row = 0; row < gridH; row++) {
-      const cy = (row + 0.5) / gridH * contentHeight;
-      if (cy < y0 || cy > y1) continue;
-      for (let col = 0; col < gridW; col++) {
-        const cx = (col + 0.5) / gridW * contentWidth;
-        if (cx < x0 || cx > x1) continue;
-        const i = (row * gridW + col) * 4;
-        const r = buffer[i] / norm2;
-        const g = buffer[i + 1] / norm2;
-        const b = buffer[i + 2] / norm2;
-        lumas.push(luma(r, g, b));
-        nx.push((cx - rect.centerX) / Math.max(rect.halfWidth, 1));
-        ny.push((cy - rect.centerY) / Math.max(rect.halfHeight, 1));
-        sr += r;
-        sg += g;
-        sb += b;
-      }
+    for (const s of samples) {
+      const r = s.r / 255;
+      const g = s.g / 255;
+      const b = s.b / 255;
+      lumas.push(luma2(r, g, b));
+      sr += r;
+      sg += g;
+      sb += b;
     }
-    const n = lumas.length;
-    if (n === 0) return null;
     let mean = 0;
     for (const v of lumas) mean += v;
     mean /= n;
     let busy = 0;
     for (const v of lumas) busy += Math.abs(v - mean);
-    busy = busy / n * 2;
+    busy = Math.min(busy / n * 2, 1);
     const sorted = [...lumas].sort((a, b) => a - b);
     const percentile = (p) => {
       const idx = p * (n - 1);
@@ -4780,646 +3927,524 @@ void main() {
       const hi = Math.ceil(idx);
       return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
     };
-    const slope = (xs) => {
-      let mx = 0;
-      for (const v of xs) mx += v;
-      mx /= n;
-      let sxx = 0;
-      let sxl = 0;
-      for (let i = 0; i < n; i++) {
-        const dx = xs[i] - mx;
-        sxx += dx * dx;
-        sxl += dx * (lumas[i] - mean);
-      }
-      return sxx > 1e-6 ? sxl / sxx : 0;
-    };
     return {
       luma: mean,
-      busy: Math.min(busy, 1),
+      busy,
       lo: percentile(0.1),
       hi: percentile(0.9),
-      slopeX: slope(nx),
-      slopeY: slope(ny),
       r: sr / n,
       g: sg / n,
       b: sb / n
     };
   }
-  function createProbe(gl, vertexSource) {
-    const program = createProgram(gl, vertexSource, DOWNSAMPLE_FRAGMENT_SOURCE);
-    const format = pickDownsampleFormat(gl);
-    const texture = gl.createTexture();
-    if (!texture) throw new Error("vireglass/web/probe: gl.createTexture \u0432\u0435\u0440\u043D\u0443\u043B null");
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texImage2D(
-      gl.TEXTURE_2D,
-      0,
-      format.internalFormat,
-      PROBE_GRID_WIDTH,
-      PROBE_GRID_HEIGHT,
-      0,
-      gl.RGBA,
-      format.type,
-      null
-    );
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.bindTexture(gl.TEXTURE_2D, null);
-    const fbo = createFramebuffer(gl, texture);
-    const byteSize = PROBE_GRID_WIDTH * PROBE_GRID_HEIGHT * 4 * (format.floatPrecision ? 4 : 1);
-    const slots = [0, 1].map(() => {
-      const buffer = gl.createBuffer();
-      if (!buffer) throw new Error("vireglass/web/probe: gl.createBuffer \u0432\u0435\u0440\u043D\u0443\u043B null");
-      gl.bindBuffer(gl.PIXEL_PACK_BUFFER, buffer);
-      gl.bufferData(gl.PIXEL_PACK_BUFFER, byteSize, gl.STREAM_READ);
-      gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
-      return { buffer, sync: null, pending: false };
-    });
-    let cursor = 0;
-    let latestRaw = null;
-    const contentLoc = gl.getUniformLocation(program, "u_content");
-    const contentSizeLoc = gl.getUniformLocation(program, "u_contentSize");
-    const gridSizeLoc = gl.getUniformLocation(program, "u_gridSize");
-    function pollReady(slot) {
-      if (!slot.pending || !slot.sync) return;
-      const status = gl.clientWaitSync(slot.sync, 0, 0);
-      if (status === gl.TIMEOUT_EXPIRED) return;
-      gl.deleteSync(slot.sync);
-      slot.sync = null;
-      slot.pending = false;
-      gl.bindBuffer(gl.PIXEL_PACK_BUFFER, slot.buffer);
-      const out = format.floatPrecision ? new Float32Array(PROBE_GRID_WIDTH * PROBE_GRID_HEIGHT * 4) : new Uint8Array(PROBE_GRID_WIDTH * PROBE_GRID_HEIGHT * 4);
-      gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, out);
-      gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
-      latestRaw = out;
+  function compositeLayers(layers) {
+    let r = 0;
+    let g = 0;
+    let b = 0;
+    let a = 0;
+    for (const layer of layers) {
+      const share = layer.a * (1 - a);
+      if (share <= 0) continue;
+      r += layer.r * share;
+      g += layer.g * share;
+      b += layer.b * share;
+      a += share;
+      if (a >= 0.999) break;
     }
-    function sample(contentTexture, contentWidth, contentHeight, rect) {
-      for (const slot2 of slots) pollReady(slot2);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-      gl.viewport(0, 0, PROBE_GRID_WIDTH, PROBE_GRID_HEIGHT);
-      gl.useProgram(program);
-      bindTextureAt(gl, 0, contentTexture, program, "u_content");
-      gl.uniform1i(contentLoc, 0);
-      gl.uniform2f(contentSizeLoc, contentWidth, contentHeight);
-      gl.uniform2f(gridSizeLoc, PROBE_GRID_WIDTH, PROBE_GRID_HEIGHT);
-      gl.disable(gl.BLEND);
-      drawFullscreenTriangle(gl);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      const slot = slots[cursor];
-      cursor = (cursor + 1) % slots.length;
-      if (!slot.pending) {
-        gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fbo);
-        gl.bindBuffer(gl.PIXEL_PACK_BUFFER, slot.buffer);
-        gl.readPixels(0, 0, PROBE_GRID_WIDTH, PROBE_GRID_HEIGHT, gl.RGBA, format.type, 0);
-        gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
-        gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
-        slot.sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
-        slot.pending = true;
-      }
-      return statsFor(contentWidth, contentHeight, rect);
-    }
-    function statsFor(contentWidth, contentHeight, rect) {
-      if (!latestRaw) return null;
-      return rectStats(
-        latestRaw,
-        format.floatPrecision,
-        PROBE_GRID_WIDTH,
-        PROBE_GRID_HEIGHT,
-        contentWidth,
-        contentHeight,
-        rect
-      );
-    }
-    function destroy() {
-      for (const slot of slots) {
-        if (slot.sync) gl.deleteSync(slot.sync);
-        gl.deleteBuffer(slot.buffer);
-      }
-      gl.deleteFramebuffer(fbo);
-      gl.deleteTexture(texture);
-      gl.deleteProgram(program);
-    }
-    return { sample, statsFor, destroy };
+    if (a <= 1e-3) return null;
+    return { r: r / a, g: g / a, b: b / a, a };
   }
-  var BLIT_FRAGMENT_SOURCE = `#version 300 es
-precision highp float;
-out vec4 fragColor;
-uniform sampler2D u_content;
-uniform vec2 u_resolution;
-void main() {
-  // \u0422\u043E\u0442 \u0436\u0435 \u0444\u043B\u0438\u043F Y, \u0447\u0442\u043E \u0434\u0435\u043B\u0430\u0435\u0442 \u0442\u0440\u0430\u043D\u0441\u043F\u0430\u0439\u043B\u0435\u0440 \u0434\u043B\u044F \u043B\u0438\u043D\u0437\u044B/\u043F\u043E\u0432\u0435\u0440\u0445\u043D\u043E\u0441\u0442\u0438 (targets/glsl.ts):
-  // content \u0437\u0430\u043B\u0438\u0442 \u0438\u0437 2D-\u043A\u0430\u043D\u0432\u0430\u0441\u0430 \u0411\u0415\u0417 \u043F\u0435\u0440\u0435\u0432\u043E\u0440\u043E\u0442\u0430, \u0435\u0433\u043E V=0 \u2014 \u0432\u0435\u0440\u0445\u043D\u044F\u044F \u0441\u0442\u0440\u043E\u043A\u0430 \u0441\u0446\u0435\u043D\u044B. \u0417\u0434\u0435\u0441\u044C \u0442\u043E\u0442
-  // \u0436\u0435 \u043F\u043E\u0440\u044F\u0434\u043E\u043A, \u0438\u043D\u0430\u0447\u0435 \u0444\u043E\u043D \u0438 \u0442\u043E, \u0447\u0442\u043E \u0447\u0435\u0440\u0435\u0437 \u043D\u0435\u0433\u043E \u043F\u0440\u0435\u043B\u043E\u043C\u043B\u044F\u0435\u0442 \u043B\u0438\u043D\u0437\u0430, \u0440\u0430\u0437\u044A\u0435\u0437\u0436\u0430\u044E\u0442\u0441\u044F \u043F\u043E \u0432\u0435\u0440\u0442\u0438\u043A\u0430\u043B\u0438.
-  vec2 uv = gl_FragCoord.xy / u_resolution;
-  uv.y = 1.0 - uv.y;
-  fragColor = texture(u_content, uv);
-}
-`;
-  function locationCache(gl, program) {
-    const cache = /* @__PURE__ */ new Map();
-    return (name) => {
-      let loc = cache.get(name);
-      if (loc === void 0) {
-        loc = gl.getUniformLocation(program, name);
-        cache.set(name, loc);
+  function sampleColorAt(el, x, y) {
+    const stack = document.elementsFromPoint(x, y);
+    const behind = stack.filter((node) => node !== el && !el.contains(node));
+    const layers = [];
+    for (const node of behind) {
+      const bg = parseColor(getComputedStyle(node).backgroundColor);
+      if (bg && bg.a > 1e-3) layers.push(bg);
+    }
+    const composited = compositeLayers(layers);
+    if (composited) return composited;
+    return canvasColor(el);
+  }
+  function canvasColor(el) {
+    const doc = el.ownerDocument;
+    for (const node of [doc.documentElement, doc.body]) {
+      if (!node) continue;
+      const bg = parseColor(getComputedStyle(node).backgroundColor);
+      if (bg && bg.a > 1e-3) return bg.a >= 0.999 ? bg : compositeLayers([bg, WHITE]);
+    }
+    return WHITE;
+  }
+  var WHITE = { r: 255, g: 255, b: 255, a: 1 };
+  function probeBackdrop(el, opts = {}) {
+    const cols = opts.cols ?? GRID_COLS;
+    const rows = opts.rows ?? GRID_ROWS;
+    const rect = el.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return statsFromSamples([]);
+    const samples = [];
+    for (let j = 0; j < rows; j += 1) {
+      const y = rect.top + (j + 0.5) / rows * rect.height;
+      for (let i = 0; i < cols; i += 1) {
+        const x = rect.left + (i + 0.5) / cols * rect.width;
+        const color = sampleColorAt(el, x, y);
+        if (color) samples.push(color);
       }
-      return loc;
+    }
+    return statsFromSamples(samples);
+  }
+  var backdropFilterSupport = null;
+  var svgBackdropFilterSupport = null;
+  function probeProperty(property, value) {
+    if (typeof CSS === "undefined" || typeof CSS.supports !== "function") return false;
+    return CSS.supports(property, value);
+  }
+  function supportsBackdropFilter() {
+    if (backdropFilterSupport === null) {
+      backdropFilterSupport = probeProperty("backdrop-filter", "blur(1px)") || probeProperty("-webkit-backdrop-filter", "blur(1px)");
+    }
+    return backdropFilterSupport;
+  }
+  function supportsSvgBackdropFilter() {
+    if (svgBackdropFilterSupport === null) {
+      svgBackdropFilterSupport = probeProperty("backdrop-filter", "url(#vireglass-support-probe)");
+    }
+    return svgBackdropFilterSupport;
+  }
+  var FLAT_DENSITY = shadowOpacity(0);
+  var BUSY_DENSITY = shadowOpacity(1);
+  function shadowAlphaFrom(sample) {
+    const t = (shadowOpacityFrom(sample) - FLAT_DENSITY) / (BUSY_DENSITY - FLAT_DENSITY);
+    const alpha = SHADOW.alphaFlat + t * (SHADOW.alphaBusy - SHADOW.alphaFlat);
+    return Math.min(Math.max(alpha, 0), 1);
+  }
+  var to255 = (v) => Math.round(Math.min(Math.max(v, 0), 1) * 255);
+  function boxShadowCss(geometry, sample, appear = 1) {
+    const reach = shadowReachDp(geometry);
+    const present = appear < 0 ? 0 : appear > 1 ? 1 : appear;
+    const alpha = shadowAlphaFrom(sample) * present;
+    const ambient = "luma" in sample ? ambientFrom(sample) : null;
+    if (!ambient) return `0 0 ${reach.toFixed(1)}px rgba(0, 0, 0, ${alpha.toFixed(3)})`;
+    const [r, g, b] = shadowTint(ambient);
+    const spill = SHADOW_GAP.tint;
+    return `0 0 ${reach.toFixed(1)}px rgba(${to255(r * spill)}, ${to255(g * spill)}, ${to255(b * spill)}, ${alpha.toFixed(3)})`;
+  }
+  var {
+    capLoose: BODY_CAP_LOOSE,
+    capTight: BODY_CAP_TIGHT,
+    tintDark: TINT_DARK,
+    tintLight: TINT_LIGHT,
+    groundSpan: GROUND_SPAN,
+    busyEdge: BUSY_EDGE,
+    darkSideFrom: DARK_SIDE_FROM,
+    darkSideTo: DARK_SIDE_TO,
+    maxDemand: MAX_DEMAND
+  } = BODY3;
+  var clamp3 = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
+  var mix = (a, b, t) => a + (b - a) * t;
+  function smoothstep2(edge0, edge1, x) {
+    const t = clamp3((x - edge0) / (edge1 - edge0), 0, 1);
+    return t * t * (3 - 2 * t);
+  }
+  function resolveBody(optics, sample, ink) {
+    const strict = clamp3(optics.legibility * 2, 0, 1);
+    const capLight = mix(BODY_CAP_LOOSE, BODY_CAP_TIGHT, strict);
+    const floorDark = 1 - capLight;
+    const pol = clamp3(ink, 0, 1);
+    const demand = clamp3(optics.legibility * 4, 0, 1);
+    const mean = clamp3(sample.luma, 0, 1);
+    const busy = Math.max(sample.busy, 0);
+    const darkSide = smoothstep2(DARK_SIDE_FROM, DARK_SIDE_TO, mean);
+    const away = mix(TINT_LIGHT, TINT_DARK, darkSide);
+    const tintLuma = mix(away, mix(TINT_LIGHT, TINT_DARK, pol), demand);
+    const edge = busy * BUSY_EDGE;
+    const inkHi = Math.min(mean + edge, 1);
+    const inkLo = Math.max(mean - edge, 0);
+    const needForLight = inkHi > capLight ? clamp3((inkHi - capLight) / Math.max(inkHi - TINT_DARK, 1e-4), 0, MAX_DEMAND) : 0;
+    const needForDark = inkLo < floorDark ? clamp3((floorDark - inkLo) / Math.max(TINT_LIGHT - inkLo, 1e-4), 0, MAX_DEMAND) : 0;
+    const needForInk = mix(needForDark, needForLight, pol) * demand;
+    const ground = busy * optics.legibility * GROUND_SPAN;
+    return { density: Math.max(Math.max(optics.bodyDensity, ground), needForInk), tintLuma };
+  }
+  function withPresence(body, optics, sample) {
+    if (optics.presence <= 0) return body;
+    const mean = clamp3(sample.luma, 0, 1);
+    const above = Math.abs(body.tintLuma - mean) > 1e-4 ? body.tintLuma > mean : mean < 0.5;
+    const pole = above ? TINT_LIGHT : TINT_DARK;
+    const separation = Math.min(optics.presence, Math.abs(pole - mean));
+    const reached = Math.abs(body.tintLuma - mean) * body.density;
+    if (reached >= separation) return body;
+    const needed = separation / Math.max(Math.abs(pole - mean), 1e-4);
+    return {
+      density: Math.max(body.density, Math.min(needed, BODY3.presenceDemand)),
+      // Left where the tint law put it, unless it landed exactly on the backdrop — which is the
+      // case that used to be created here rather than avoided.
+      tintLuma: Math.abs(body.tintLuma - mean) > 1e-4 ? body.tintLuma : pole
     };
   }
-  function setUniform(gl, loc, value) {
-    if (!loc) return;
-    if (typeof value === "number") {
-      gl.uniform1f(loc, value);
-      return;
-    }
-    switch (value.length) {
-      case 1:
-        gl.uniform1f(loc, value[0]);
-        break;
-      case 2:
-        gl.uniform2f(loc, value[0], value[1]);
-        break;
-      case 3:
-        gl.uniform3f(loc, value[0], value[1], value[2]);
-        break;
-      case 4:
-        gl.uniform4f(loc, value[0], value[1], value[2], value[3]);
-        break;
-      default:
-        throw new Error(`vireglass/web: \u043D\u0435\u043F\u043E\u0434\u0434\u0435\u0440\u0436\u0430\u043D\u043D\u044B\u0439 \u0440\u0430\u0437\u043C\u0435\u0440 \u0443\u043D\u0438\u0444\u043E\u0440\u043C\u044B (${value.length})`);
+  var QUERIES = {
+    reduceTransparency: "(prefers-reduced-transparency: reduce)",
+    increaseContrast: "(prefers-contrast: more)",
+    reduceMotion: "(prefers-reduced-motion: reduce)"
+  };
+  function matches(query) {
+    if (typeof matchMedia !== "function") return false;
+    try {
+      return matchMedia(query).matches;
+    } catch {
+      return false;
     }
   }
-  function applyChannel(gl, get, names, sizes, values) {
-    let cursor = 0;
-    for (let i = 0; i < names.length; i += 1) {
-      const size = sizes[i];
-      setUniform(gl, get(names[i]), values.slice(cursor, cursor + size));
-      cursor += size;
-    }
+  function systemAccessibility() {
+    if (typeof matchMedia !== "function") return NO_ACCESSIBILITY;
+    return {
+      reduceTransparency: matches(QUERIES.reduceTransparency),
+      increaseContrast: matches(QUERIES.increaseContrast),
+      reduceMotion: matches(QUERIES.reduceMotion)
+    };
   }
-  function applyObject(gl, get, values) {
-    for (const name of Object.keys(values)) setUniform(gl, get(name), values[name]);
+  function watchAccessibility(onChange) {
+    if (typeof matchMedia !== "function") return () => {
+    };
+    const lists = [];
+    const handler = () => onChange(systemAccessibility());
+    for (const query of Object.values(QUERIES)) {
+      try {
+        const list = matchMedia(query);
+        list.addEventListener("change", handler);
+        lists.push(list);
+      } catch {
+      }
+    }
+    return () => {
+      for (const list of lists) list.removeEventListener("change", handler);
+    };
   }
-  function createVireGlassRenderer(canvas, options = {}) {
-    const context = canvas.getContext("webgl2", {
-      preserveDrawingBuffer: true,
-      alpha: options.alpha ?? false,
-      antialias: false
-    });
-    if (!context) throw new Error("vireglass/web: WebGL2 \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u0435\u043D");
-    const gl = context;
-    const blitProgram = createProgram(gl, FULLSCREEN_TRIANGLE_VERTEX_SOURCE, BLIT_FRAGMENT_SOURCE);
-    const lensProgram = createProgram(gl, FULLSCREEN_TRIANGLE_VERTEX_SOURCE, toGLSL(LENS_SHADER));
-    const surfaceProgram = createProgram(
-      gl,
-      FULLSCREEN_TRIANGLE_VERTEX_SOURCE,
-      toGLSL(SURFACE_SHADER)
-    );
-    const probe = createProbe(gl, FULLSCREEN_TRIANGLE_VERTEX_SOURCE);
-    const blitLoc = locationCache(gl, blitProgram);
-    const lensLoc = locationCache(gl, lensProgram);
-    const surfaceLoc = locationCache(gl, surfaceProgram);
-    let width = canvas.width;
-    let height = canvas.height;
-    let sceneCanvas = document.createElement("canvas");
-    let sceneCtx = sceneCanvas.getContext("2d");
-    if (!sceneCtx) throw new Error("vireglass/web: 2D-\u043A\u043E\u043D\u0442\u0435\u043A\u0441\u0442 \u0441\u0446\u0435\u043D\u044B \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u0435\u043D");
-    const settled = /* @__PURE__ */ new Map();
-    const SETTLE2 = 0.12;
-    function settleStats(index, fresh) {
-      const prev = settled.get(index);
-      if (!prev) {
-        settled.set(index, fresh);
-        return fresh;
-      }
-      const mix = (a, b) => a + (b - a) * SETTLE2;
-      const next = {
-        luma: mix(prev.luma, fresh.luma),
-        busy: mix(prev.busy, fresh.busy),
-        lo: mix(prev.lo, fresh.lo),
-        hi: mix(prev.hi, fresh.hi),
-        slopeX: mix(prev.slopeX, fresh.slopeX),
-        slopeY: mix(prev.slopeY, fresh.slopeY),
-        r: mix(prev.r, fresh.r),
-        g: mix(prev.g, fresh.g),
-        b: mix(prev.b, fresh.b)
-      };
-      settled.set(index, next);
-      return next;
-    }
-    let contentTexture = createTexture(gl, {
-      width: Math.max(width, 1),
-      height: Math.max(height, 1)
-    });
-    const iconTexture = createTexture(gl, { width: 1, height: 1 });
-    const colorTexture = createTexture(gl, { width: 1, height: 1 });
-    gl.bindTexture(gl.TEXTURE_2D, iconTexture);
-    gl.texSubImage2D(
-      gl.TEXTURE_2D,
-      0,
-      0,
-      0,
-      1,
-      1,
-      gl.RGBA,
-      gl.UNSIGNED_BYTE,
-      new Uint8Array([0, 0, 0, 0])
-    );
-    gl.bindTexture(gl.TEXTURE_2D, null);
-    function resize(widthPx, heightPx) {
-      width = Math.max(1, Math.round(widthPx));
-      height = Math.max(1, Math.round(heightPx));
-      canvas.width = width;
-      canvas.height = height;
-      gl.viewport(0, 0, width, height);
-      sceneCanvas = document.createElement("canvas");
-      sceneCanvas.width = width;
-      sceneCanvas.height = height;
-      sceneCtx = sceneCanvas.getContext("2d");
-      if (!sceneCtx) throw new Error("vireglass/web: 2D-\u043A\u043E\u043D\u0442\u0435\u043A\u0441\u0442 \u0441\u0446\u0435\u043D\u044B \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u0435\u043D");
-      gl.deleteTexture(contentTexture);
-      contentTexture = createTexture(gl, { width, height });
-    }
-    function render(options2) {
-      if (!sceneCtx) throw new Error("vireglass/web: \u0440\u0435\u043D\u0434\u0435\u0440\u0435\u0440 \u043D\u0435 \u0438\u043D\u0438\u0446\u0438\u0430\u043B\u0438\u0437\u0438\u0440\u043E\u0432\u0430\u043D (resize \u043D\u0435 \u0432\u044B\u0437\u0432\u0430\u043D)");
-      sceneCtx.clearRect(0, 0, width, height);
-      options2.scene(sceneCtx, width, height, options2.offsetX ?? 0, options2.offsetY ?? 0);
-      gl.bindTexture(gl.TEXTURE_2D, contentTexture);
-      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, sceneCanvas);
-      gl.bindTexture(gl.TEXTURE_2D, null);
-      if (options2.colorLayer) {
-        gl.bindTexture(gl.TEXTURE_2D, colorTexture);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, options2.colorLayer);
-      }
-      if (options2.iconMask) {
-        gl.bindTexture(gl.TEXTURE_2D, iconTexture);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, options2.iconMask);
-        gl.bindTexture(gl.TEXTURE_2D, null);
-      }
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      gl.viewport(0, 0, width, height);
-      gl.disable(gl.BLEND);
-      gl.disable(gl.SCISSOR_TEST);
-      if (options2.backdrop ?? true) {
-        gl.useProgram(blitProgram);
-        bindTextureAt(gl, 0, contentTexture, blitProgram, "u_content");
-        setUniform(gl, blitLoc("u_resolution"), [width, height]);
-        drawFullscreenTriangle(gl);
-      } else {
-        gl.clearColor(0, 0, 0, 0);
-        gl.clear(gl.COLOR_BUFFER_BIT);
-      }
-      const probes = [];
-      for (let index = 0; index < options2.pieces.length; index += 1) {
-        const piece = options2.pieces[index];
-        const halfWidth = piece.geometry.width * options2.density / 2;
-        const halfHeight = piece.geometry.height * options2.density / 2;
-        const rect = {
-          centerX: piece.centerX,
-          centerY: piece.centerY,
-          halfWidth,
-          halfHeight
-        };
-        const fresh = index === 0 ? probe.sample(contentTexture, width, height, rect) : probe.statsFor(width, height, rect);
-        const stats = fresh ? settleStats(index, fresh) : null;
-        probes.push(stats);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        gl.viewport(0, 0, width, height);
-        gl.enable(gl.BLEND);
-        gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-        const morphReach = piece.morph ? Math.hypot(piece.morph.offsetX, piece.morph.offsetY) + Math.max(piece.morph.width, piece.morph.height) / 2 + piece.morph.smoothing : 0;
-        const touchReach = piece.touch ? Math.hypot(piece.touch.pullX, piece.touch.pullY) + piece.touch.waveAmp * 2 : 0;
-        const padPx = (lensPadDp(piece.geometry, piece.optics) + surfacePadDp(piece.geometry, 0) + morphReach + touchReach) * options2.density;
-        const left = Math.max(0, Math.floor(piece.centerX - halfWidth - padPx));
-        const right = Math.min(width, Math.ceil(piece.centerX + halfWidth + padPx));
-        const top = Math.max(0, Math.floor(height - (piece.centerY + halfHeight + padPx)));
-        const bottom = Math.min(height, Math.ceil(height - (piece.centerY - halfHeight - padPx)));
-        gl.enable(gl.SCISSOR_TEST);
-        gl.scissor(left, top, Math.max(0, right - left), Math.max(0, bottom - top));
-        const withLens = piece.lens ?? true;
-        if (withLens) {
-          gl.useProgram(lensProgram);
-          bindTextureAt(gl, 0, contentTexture, lensProgram, "content");
-          setUniform(gl, lensLoc("u_contentSize"), [width, height]);
-          setUniform(gl, lensLoc("u_resolution"), [width, height]);
-          setUniform(gl, lensLoc("u_center"), [piece.centerX, piece.centerY]);
-          setUniform(gl, lensLoc("u_reach"), Math.max(width, height));
-          setUniform(gl, lensLoc("u_contentMin"), [1, 1]);
-          setUniform(gl, lensLoc("u_contentMax"), [width - 1, height - 1]);
-          if (stats) {
-            setUniform(gl, lensLoc("u_probeLuma"), stats.luma);
-            setUniform(gl, lensLoc("u_probeBusy"), stats.busy);
-            setUniform(gl, lensLoc("u_probeRange"), [stats.lo, stats.hi]);
-            setUniform(gl, lensLoc("u_probeSlope"), [stats.slopeX, stats.slopeY]);
-            setUniform(gl, lensLoc("u_probe"), [stats.r, stats.g, stats.b]);
-          } else {
-            setUniform(gl, lensLoc("u_probeLuma"), -1);
-          }
-          const lens = toLensProps(piece.optics, piece.geometry, options2.density, {
-            debug: options2.debug,
-            morph: piece.morph,
-            touch: piece.touch,
-            progress: piece.progress
-          });
-          applyChannel(gl, lensLoc, lens.uniformNames, lens.uniformSizes, lens.uniformValues);
-          drawFullscreenTriangle(gl);
-        }
-        gl.useProgram(surfaceProgram);
-        const rawSurface = toSurfaceUniforms(piece.optics, piece.geometry, {
-          debug: options2.debug,
-          morph: piece.morph,
-          bodyInLens: withLens,
-          touch: piece.touch,
-          progress: piece.progress
-        });
-        const d = options2.density;
-        applyObject(gl, surfaceLoc, {
-          ...rawSurface,
-          u_center: [piece.centerX, piece.centerY],
-          u_halfSize: [rawSurface.u_halfSize[0] * d, rawSurface.u_halfSize[1] * d],
-          u_corner: rawSurface.u_corner * d,
-          u_bevel: rawSurface.u_bevel * d,
-          u_morphOffset: [rawSurface.u_morphOffset[0] * d, rawSurface.u_morphOffset[1] * d],
-          u_morphHalf: [rawSurface.u_morphHalf[0] * d, rawSurface.u_morphHalf[1] * d],
-          u_morphCorner: rawSurface.u_morphCorner * d,
-          u_morphK: rawSurface.u_morphK * d,
-          u_shadowReach: rawSurface.u_shadowReach * d,
-          u_touch: [rawSurface.u_touch[0] * d, rawSurface.u_touch[1] * d],
-          u_pull: [rawSurface.u_pull[0] * d, rawSurface.u_pull[1] * d],
-          u_touchRadius: rawSurface.u_touchRadius * d,
-          u_wave: [rawSurface.u_wave[0] * d, rawSurface.u_wave[1]]
-        });
-        setUniform(gl, surfaceLoc(DYNAMIC_UNIFORMS[0]), piece.press ?? 0);
-        setUniform(gl, surfaceLoc(DYNAMIC_UNIFORMS[1]), piece.active ?? 0);
-        setUniform(gl, surfaceLoc(DYNAMIC_UNIFORMS[2]), REST_LIGHT);
-        const hasIcon = Boolean(piece.icon && options2.iconMask);
-        setUniform(gl, surfaceLoc(ICON_UNIFORMS[0]), hasIcon ? 1 : 0);
-        setUniform(gl, surfaceLoc(ICON_UNIFORMS[1]), 1);
-        setUniform(gl, surfaceLoc(ICON_UNIFORMS[2]), piece.inkIdle ?? [1, 1, 1, 1]);
-        setUniform(gl, surfaceLoc(ICON_UNIFORMS[3]), piece.inkActive ?? [1, 1, 1, 1]);
-        bindTextureAt(gl, 1, iconTexture, surfaceProgram, "u_icon");
-        setUniform(gl, surfaceLoc("u_iconSize"), hasIcon ? [width, height] : [1, 1]);
-        const hasColor = Boolean(piece.overlay && options2.colorLayer);
-        setUniform(gl, surfaceLoc(OVERLAY_UNIFORMS[0]), hasColor ? 1 : 0);
-        bindTextureAt(gl, 2, colorTexture, surfaceProgram, "u_overlay");
-        setUniform(gl, surfaceLoc("u_overlaySize"), hasColor ? [width, height] : [1, 1]);
-        setUniform(gl, surfaceLoc("u_resolution"), [width, height]);
-        drawFullscreenTriangle(gl);
-      }
-      gl.disable(gl.SCISSOR_TEST);
-      return { probes };
-    }
-    function destroy() {
-      probe.destroy();
-      gl.deleteProgram(blitProgram);
-      gl.deleteProgram(lensProgram);
-      gl.deleteProgram(surfaceProgram);
-      gl.deleteTexture(contentTexture);
-      gl.deleteTexture(iconTexture);
-      gl.deleteTexture(colorTexture);
-    }
-    return { resize, render, destroy };
+  var { lobeExponent: LOBE_EXPONENT, opposingArc: OPPOSING_ARC, darkEdge: DARK_EDGE } = RIM;
+  var STOPS = 48;
+  function lightConicAngle(light) {
+    const [lx, ly] = light;
+    const deg = Math.atan2(lx, -ly) * 180 / Math.PI;
+    return (deg + 360) % 360;
   }
+  function rimLobe(deltaDeg, specular) {
+    const facing = Math.cos(deltaDeg * Math.PI / 180);
+    const front = facing > 0 ? Math.pow(facing, LOBE_EXPONENT) : 0;
+    const back = facing < 0 ? Math.pow(-facing, LOBE_EXPONENT) : 0;
+    return specular * (front + OPPOSING_ARC * back);
+  }
+  var clamp0122 = (v) => v < 0 ? 0 : v > 1 ? 1 : v;
+  var to2552 = (v) => Math.round(clamp0122(v) * 255);
+  function rimGradientCss(optics, ambient, light, appear = 1) {
+    const present = clamp0122(appear);
+    const start = lightConicAngle(light);
+    const [ar, ag, ab] = ambient;
+    const stops = [];
+    for (let i = 0; i <= STOPS; i += 1) {
+      const angle = i / STOPS * 360;
+      const key = rimLobe(angle, optics.specular);
+      const facing = Math.cos(angle * Math.PI / 180);
+      const fringe = facing < 0 ? optics.iridescence * OPPOSING_ARC : 0;
+      const lift = clamp0122(key * optics.fresnel);
+      const r = ar + (1 - ar) * clamp0122(lift + fringe);
+      const g = ag + (1 - ag) * lift;
+      const b = ab + (1 - ab) * clamp0122(lift - fringe);
+      const alpha = clamp0122(DARK_EDGE + lift * (1 - DARK_EDGE)) * present;
+      const colour = lift > 1e-3 ? `rgba(${to2552(r)},${to2552(g)},${to2552(b)},${alpha.toFixed(3)})` : `rgba(0,0,0,${alpha.toFixed(3)})`;
+      stops.push(`${colour} ${angle.toFixed(1)}deg`);
+    }
+    return `conic-gradient(from ${start.toFixed(1)}deg, ${stops.join(", ")})`;
+  }
+  var RIM_WIDTH_PX = RIM.widthPx;
+  function contrastRimCss(bodyLuma, rimLuma) {
+    const v = to2552(rimLuma);
+    return `conic-gradient(rgb(${v},${v},${v}) 0deg, rgb(${v},${v},${v}) 360deg)`;
+  }
+  var TOUCH_RADIUS_FRACTION = TOUCH.radiusOfHalfSize;
+  var WAVE_OF_TRAVEL = TOUCH.waveOfTravel;
+  var RELEASE_WAVE = TOUCH.releaseWave;
+
+  // src/glass.ts
   var MATERIAL = materialForInk(
-    // Roughness at the ceiling of the model: the sheet material sits at 0.85 and
-    // bright patches of page text still push through. The pane lies over live
-    // text, so here haze works for legibility, not for looks.
     { ...VIREGLASS_CONTROL_MATERIAL, roughness: MATERIAL_RANGES.roughness[1] },
     true
   );
-  var SETTLE = 0.12;
-  var density = () => window.devicePixelRatio || 1;
-  function displacementMap(width, height, radius, bevel, push) {
-    const w = Math.max(1, Math.round(width));
-    const h = Math.max(1, Math.round(height));
-    const c = document.createElement("canvas");
-    c.width = w;
-    c.height = h;
-    const ctx = c.getContext("2d");
-    if (!ctx) return "";
-    const img = ctx.createImageData(w, h);
-    const hx = w / 2;
-    const hy = h / 2;
-    const r = Math.min(radius, Math.min(hx, hy));
-    const band = Math.max(1, bevel);
-    for (let y = 0; y < h; y += 1) {
-      for (let x = 0; x < w; x += 1) {
-        const px = x + 0.5 - hx;
-        const py = y + 0.5 - hy;
-        const qx = Math.abs(px) - (hx - r);
-        const qy = Math.abs(py) - (hy - r);
-        const mx = Math.max(qx, 0);
-        const my = Math.max(qy, 0);
-        const d = Math.hypot(mx, my) + Math.min(Math.max(qx, qy), 0) - r;
-        let nx = 0;
-        let ny = 0;
-        if (d < 0) {
-          const t = Math.min(1, Math.max(0, 1 + d / band));
-          if (t > 0) {
-            if (mx > 0 && my > 0) {
-              const len = Math.hypot(mx, my) || 1;
-              nx = mx / len * Math.sign(px);
-              ny = my / len * Math.sign(py);
-            } else if (qx > qy) {
-              nx = Math.sign(px);
-            } else {
-              ny = Math.sign(py);
-            }
-            const k = -(t * t);
-            nx *= k;
-            ny *= k;
-          }
+  var SVG_NS = "http://www.w3.org/2000/svg";
+  var FILTER_ID = "vg-refract";
+  var IDLE = { pullX: 0, pullY: 0, press: 0, active: 0 };
+  var to2553 = (v) => Math.round(Math.min(Math.max(v, 0), 1) * 255);
+  function createGlass({ root, layers, slack }) {
+    if (!supportsBackdropFilter()) throw new Error("no backdrop-filter: the flat panel stands in");
+    const { shell, refract, tint, glow, rim } = layers;
+    const svgSupported = supportsSvgBackdropFilter();
+    let a11y = systemAccessibility();
+    const deform = createDeform({ elastic: elasticAllowed(a11y) });
+    let inkLight = MATERIAL.ink > 0.5;
+    let sample = statsFromSamples([]);
+    let destroyed = false;
+    const svg = document.createElementNS(SVG_NS, "svg");
+    svg.setAttribute("width", "0");
+    svg.setAttribute("height", "0");
+    svg.setAttribute("aria-hidden", "true");
+    svg.style.position = "absolute";
+    const defs = document.createElementNS(SVG_NS, "defs");
+    svg.append(defs);
+    root.append(svg);
+    function optics(material = MATERIAL) {
+      return applyAccessibility(applyGlassScale(resolveOptics(material), GLASS_SCALE_DEFAULT), a11y);
+    }
+    function measure(width, height, radius) {
+      const rect = shell.getBoundingClientRect();
+      const r = radius ?? parseFloat(getComputedStyle(shell).borderTopLeftRadius);
+      return roundedRectGeometry(width ?? rect.width, height ?? rect.height, r || 0);
+    }
+    const dpr = () => window.devicePixelRatio || 1;
+    let feImage = null;
+    let feBlur = null;
+    let passes = [];
+    let graphFor = "";
+    let wornScale = -1;
+    let wornBlur = -1;
+    function buildGraph(o, geometry) {
+      const filter = document.createElementNS(SVG_NS, "filter");
+      filter.setAttribute("id", FILTER_ID);
+      filter.setAttribute("filterUnits", "objectBoundingBox");
+      filter.setAttribute("x", "0");
+      filter.setAttribute("y", "0");
+      filter.setAttribute("width", "1");
+      filter.setAttribute("height", "1");
+      filter.setAttribute("color-interpolation-filters", "sRGB");
+      const flood = document.createElementNS(SVG_NS, "feFlood");
+      flood.setAttribute("flood-color", "rgb(128,128,128)");
+      flood.setAttribute("result", "flat");
+      feImage = document.createElementNS(SVG_NS, "feImage");
+      feImage.setAttribute("preserveAspectRatio", "none");
+      feImage.setAttribute("result", "shape");
+      const merge = document.createElementNS(SVG_NS, "feMerge");
+      merge.setAttribute("result", "map");
+      for (const src of ["flat", "shape"]) {
+        const node = document.createElementNS(SVG_NS, "feMergeNode");
+        node.setAttribute("in", src);
+        merge.append(node);
+      }
+      feBlur = document.createElementNS(SVG_NS, "feGaussianBlur");
+      feBlur.setAttribute("in", "SourceGraphic");
+      feBlur.setAttribute("stdDeviation", String(Math.max(o.blur, 0)));
+      feBlur.setAttribute("result", "blurred");
+      filter.append(flood, feImage, merge, feBlur);
+      passes = [];
+      const base = refractionStrength(o.ior);
+      const ratio = (shift) => base > 0 ? refractionStrength(o.ior + shift) / base : 1;
+      const red = ratio(DISPERSION.redShift * o.iorSpread);
+      const blue = ratio(DISPERSION.blueShift * o.iorSpread);
+      const disperses = Math.abs(red - 1) > 1e-4 || Math.abs(blue - 1) > 1e-4;
+      if (disperses) {
+        const channels = [
+          ["dR", red, "1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0"],
+          ["dG", 1, "0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0"],
+          ["dB", blue, "0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0"]
+        ];
+        for (const [name, share, matrix] of channels) {
+          const pass = document.createElementNS(SVG_NS, "feDisplacementMap");
+          pass.setAttribute("in", "blurred");
+          pass.setAttribute("in2", "map");
+          pass.setAttribute("xChannelSelector", "R");
+          pass.setAttribute("yChannelSelector", "G");
+          pass.setAttribute("result", `${name}raw`);
+          const only = document.createElementNS(SVG_NS, "feColorMatrix");
+          only.setAttribute("in", `${name}raw`);
+          only.setAttribute("type", "matrix");
+          only.setAttribute("values", matrix);
+          only.setAttribute("result", name);
+          filter.append(pass, only);
+          passes.push({ node: pass, ratio: share });
         }
-        const i = (y * w + x) * 4;
-        img.data[i] = Math.round(128 + nx * 127);
-        img.data[i + 1] = Math.round(128 + ny * 127);
-        img.data[i + 2] = 128;
-        img.data[i + 3] = 255;
+        const rg = document.createElementNS(SVG_NS, "feComposite");
+        const rgb = document.createElementNS(SVG_NS, "feComposite");
+        for (const [node, a, b, out] of [
+          [rg, "dR", "dG", "dRG"],
+          [rgb, "dRG", "dB", "refracted"]
+        ]) {
+          node.setAttribute("in", a);
+          node.setAttribute("in2", b);
+          node.setAttribute("operator", "arithmetic");
+          node.setAttribute("k1", "0");
+          node.setAttribute("k2", "1");
+          node.setAttribute("k3", "1");
+          node.setAttribute("k4", "0");
+          node.setAttribute("result", out);
+        }
+        filter.append(rg, rgb);
+      } else {
+        const pass = document.createElementNS(SVG_NS, "feDisplacementMap");
+        pass.setAttribute("in", "blurred");
+        pass.setAttribute("in2", "map");
+        pass.setAttribute("xChannelSelector", "R");
+        pass.setAttribute("yChannelSelector", "G");
+        pass.setAttribute("result", "refracted");
+        filter.append(pass);
+        passes.push({ node: pass, ratio: 1 });
+      }
+      if (hasSpectralEdge(o)) {
+        const key = `${geometry.width}x${geometry.height}r${geometry.cornerRadius}@${dpr()}`;
+        const spectral = cached(`h|${key}`, () => buildSpectralMap(o, geometry, dpr()));
+        const image = document.createElementNS(SVG_NS, "feImage");
+        image.setAttribute("href", spectral.url);
+        image.setAttribute("preserveAspectRatio", "none");
+        image.setAttribute("result", "hue");
+        const product = document.createElementNS(SVG_NS, "feComposite");
+        product.setAttribute("in", "refracted");
+        product.setAttribute("in2", "hue");
+        product.setAttribute("operator", "arithmetic");
+        product.setAttribute("k1", String(spectral.headroom));
+        product.setAttribute("k2", "0");
+        product.setAttribute("k3", "0");
+        product.setAttribute("k4", "0");
+        filter.append(image, product);
+      }
+      defs.replaceChildren(filter);
+      wornScale = -1;
+      wornBlur = -1;
+    }
+    function wear(scale, blur2) {
+      if (Math.abs(scale - wornScale) > 0.05) {
+        wornScale = scale;
+        for (const pass of passes) pass.node.setAttribute("scale", (scale * pass.ratio).toFixed(2));
+      }
+      if (feBlur && Math.abs(blur2 - wornBlur) > 0.05) {
+        wornBlur = blur2;
+        feBlur.setAttribute("stdDeviation", blur2.toFixed(2));
       }
     }
-    ctx.putImageData(img, 0, 0);
-    return c.toDataURL();
-  }
-  function createGlassSurface(canvas, maxWidth, maxHeight) {
-    const renderer = createVireGlassRenderer(canvas, { alpha: true });
-    const deform = createDeform();
-    const widest = roundedRectGeometry(maxWidth, maxHeight, 28);
-    const pad2 = Math.ceil(lensPadDp(widest, resolveOptics(MATERIAL)) + surfacePadDp(widest));
-    const boxW = maxWidth + pad2 * 2;
-    const boxH = maxHeight + pad2 * 2;
-    canvas.style.width = boxW + "px";
-    canvas.style.height = boxH + "px";
-    let scale = 0;
-    function fit(next) {
-      if (next === scale) return;
-      scale = next;
-      renderer.resize(Math.ceil(boxW * scale), Math.ceil(boxH * scale));
+    function fit(width, height) {
+      if (!feImage) return;
+      feImage.setAttribute("x", String(slack));
+      feImage.setAttribute("y", String(slack));
+      feImage.setAttribute("width", String(width));
+      feImage.setAttribute("height", String(height));
     }
-    fit(density());
-    let backdrop = "#ffffff";
-    let spreadTarget = 0;
-    let spread = 0;
-    let settledAlpha = -1;
-    let settledLevel = -1;
-    let aimAlpha = -1;
-    let aimLevel = -1;
-    let inkLight = true;
-    let confirmations = 0;
-    let last = null;
-    let prev = 0;
-    let shape = widest;
-    const scene = (ctx, w, h) => {
-      ctx.fillStyle = backdrop;
-      ctx.fillRect(0, 0, w, h);
-    };
+    function reshape(width, height, radius) {
+      if (!svgSupported) return;
+      const o = optics();
+      const geometry = measure(width, height, radius);
+      const key = `${geometry.width}x${geometry.height}r${geometry.cornerRadius}@${dpr()}:${o.blur}:${o.refraction}`;
+      if (key !== graphFor || !feImage) {
+        buildGraph(o, geometry);
+        graphFor = key;
+      }
+      const map = cached(`d|${key}`, () => buildDisplacementMap(o, geometry, dpr()));
+      feImage.setAttribute("href", map.url);
+      fit(geometry.width, geometry.height);
+      wear(map.scale, o.blur);
+      refract.style.setProperty("backdrop-filter", `url(#${FILTER_ID})`);
+      refract.style.setProperty("-webkit-backdrop-filter", `url(#${FILTER_ID})`);
+    }
+    function paintGlow(x, y, strength, geometry) {
+      if (strength <= 1e-3) {
+        glow.style.setProperty("--vireglass-glow-opacity", "0");
+        return;
+      }
+      const [r, g, b] = ambientFrom(sample);
+      const cx = (x + geometry.width / 2) / Math.max(geometry.width, 1) * 100;
+      const cy = (y + geometry.height / 2) / Math.max(geometry.height, 1) * 100;
+      const reach = halfMinDp(geometry) * TOUCH.radiusOfHalfSize;
+      glow.style.setProperty(
+        "--vireglass-glow",
+        `radial-gradient(circle ${reach.toFixed(0)}px at ${cx.toFixed(1)}% ${cy.toFixed(1)}%, rgba(${to2553(r)},${to2553(g)},${to2553(b)},1) 0%, rgba(${to2553(r)},${to2553(g)},${to2553(b)},0) 100%)`
+      );
+      glow.style.setProperty("--vireglass-glow-opacity", strength.toFixed(3));
+    }
+    function update() {
+      if (destroyed) return;
+      const o = optics();
+      const geometry = measure();
+      sample = probeBackdrop(shell);
+      inkLight = shouldInkBeLight(sample, inkLight);
+      const polarity = inkLight ? 1 : 0;
+      const body = withPresence(resolveBody(o, sample, polarity), o, sample);
+      const [ar, ag, ab] = ambientFrom(sample);
+      const hue = (c) => body.tintLuma + (c - body.tintLuma) * o.colorPickup;
+      tint.style.setProperty(
+        "--vireglass-body-color",
+        `rgba(${to2553(hue(ar))}, ${to2553(hue(ag))}, ${to2553(hue(ab))}, ${body.density.toFixed(3)})`
+      );
+      rim.style.setProperty(
+        "--vireglass-rim",
+        a11y.increaseContrast ? contrastRimCss(body.tintLuma, contrastRimLuma(body.tintLuma)) : rimGradientCss(o, [ar, ag, ab], REST_LIGHT)
+      );
+      rim.style.setProperty("--vireglass-rim-width", `${RIM_WIDTH_PX}px`);
+      shell.style.boxShadow = boxShadowCss(geometry, sample);
+      if (svgSupported) {
+        reshape(geometry.width, geometry.height, geometry.cornerRadius);
+        return;
+      }
+      const stand = `blur(${Math.max(o.blur, 1.5).toFixed(1)}px) saturate(${(1 + o.colorPickup).toFixed(2)})`;
+      refract.style.setProperty("backdrop-filter", stand);
+      refract.style.setProperty("-webkit-backdrop-filter", stand);
+    }
+    const stopWatching = watchAccessibility((next) => {
+      a11y = next;
+      deform.setElastic(elasticAllowed(next));
+      graphFor = "";
+      update();
+    });
+    let last = 0;
+    const waveImpulse = (g) => halfMinDp(g) * MAX_STRETCH * TOUCH.waveOfTravel;
+    function frame() {
+      if (destroyed) return IDLE;
+      const now = performance.now();
+      deform.step(last ? Math.min((now - last) / 1e3, 0.25) : 0);
+      last = now;
+      const d = deform.sample();
+      const geometry = measure();
+      const settled = deform.idle();
+      const live = settled ? optics() : optics(activeMaterial(MATERIAL, d.active));
+      if (svgSupported && feImage && !settled) {
+        const map = buildDisplacementMap(live, geometry, 1, {
+          touch: {
+            x: d.touchX,
+            y: d.touchY,
+            pullX: d.pullX,
+            pullY: d.pullY,
+            press: d.press,
+            radius: halfMinDp(geometry) * TOUCH.radiusOfHalfSize,
+            waveAmp: d.waveAmp,
+            wavePhase: d.wavePhase
+          }
+        });
+        feImage.setAttribute("href", map.url);
+        wear(map.scale, live.blur);
+        graphFor = "";
+      }
+      paintGlow(d.touchX, d.touchY, d.active * live.edgeLight, geometry);
+      return { pullX: d.pullX, pullY: d.pullY, press: d.press, active: d.active };
+    }
     return {
-      /** How far the canvas reaches past the pane: shadow, bevel and light gathering
-       *  all fall outside the shape. */
-      pad: pad2,
-      setBackdropColor(color) {
-        backdrop = color;
-      },
-      /** Busyness of the background under the pane, 0…1 — the model's `spread`.
-       *  The probe reads it off the drawn scene, and our scene is flat: the
-       *  variegation of a live page cannot be fed in there. Without it the model
-       *  considers the background uniform and asks for no density — and then the
-       *  panel's labels land straight on the page's text. */
-      setSpread(value) {
-        spreadTarget = Math.min(1, Math.max(0, value));
-      },
-      /** Whether the material has arrived — this decides whether to keep drawing.
-       *  Asking about busyness alone is not enough: body density and colour ease in
-       *  on their own SETTLE, and ink polarity waits CONFIRMATIONS frames. Stop
-       *  earlier and on a slow machine the panel freezes half-arrived: the body at
-       *  half strength, the ink still the old polarity. */
-      settled: () => Math.abs(spread - spreadTarget) < 5e-3 && confirmations === 0 && (aimAlpha < 0 || Math.abs(settledAlpha - aimAlpha) < 2e-3) && (aimLevel < 0 || Math.abs(settledLevel - aimLevel) < 0.5),
-      /** Response to the cursor — the core's springs and its own proportions:
-       *  pull travel and finger radius come off the pane's half-size, not guesswork. */
-      grab: (x, y) => deform.grab(x, y, 3.2),
-      drag(dx, dy) {
-        deform.drag(dx, dy, 0.14 * halfMinDp(shape));
-      },
-      release: () => deform.release(1.8),
+      update,
+      ink: () => inkLight,
+      frame,
       idle: () => deform.idle(),
-      /** A wave with no finger behind it, for when the pane changes shape by
-       *  itself. A dense medium rings when it is reshaped; the core already knows
-       *  how that ring looks and how fast it dies, so this borrows the same spring
-       *  rather than inventing a second kind of motion. grab and release land in
-       *  one frame, so the press never rises — what is left is the wave. */
-      ripple(x, y, strength = 2.4) {
-        deform.grab(x, y, strength);
+      grab: (x, y) => deform.grab(x, y, waveImpulse(measure())),
+      drag: (dx, dy) => deform.drag(dx, dy, halfMinDp(measure()) * MAX_STRETCH),
+      release: () => deform.release(waveImpulse(measure()) * TOUCH.releaseWave),
+      ripple(x, y) {
+        deform.grab(x, y, waveImpulse(measure()));
         deform.release(0);
       },
-      /**
-       * Refraction of the live DOM: the map for feDisplacementMap plus the shift
-       * magnitude and the haze, all out of the core's optics. Recomputed only when
-       * the shape changes: it is a raster, and re-rasterising it every morph frame
-       * would be pointless.
-       */
-      refraction(width, height, cornerRadius) {
-        const geometry = roundedRectGeometry(width, height, cornerRadius);
-        const optics = resolveOptics(MATERIAL);
-        const bevel = bevelDp(geometry, optics);
-        const push = bevel * optics.refraction;
-        return {
-          map: displacementMap(width, height, cornerRadius, bevel, push),
-          scale: push * 2,
-          blur: optics.blur
-        };
-      },
-      /** Returns whether the lettering over the glass should be light. */
-      draw(width, height, cornerRadius, anchor = "br") {
-        fit(density());
-        const now = performance.now();
-        deform.step(prev ? Math.min((now - prev) / 1e3, 0.25) : 0);
-        prev = now;
-        const geometry = roundedRectGeometry(width, height, cornerRadius);
-        shape = geometry;
-        const d = deform.sample();
-        const material = { ...activeMaterial(MATERIAL, d.active), ink: inkLight ? 1 : 0 };
-        const optics = applyToggles(resolveOptics(material), { tint: false });
-        const left = anchor === "bl" || anchor === "tl" ? pad2 : boxW - pad2 - width;
-        const top = anchor === "tl" || anchor === "tr" ? pad2 : boxH - pad2 - height;
-        const centerX = (left + width / 2) * scale;
-        const centerY = (top + height / 2) * scale;
-        const { probes } = renderer.render({
-          density: scale,
-          debug: "normal",
-          scene,
-          backdrop: false,
-          pieces: [
-            {
-              optics,
-              geometry,
-              centerX,
-              centerY,
-              lens: false,
-              press: d.press,
-              active: d.active,
-              // A settled pane is exactly the neutral material. The touch point
-              // outlives the deformation itself, and on a shape that has changed
-              // size it stays pressed in at a stale spot — visible as a blob on
-              // empty ground.
-              touch: deform.idle() ? void 0 : {
-                x: d.touchX,
-                y: d.touchY,
-                pullX: d.pullX,
-                pullY: d.pullY,
-                press: d.press,
-                radius: 0.72 * halfMinDp(geometry),
-                waveAmp: d.waveAmp,
-                wavePhase: d.wavePhase
-              }
-            }
-          ]
-        });
-        const stats = probes[0];
-        last = stats;
-        if (stats) {
-          const wants = shouldInkBeLight(stats, material.legibility, inkLight);
-          if (wants === inkLight) {
-            confirmations = 0;
-          } else if (++confirmations >= CONFIRMATIONS) {
-            inkLight = wants;
-            confirmations = 0;
-          }
-        }
-        spread += (spreadTarget - spread) * SETTLE;
-        const local = stats ? stats.luma : 1;
-        const alpha = bodyDensityFor(local, material.legibility, optics.bodyDensity, material.ink, spread);
-        const aim = bodyLuma(local, material.legibility, optics.bodyDensity, material.ink, spread);
-        const tint = alpha > 1e-3 ? (aim - local * (1 - alpha)) / alpha : material.ink > 0.5 ? 0 : 1;
-        const level = Math.round(Math.min(1, Math.max(0, tint)) * 255);
-        aimAlpha = alpha;
-        aimLevel = level;
-        settledAlpha = settledAlpha < 0 ? alpha : settledAlpha + (alpha - settledAlpha) * SETTLE;
-        settledLevel = settledLevel < 0 ? level : settledLevel + (level - settledLevel) * SETTLE;
-        const bevel = bevelDp(geometry, optics);
-        const ripple = d.waveAmp > 0 ? Math.sin(d.wavePhase * Math.PI * 2) * d.waveAmp * 0.9 : 0;
-        return {
-          inkLight,
-          body: `rgba(${Math.round(settledLevel)}, ${Math.round(settledLevel)}, ${Math.round(settledLevel)}, ${settledAlpha.toFixed(3)})`,
-          blur: optics.blur,
-          refract: Math.max(0, bevel * optics.refraction + ripple),
-          pullX: d.pullX,
-          pullY: d.pullY,
-          press: d.press,
-          active: d.active,
-          touchX: d.touchX,
-          touchY: d.touchY,
-          touchRadius: 0.72 * halfMinDp(geometry)
-        };
-      },
-      /** The last background measurement and ink decision — for debugging the material. */
-      probe: () => ({ stats: last, inkLight, backdrop }),
-      destroy: () => renderer.destroy()
+      reshape,
+      fit,
+      destroy() {
+        destroyed = true;
+        stopWatching();
+        svg.remove();
+        refract.style.removeProperty("backdrop-filter");
+        refract.style.removeProperty("-webkit-backdrop-filter");
+      }
     };
   }
 
   // src/ui.ts
-  var CSS = `
+  var GLIDE_MS = 380;
+  var CSS2 = `
 :host {
   all: initial;
   /* The vire palette: a warm near-black; the accent is not colour but a lift of the surface. */
@@ -5450,7 +4475,7 @@ void main() {
 .root.y-bottom { bottom: var(--edge); }
 .root.y-top { top: var(--edge); }
 /* A throw into another corner finishes the very motion the pane was dragged by. */
-.root.gliding { transition: transform 0.38s var(--ease); }
+.root.gliding { transition: transform ${GLIDE_MS}ms var(--ease); }
 .root.dragging { transition: none; }
 .root.dragging, .root.dragging * { cursor: grabbing !important; user-select: none; }
 /* Ink polarity follows the background: over a very light page the body of the
@@ -5464,12 +4489,6 @@ void main() {
 .fab, .head, .fmt button, .fmt .hint, .label, .link, .err, .note {
   transition: color .42s var(--ease);
 }
-
-/* The VireGlass core draws the material into this canvas: body, bevel, Fresnel,
-   highlight and shadow as consequences of the material's causes, not a pile of
-   CSS shadows. The canvas is wider than the pane: shadow and light gathering
-   reach outside the shape. */
-.glass { position: absolute; pointer-events: none; z-index: 0; }
 
 .shell {
   position: relative;
@@ -5512,29 +4531,50 @@ void main() {
 .refract { position: absolute; inset: calc(var(--slack) * -1); }
 /* The body goes ABOVE the refraction. As a background of the shell it would be
    pulled into the refraction: a parent's background is part of its own child's
-   backdrop. */
-.tint { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
-/* The light that blooms under a finger. When the medium goes active the core
-   raises its presence and its ior; on a surface pass that reads as a brighter
-   rim and a specular bloom, and this is the part of it CSS can wear directly.
-   Position and radius come from the core's own contact spot \u2014 the finger has an
-   area, not a point \u2014 and they arrive as custom properties so a frame writes
-   three numbers rather than re-parsing a gradient string. */
+   backdrop. The colour is the material's own \u2014 how much medium stands between
+   the page and the eye, and which way it tints \u2014 so CSS only paints it. It
+   eases in over the same FADE_MS the ink recolours over: the density changes in
+   steps, as the reader scrolls, and a step in the body reads as a flash. */
+.tint {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: var(--vireglass-body-color, transparent);
+  transition: background .42s var(--ease);
+}
+/* The light that blooms under a finger: a concentration of the surroundings,
+   not the glass's own whiteness. The gradient arrives whole from the material \u2014
+   position, reach and the colour it picked up off the page. */
 .glow {
   position: absolute;
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  opacity: var(--g-a, 0);
-  background: radial-gradient(
-    circle var(--g-r, 90px) at var(--g-x, 50%) var(--g-y, 50%),
-    color-mix(in oklch, var(--vg-ink) 30%, transparent),
-    transparent 72%
-  );
+  background: var(--vireglass-glow, none);
+  opacity: var(--vireglass-glow-opacity, 0);
+}
+/* The hairline: two opposing arcs of the key light and a dark edge, all out of
+   the material. A ring rather than a fill \u2014 the same box painted twice, once
+   clipped to the content box, and composited so only the padding band survives.
+   The trick is the package's own; it lives here because the stylesheet that
+   carries it in the package hangs on document.head and cannot reach a shadow
+   tree. */
+.rim {
+  position: absolute;
+  inset: 0;
+  /* Above the content, like the ::after the package paints it with: the ring is
+     one pixel at the very edge, and the panel's own padding keeps it clear. */
+  z-index: 3;
+  pointer-events: none;
+  border-radius: inherit;
+  padding: var(--vireglass-rim-width, 1px);
+  background: var(--vireglass-rim, none);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
 }
 
-/* The fallback material when WebGL2 is unavailable: the extension has to work
-   without the glass too. */
+/* The fallback material when there is no backdrop-filter at all: the extension
+   has to work without the glass too. */
 .shell.flat {
   background: color-mix(in oklch, var(--vg-body) 90%, transparent);
   -webkit-backdrop-filter: blur(18px) saturate(160%);
@@ -5645,11 +4685,9 @@ void main() {
     host.id = "virebook-root";
     const shadow = host.attachShadow({ mode: "open" });
     const style = document.createElement("style");
-    style.textContent = CSS;
+    style.textContent = CSS2;
     const rootEl = document.createElement("div");
     rootEl.className = "root";
-    const canvas = document.createElement("canvas");
-    canvas.className = "glass";
     const shell = document.createElement("div");
     shell.className = "shell";
     const clipEl = document.createElement("div");
@@ -5661,98 +4699,39 @@ void main() {
     tintEl.className = "tint";
     const glowEl = document.createElement("div");
     glowEl.className = "glow";
-    shell.append(clipEl, tintEl, glowEl);
-    rootEl.append(canvas, shell);
-    const SVGNS = "http://www.w3.org/2000/svg";
-    const svg = document.createElementNS(SVGNS, "svg");
-    svg.setAttribute("width", "0");
-    svg.setAttribute("height", "0");
-    svg.style.position = "absolute";
-    const filterEl = document.createElementNS(SVGNS, "filter");
-    filterEl.setAttribute("id", "vg-refract");
-    filterEl.setAttribute("color-interpolation-filters", "sRGB");
-    filterEl.setAttribute("filterUnits", "objectBoundingBox");
-    filterEl.setAttribute("x", "0");
-    filterEl.setAttribute("y", "0");
-    filterEl.setAttribute("width", "1");
-    filterEl.setAttribute("height", "1");
-    const flood = document.createElementNS(SVGNS, "feFlood");
-    flood.setAttribute("flood-color", "rgb(128,128,128)");
-    flood.setAttribute("result", "flat");
-    const feImage = document.createElementNS(SVGNS, "feImage");
-    feImage.setAttribute("result", "shape");
-    feImage.setAttribute("preserveAspectRatio", "none");
-    const merge = document.createElementNS(SVGNS, "feMerge");
-    merge.setAttribute("result", "map");
-    for (const src of ["flat", "shape"]) {
-      const node = document.createElementNS(SVGNS, "feMergeNode");
-      node.setAttribute("in", src);
-      merge.append(node);
-    }
-    const blurEl = document.createElementNS(SVGNS, "feGaussianBlur");
-    blurEl.setAttribute("in", "SourceGraphic");
-    blurEl.setAttribute("stdDeviation", "0");
-    blurEl.setAttribute("result", "scattered");
-    const feDisp = document.createElementNS(SVGNS, "feDisplacementMap");
-    feDisp.setAttribute("in", "scattered");
-    feDisp.setAttribute("in2", "map");
-    feDisp.setAttribute("xChannelSelector", "R");
-    feDisp.setAttribute("yChannelSelector", "G");
-    filterEl.append(flood, feImage, merge, blurEl, feDisp);
-    svg.append(filterEl);
-    shadow.append(style, svg, rootEl);
+    const rimEl = document.createElement("div");
+    rimEl.className = "rim";
+    shell.append(clipEl, tintEl, glowEl, rimEl);
+    rootEl.append(shell);
+    shadow.append(style, rootEl);
     const SLACK = 40;
-    const MAX_W = 290;
-    const MAX_H = 240;
     let glass = null;
     try {
-      glass = createGlassSurface(canvas, MAX_W, MAX_H);
+      glass = createGlass({
+        root: shadow,
+        layers: { shell, refract: refractEl, tint: tintEl, glow: glowEl, rim: rimEl },
+        slack: SLACK
+      });
     } catch {
       glass = null;
     }
     if (!glass) {
-      canvas.remove();
       clipEl.remove();
       tintEl.remove();
       glowEl.remove();
+      rimEl.remove();
       shell.classList.add("flat");
     }
     let at = normalizeCorner(corner);
-    function placeCanvas() {
-      if (!glass) return;
-      const off = -glass.pad + "px";
-      canvas.style.left = at[1] === "l" ? off : "";
-      canvas.style.right = at[1] === "r" ? off : "";
-      canvas.style.top = at[0] === "t" ? off : "";
-      canvas.style.bottom = at[0] === "b" ? off : "";
-    }
     function applyCorner() {
       rootEl.classList.toggle("x-right", at[1] === "r");
       rootEl.classList.toggle("x-left", at[1] === "l");
       rootEl.classList.toggle("y-bottom", at[0] === "b");
       rootEl.classList.toggle("y-top", at[0] === "t");
-      placeCanvas();
-      if (glass && shell.offsetWidth) {
-        glass.draw(
-          shell.offsetWidth,
-          shell.offsetHeight,
-          parseFloat(getComputedStyle(shell).borderTopLeftRadius) || 0,
-          at
-        );
-      }
     }
     applyCorner();
-    function pageBackdrop() {
-      for (const el of [document.body, document.documentElement]) {
-        if (!el) continue;
-        const bg = getComputedStyle(el).backgroundColor;
-        if (bg && bg !== "transparent" && !/rgba\(\s*0,\s*0,\s*0,\s*0\s*\)/.test(bg)) return bg;
-      }
-      return "#ffffff";
-    }
     let painting = 0;
     let paintUntil = 0;
-    let lastSpread = -1;
     const SHEET_RADIUS = 26;
     function paintGlass(until) {
       if (!glass) return;
@@ -5763,67 +4742,25 @@ void main() {
         const w = shell.offsetWidth;
         const h = shell.offsetHeight;
         if (w && h && glass) {
-          const r = parseFloat(getComputedStyle(shell).borderTopLeftRadius) || 0;
-          const out = glass.draw(w, h, r, at);
-          rootEl.classList.toggle("ink-dark", !out.inkLight);
-          tintEl.style.background = out.body;
-          fitMap(w, h);
-          wear(out.blur, out.refract);
-          glow(out, w, h);
+          const out = glass.frame();
+          glass.fit(w, h);
           deformX = out.pullX;
           deformY = out.pullY;
           pressed = out.press;
           applyTransform();
         }
-        if (performance.now() < paintUntil || !glass.idle() || !glass.settled()) {
+        if (performance.now() < paintUntil || !glass.idle()) {
           painting = requestAnimationFrame(frame);
         } else if (w && h) {
-          refract(w, h, parseFloat(getComputedStyle(shell).borderTopLeftRadius) || 0);
-          const next = pageSpread();
-          if (Math.abs(next - lastSpread) > 0.05) {
-            lastSpread = next;
-            glass.setSpread(next);
-            paintGlass(performance.now() + 500);
-          }
+          refreshBackdrop();
         }
       };
       painting = requestAnimationFrame(frame);
     }
-    function pageSpread(rect) {
-      const box = rect || shell.getBoundingClientRect();
-      if (!box.width || !box.height) return 0;
-      const cols = 5;
-      const rows = 4;
-      let hits = 0;
-      let total = 0;
-      for (let i = 0; i < cols; i += 1) {
-        for (let j = 0; j < rows; j += 1) {
-          const x = box.left + box.width * (i + 0.5) / cols;
-          const y = box.top + box.height * (j + 0.5) / rows;
-          if (x < 0 || y < 0 || x > innerWidth || y > innerHeight) continue;
-          total += 1;
-          for (const el of document.elementsFromPoint(x, y)) {
-            if (el === host || el === document.documentElement || el === document.body) continue;
-            const tag = el.tagName;
-            if (tag === "IMG" || tag === "VIDEO" || tag === "CANVAS" || tag === "SVG") {
-              hits += 1;
-              break;
-            }
-            if ((el.textContent || "").trim()) {
-              hits += 1;
-              break;
-            }
-          }
-        }
-      }
-      return total ? hits / total : 0;
-    }
     function refreshBackdrop() {
       if (!glass) return;
-      glass.setBackdropColor(pageBackdrop());
-      lastSpread = pageSpread();
-      glass.setSpread(lastSpread);
-      paintGlass(performance.now() + 900);
+      glass.update();
+      rootEl.classList.toggle("ink-dark", !glass.ink());
     }
     let dragX = 0;
     let dragY = 0;
@@ -5838,55 +4775,6 @@ void main() {
       const move = x || y ? `translate(${x.toFixed(2)}px,${y.toFixed(2)}px)` : "";
       const sink = pressed > 1e-3 ? ` scale(${scale.toFixed(4)})` : "";
       rootEl.style.transform = move || sink ? `${move}${sink}`.trim() : "";
-    }
-    let glowing = -1;
-    function glow(out, w, h) {
-      const a = out.active;
-      if (a < 2e-3 && glowing < 2e-3) return;
-      glowing = a;
-      const st = glowEl.style;
-      st.setProperty("--g-a", a.toFixed(3));
-      st.setProperty("--g-x", (w / 2 + out.touchX).toFixed(1) + "px");
-      st.setProperty("--g-y", (h / 2 + out.touchY).toFixed(1) + "px");
-      st.setProperty("--g-r", out.touchRadius.toFixed(1) + "px");
-    }
-    let wornBlur = -1;
-    let wornRefract = -1;
-    function wear(blur2, refract2) {
-      if (Math.abs(blur2 - wornBlur) > 0.05) {
-        wornBlur = blur2;
-        blurEl.setAttribute("stdDeviation", (blur2 / 2).toFixed(2));
-      }
-      if (Math.abs(refract2 - wornRefract) > 0.05) {
-        wornRefract = refract2;
-        feDisp.setAttribute("scale", (refract2 * 2).toFixed(2));
-      }
-    }
-    let mapFor = "";
-    const mapCache = /* @__PURE__ */ new Map();
-    function fitMap(w, h) {
-      feImage.setAttribute("x", String(SLACK));
-      feImage.setAttribute("y", String(SLACK));
-      feImage.setAttribute("width", String(w));
-      feImage.setAttribute("height", String(h));
-    }
-    function refract(w, h, r) {
-      if (!glass) return;
-      const key = w + "x" + h + "r" + Math.round(r);
-      if (key === mapFor) return;
-      mapFor = key;
-      let out = mapCache.get(key);
-      if (!out) {
-        out = glass.refraction(w, h, r);
-        if (mapCache.size > 24) mapCache.clear();
-        mapCache.set(key, out);
-      }
-      if (!out.map) return;
-      feImage.setAttribute("href", out.map);
-      fitMap(w, h);
-      wear(out.blur, out.scale / 2);
-      refractEl.style.backdropFilter = "url(#vg-refract)";
-      refractEl.style.setProperty("-webkit-backdrop-filter", "url(#vg-refract)");
     }
     let controller = null;
     let settled = true;
@@ -5921,7 +4809,8 @@ void main() {
       const after = shell.getBoundingClientRect();
       const dx = before.left - after.left;
       const dy = before.top - after.top;
-      if (animate && (dx || dy)) {
+      const gliding = animate && !!(dx || dy);
+      if (gliding) {
         dragX = dx;
         dragY = dy;
         applyTransform();
@@ -5933,7 +4822,8 @@ void main() {
         });
       }
       if (onCornerChange) onCornerChange(at);
-      refreshBackdrop();
+      if (gliding) paintGlass(performance.now() + GLIDE_MS + 40);
+      else refreshBackdrop();
     }
     function step(dir) {
       const y = at[0];
@@ -6062,12 +4952,7 @@ void main() {
       shell.append(next);
       view = next;
       if (glass) {
-        const now = shell.getBoundingClientRect();
-        const left = at[1] === "l" ? now.left : (now.right || innerWidth - 18) - w;
-        const top = at[0] === "t" ? now.top : (now.bottom || innerHeight - 18) - h;
-        lastSpread = pageSpread({ left, top, width: w, height: h });
-        glass.setSpread(lastSpread);
-        refract(w, h, pill ? h / 2 : SHEET_RADIUS);
+        glass.reshape(w, h, pill ? h / 2 : SHEET_RADIUS);
         glass.ripple(
           at[1] === "l" ? -w / 2 : w / 2,
           at[0] === "t" ? -h / 2 : h / 2
