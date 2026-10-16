@@ -27,7 +27,7 @@ DOM, not a CSS shadow. The pane can be thrown into any corner of the window.
 |---|---|
 | **Formats** | EPUB · MOBI · FB2 · TXT |
 | **Sites** | ficbook.net · AO3 · fanfics.me · fanfiction.net · wattpad.com · royalroad.com · [any other](#which-sites) |
-| **Sends outwards** | nothing — no `<all_urls>`, no screenshots, no network calls |
+| **Sends outwards** | nothing by default — no `<all_urls>`, no screenshots. Only if you turn on [translation](#translating-a-book), chapter text goes to Google Translate |
 | **Licence** | [MIT](LICENSE) |
 
 ## Installing
@@ -59,6 +59,28 @@ If the site is unknown and no button appeared, click the extension icon in the
 toolbar and choose **Show the button on this page**.
 
 The same popup is where the default format is set — it moves to the top of the list.
+
+## Translating a book
+
+Reading a book that is not in your language? In the panel, **Translate** (above the
+formats) takes a target language — Русский, English, Українська, Deutsch, Français,
+Español, Italiano, Português, Polski, Türkçe, 日本語, 中文, 한국어. It is **Off** by
+default, and the choice is remembered.
+
+With a language picked, the book is read as usual and then translated before the
+file is written, so EPUB, MOBI, FB2 and TXT all get it: chapter text (paragraphs,
+italics and bold intact), chapter titles, author's notes, the book's title and its
+summary. The author, tags and fandom stay as they are, and the file's language is
+set to the target. The first chapter is translated first, and if Google reports
+that the chapter text was already in the target language, the rest is not sent and
+the book is downloaded as it is. If Google keeps refusing some chapters, those stay
+in the original language, the rest is translated, and the panel says how many.
+
+**This is the one thing that leaves the machine.** The chapter text is sent to
+Google Translate's public web endpoint, in batches, spaced out; nothing is sent
+unless translation is on. The panel says so under the control. With
+translation on, a site's own ready-made file (AO3's) is not used, since it cannot
+be translated.
 
 ## Getting the file onto a Kindle 11
 
@@ -114,6 +136,12 @@ Worth knowing before you rely on it:
 - **Paid and restricted chapters** download only if they are open in the
   browser: requests carry the reader's own cookies, that is, exactly what is
   already on their screen.
+
+- **Translation is machine translation, over an unofficial endpoint.** It reads
+  like Google Translate reads, and the endpoint has no key and no promise: Google
+  can slow it down or turn it off, in which case the panel says it was refused —
+  set Translate to Off to download the book as before. A long book takes a minute
+  or two longer.
 
 ## If something breaks
 
@@ -290,6 +318,8 @@ src/lib/               — formats and utilities
   epub.ts  mobi.ts     — assembling the book
   fb2.ts   txt.ts
   util.ts              — pacing, backoff, filenames
+src/translate/         — optional translation: the engine interface, the Google engine,
+                         batching, and translating a whole Book
 src/adapters/          — one file per site, plus base.ts, generic.ts and the registry
 src/glass.ts           — the material: vireglass/dom's renderer, ported into a shadow tree
 src/core.ts            — choosing an adapter, fetching chapters, saving the file
@@ -313,12 +343,15 @@ Version history is in [CHANGELOG.md](CHANGELOG.md).
 ## Privacy
 
 The extension reads exactly the pages that are already open in the browser and
-**sends nothing anywhere**: neither the assembly nor the file leaves the machine.
-There are no outbound network calls at all — verifiable by searching for `fetch`
-and `XMLHttpRequest`. Downloading is for personal reading.
+**sends nothing anywhere by default**: neither the assembly nor the file leaves the
+machine, and the only requests are to the book's own site. The exception is
+translation, which is off until you turn it on: then the chapter text (and the
+title and summary) goes to `translate.googleapis.com`, and nowhere else. Every
+request is in `src/core.ts`, `src/translate/google.ts` and the adapters —
+verifiable by searching for `fetch`. Downloading is for personal reading.
 
-Permissions are the minimum: `storage` (the default format and the corner the
-pane sits in), `activeTab` and `scripting` (the "show the button on this page"
+Permissions are the minimum: `storage` (the default format, the translation
+language and the corner the pane sits in), `activeTab` and `scripting` (the "show the button on this page"
 action). No `<all_urls>`, no screenshots — the glass makes do with the live DOM.
 
 ## Licence

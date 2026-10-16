@@ -73,6 +73,8 @@ export interface SanitizeOptions {
   baseUrl?: string;
   keepImages?: boolean;
   dropSelectors?: string[];
+  /** Inline-only content gets no <p> around it; for fragments that are not a whole chapter. */
+  wrapBare?: boolean;
 }
 
 export interface SanitizeResult {
@@ -83,7 +85,7 @@ export interface SanitizeResult {
 
 /** Walks a subtree and builds XHTML out of it. */
 export function sanitize(rootNode: Element, opts: SanitizeOptions = {}): SanitizeResult {
-  const { baseUrl = '', keepImages = true, dropSelectors = [] } = opts;
+  const { baseUrl = '', keepImages = true, dropSelectors = [], wrapBare = true } = opts;
   const images: string[] = [];
 
   const working = rootNode.cloneNode(true) as Element;
@@ -162,7 +164,7 @@ export function sanitize(rootNode: Element, opts: SanitizeOptions = {}): Sanitiz
     .replace(/\s+\n/g, '\n')
     .trim();
 
-  if (!/<(p|div|h[1-6]|blockquote|ul|ol|pre)[\s>]/.test(xhtml) && xhtml) {
+  if (wrapBare && !/<(p|div|h[1-6]|blockquote|ul|ol|pre)[\s>]/.test(xhtml) && xhtml) {
     xhtml = `<p>${xhtml}</p>`;
   }
 

@@ -52,24 +52,36 @@ function main(): void {
     return { filename: `${format.toUpperCase()} from the site` };
   }
 
-  async function onDownload({ format, progress, signal }: DownloadRequest): Promise<DownloadResult> {
+  async function onDownload({ format, translateTo, progress, signal }: DownloadRequest): Promise<DownloadResult> {
     // If the site already serves a ready-made file behind a direct link, take
     // it: that is instant and no worse in quality (AO3 builds books with the
     // same kindlegen).
-    progress('Checking for a ready-made file on the site…', 3);
-    const native = await nativeDownload(format);
-    if (native) return native;
+    // A translated book has to be assembled here, so the site's own file is skipped.
+    if (!translateTo) {
+      progress('Checking for a ready-made file on the site…', 3);
+      const native = await nativeDownload(format);
+      if (native) return native;
+    }
 
-    const result = await buildBook({ doc: document, url, format, progress, signal });
+    const result = await buildBook({
+      doc: document,
+      url,
+      format,
+      progress,
+      signal,
+      translateTo: translateTo || undefined,
+    });
     progress('Saving the file…', 99);
     saveBlob(result.blob, result.filename);
     return {
       filename: result.filename,
-      note: result.missing ? `Chapters not parsed: ${result.missing}` : '',
+      note: [result.missing ? `Chapters not parsed: ${result.missing}` : '', result.untranslated ?? '']
+        .filter(Boolean)
+        .join(' '),
     };
   }
 
-  function mount(prefs: { defaultFormat?: Format; widgetCorner?: string } | null): void {
+  function mount(prefs: { defaultFormat?: Format; widgetCorner?: string; translateTo?: string } | null): void {
     const widget = create({
       siteName: siteLabel(url),
       defaultFormat: prefs?.defaultFormat || 'epub',
@@ -84,6 +96,14 @@ function main(): void {
           /* no storage (page not opened as an extension) — the corner lives until reload */
         }
       },
+      translateTo: prefs?.translateTo,
+      onTranslateChange: (code: string) => {
+        try {
+          chrome.storage.sync.set({ translateTo: code });
+        } catch {
+          /* no storage — the choice lives until reload */
+        }
+      },
       onDownload,
     });
     document.documentElement.appendChild(widget.host);
@@ -91,7 +111,7 @@ function main(): void {
   }
 
   try {
-    chrome.storage.sync.get({ defaultFormat: 'epub' as Format, widgetCorner: 'br' }, (s) => mount(s));
+    chrome.storage.sync.get({ defaultFormat: 'epub' as Format, widgetCorner: 'br', translateTo: '' }, (s) => mount(s));
   } catch {
     mount(null);
   }
