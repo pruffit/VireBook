@@ -130,7 +130,7 @@
     }
   }
   function sanitize(rootNode, opts = {}) {
-    const { baseUrl = "", keepImages = true, dropSelectors = [] } = opts;
+    const { baseUrl = "", keepImages = true, dropSelectors = [], wrapBare = true } = opts;
     const images = [];
     const working = rootNode.cloneNode(true);
     for (const sel of dropSelectors) {
@@ -188,7 +188,7 @@
     for (const child of Array.from(working.childNodes)) walk(child);
     let xhtml = out.join("");
     xhtml = xhtml.replace(/<(p|div|span|em|i|strong|b)>(\s|&#160;| )*<\/\1>/g, "").replace(/(<br\/>\s*){3,}/g, "<br/><br/>").replace(/\s+\n/g, "\n").trim();
-    if (!/<(p|div|h[1-6]|blockquote|ul|ol|pre)[\s>]/.test(xhtml) && xhtml) {
+    if (wrapBare && !/<(p|div|h[1-6]|blockquote|ul|ol|pre)[\s>]/.test(xhtml) && xhtml) {
       xhtml = `<p>${xhtml}</p>`;
     }
     return { xhtml, images: Array.from(new Set(images)) };
@@ -1860,10 +1860,403 @@ ${stripTags(c.xhtml)}`).join("\n");
     return new Blob(["\uFEFF", head, summary, body, "\n"], { type: "text/plain;charset=utf-8" });
   }
 
-  // src/core.ts
+  // src/translate/text.ts
+  var VOID2 = /* @__PURE__ */ new Set(["br", "hr", "img"]);
+  var SENTENCE_END = /[.!?…。！？]["'»”’)\]」』]*\s+/g;
+  function splitSegment(html, budget) {
+    if (html.length <= budget) return [html];
+    const atoms = [];
+    let cur = "";
+    let depth = 0;
+    for (const token of html.match(/<[^>]*>|[^<]+/g) ?? []) {
+      if (token.startsWith("<")) {
+        const m = /^<(\/?)([a-z0-9]+)/i.exec(token);
+        const name = m ? m[2].toLowerCase() : "";
+        cur += token;
+        if (m && !VOID2.has(name) && !token.endsWith("/>")) depth = Math.max(0, depth + (m[1] ? -1 : 1));
+        else if (name === "br" && depth === 0) {
+          atoms.push(cur);
+          cur = "";
+        }
+        continue;
+      }
+      if (depth > 0) {
+        cur += token;
+        continue;
+      }
+      let from = 0;
+      for (const m of token.matchAll(SENTENCE_END)) {
+        const end = m.index + m[0].length;
+        atoms.push(cur + token.slice(from, end));
+        cur = "";
+        from = end;
+      }
+      cur += token.slice(from);
+    }
+    if (cur) atoms.push(cur);
+    const pieces = [];
+    let piece = "";
+    for (const atom of atoms) {
+      if (piece && piece.length + atom.length > budget) {
+        pieces.push(piece);
+        piece = "";
+      }
+      piece += atom;
+    }
+    if (piece) pieces.push(piece);
+    return pieces;
+  }
+  function joinPieces(pieces) {
+    let out = "";
+    for (const piece of pieces) {
+      if (!out) out = piece;
+      else if (/<br\s*\/?>\s*$/i.test(out)) out += piece;
+      else out = `${out.replace(/\s+$/, "")} ${piece.replace(/^\s+/, "")}`;
+    }
+    return out;
+  }
+  function planBatches(pieces, budget, maxSegments) {
+    const groups = [];
+    let group = [];
+    let size = 0;
+    pieces.forEach((piece, i) => {
+      if (group.length && (group.length >= maxSegments || size + piece.length > budget)) {
+        groups.push(group);
+        group = [];
+        size = 0;
+      }
+      group.push(i);
+      size += piece.length;
+    });
+    if (group.length) groups.push(group);
+    return groups;
+  }
+  var STRAY = /(<\/[a-z0-9]+>) +(?=[.,…)\]}。、！？；：」』!?;:»”’])/gi;
+  var STRAY_FRENCH = /(<\/[a-z0-9]+>) +(?=[.,…)\]}])/gi;
+  function normalizeSpacing(html, target) {
+    return html.replace(target.toLowerCase().startsWith("fr") ? STRAY_FRENCH : STRAY, "$1");
+  }
+
+  // src/translate/google.ts
+  var ENDPOINT = "https://translate.googleapis.com/translate_a/t";
   var RETRY_STATUS = /* @__PURE__ */ new Set([408, 425, 429, 500, 502, 503, 504]);
-  var MAX_ATTEMPTS = 5;
   var MAX_WAIT = 6e4;
+  function refusal(status) {
+    if (status === 429) {
+      return new Error("Google Translate is limiting requests. Wait a few minutes, or download without translation.");
+    }
+    return new Error(`Google Translate refused the request (HTTP ${status}). Try later, or download without translation.`);
+  }
+  function textsOf(data, expected) {
+    if (Array.isArray(data)) {
+      const texts = data.map((item) => Array.isArray(item) ? item[0] : item);
+      if (texts.length === expected && texts.every((t) => typeof t === "string")) {
+        const detected = data.map((item) => Array.isArray(item) && typeof item[1] === "string" ? item[1] : "");
+        return { texts, detected };
+      }
+    }
+    throw new Error("Google Translate answered in a shape we do not understand.");
+  }
+  function createGoogleTranslator(options = {}) {
+    const { budget = 4500, maxSegments = 40, gap = 350, maxAttempts = 5, backoffBase = 1200 } = options;
+    const doFetch = options.fetch ?? ((input, init) => fetch(input, init));
+    const limiter = createRateLimiter({ interval: gap, maxInterval: 15e3 });
+    async function send(queries, from, to, signal) {
+      const url = `${ENDPOINT}?client=gtx&sl=${encodeURIComponent(from)}&tl=${encodeURIComponent(to)}&format=html`;
+      const body = new URLSearchParams();
+      for (const q of queries) body.append("q", q);
+      let refused = null;
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        await limiter.acquire(signal);
+        if (signal?.aborted) throw abortError();
+        let res;
+        try {
+          res = await doFetch(url, { method: "POST", body, signal });
+        } catch (err) {
+          if (signal?.aborted) throw err;
+          refused = new Error("The network is not responding \u2014 check your connection.");
+          limiter.penalize(0);
+          if (attempt < maxAttempts - 1) await sleep(backoffDelay(attempt, { base: backoffBase, max: MAX_WAIT }), signal);
+          continue;
+        }
+        if (res.ok) {
+          limiter.reward();
+          return textsOf(await res.json(), queries.length);
+        }
+        if (!RETRY_STATUS.has(res.status)) throw refusal(res.status);
+        const floor = Math.min(MAX_WAIT, parseRetryAfter(res.headers.get("Retry-After")));
+        refused = refusal(res.status);
+        limiter.penalize(floor);
+        if (attempt < maxAttempts - 1) {
+          await sleep(backoffDelay(attempt, { base: backoffBase, max: MAX_WAIT, floor }), signal);
+        }
+      }
+      throw refused ?? new Error("Google Translate did not answer.");
+    }
+    return {
+      id: "google",
+      async translate(segments, from, to, signal) {
+        const results = segments.map((s) => s.trim() ? "" : s);
+        const owners = [];
+        const pieces = [];
+        segments.forEach((s, i) => {
+          if (!s.trim()) return;
+          for (const piece of splitSegment(s, budget)) {
+            owners.push(i);
+            pieces.push(piece);
+          }
+        });
+        const translated = new Array(pieces.length);
+        const langs = new Array(pieces.length).fill("");
+        for (const group of planBatches(pieces, budget, maxSegments)) {
+          const answer = await send(group.map((i) => pieces[i]), from || "auto", to, signal);
+          group.forEach((pieceIndex, k) => {
+            translated[pieceIndex] = normalizeSpacing(answer.texts[k], to);
+            langs[pieceIndex] = answer.detected[k];
+          });
+        }
+        const detected = segments.map(() => "");
+        segments.forEach((s, i) => {
+          if (!s.trim()) return;
+          const mine = [];
+          owners.forEach((owner, k) => {
+            if (owner === i) mine.push(translated[k]);
+          });
+          results[i] = joinPieces(mine);
+          detected[i] = langs[owners.indexOf(i)];
+        });
+        return { texts: results, detected };
+      }
+    };
+  }
+
+  // src/translate/types.ts
+  var LANGUAGES = [
+    { code: "ru", label: "\u0420\u0443\u0441\u0441\u043A\u0438\u0439" },
+    { code: "en", label: "English" },
+    { code: "uk", label: "\u0423\u043A\u0440\u0430\u0457\u043D\u0441\u044C\u043A\u0430" },
+    { code: "de", label: "Deutsch" },
+    { code: "fr", label: "Fran\xE7ais" },
+    { code: "es", label: "Espa\xF1ol" },
+    { code: "it", label: "Italiano" },
+    { code: "pt", label: "Portugu\xEAs" },
+    { code: "pl", label: "Polski" },
+    { code: "tr", label: "T\xFCrk\xE7e" },
+    { code: "ja", label: "\u65E5\u672C\u8A9E" },
+    { code: "zh-CN", label: "\u4E2D\u6587" },
+    { code: "ko", label: "\uD55C\uAD6D\uC5B4" }
+  ];
+  function normalizeTarget(value) {
+    return LANGUAGES.some((l) => l.code === value) ? value : "";
+  }
+
+  // src/translate/book.ts
+  var TRANSLATE_FROM = 40;
+  var TRANSLATE_TO = 88;
+  var STRUCTURAL = /* @__PURE__ */ new Set([
+    "p",
+    "div",
+    "section",
+    "article",
+    "blockquote",
+    "pre",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "ul",
+    "ol",
+    "li",
+    "hr",
+    "tr",
+    "figure",
+    "figcaption",
+    "dl",
+    "dt",
+    "dd",
+    "center",
+    "table",
+    "thead",
+    "tbody",
+    "td",
+    "th",
+    "caption"
+  ]);
+  var STRUCTURAL_SELECTOR = [...STRUCTURAL].join(",");
+  var LETTER = new RegExp("\\p{L}", "u");
+  var hasText = (html) => LETTER.test(html.replace(/<[^>]*>/g, ""));
+  function plan(xhtml, segments) {
+    const doc = new DOMParser().parseFromString(`<body>${xhtml}</body>`, "text/html");
+    const out = [];
+    function emit(nodes, open, close, keepEmpty) {
+      const holder = doc.createElement("div");
+      for (const n of nodes) holder.append(n.cloneNode(true));
+      const original = sanitize(holder, { wrapBare: false }).xhtml;
+      if (!original && !keepEmpty) {
+        if (holder.textContent?.includes("\n")) out.push("\n");
+        return;
+      }
+      if (!hasText(holder.innerHTML)) {
+        if (keepEmpty || /<img[\s>]/.test(original)) out.push(open + original + close);
+        return;
+      }
+      out.push({ seg: segments.push(holder.innerHTML) - 1, open, close, original });
+    }
+    function walk(parent, topLevel) {
+      let run = [];
+      const flush = () => {
+        if (run.length) emit(run, topLevel ? "<p>" : "", topLevel ? "</p>" : "", false);
+        run = [];
+      };
+      for (const node of Array.from(parent.childNodes)) {
+        const tag = node.nodeType === 1 ? node.tagName.toLowerCase() : "";
+        if (!STRUCTURAL.has(tag)) {
+          run.push(node);
+          continue;
+        }
+        flush();
+        const el = node;
+        if (tag === "hr") out.push("<hr/>");
+        else if (el.querySelector(STRUCTURAL_SELECTOR)) {
+          out.push(`<${tag}>`);
+          walk(el, false);
+          out.push(`</${tag}>`);
+        } else emit(Array.from(el.childNodes), `<${tag}>`, `</${tag}>`, true);
+      }
+      flush();
+    }
+    walk(doc.body, true);
+    return out;
+  }
+  function cleanInline(html) {
+    const body = new DOMParser().parseFromString(`<body>${html}</body>`, "text/html").body;
+    return sanitize(body, { wrapBare: false }).xhtml;
+  }
+  function render(pieces, translated) {
+    return pieces.map((p) => {
+      if (typeof p === "string") return p;
+      const clean = cleanInline(translated[p.seg] ?? "");
+      return p.open + (clean || p.original) + p.close;
+    }).join("");
+  }
+  var textSegment = (text) => hasText(text) ? escapeText(text) : "";
+  function textBack(translated, original) {
+    if (!translated) return original;
+    const body = new DOMParser().parseFromString(`<body>${translated}</body>`, "text/html").body;
+    return normalizeSpace(body.textContent) || original;
+  }
+  var baseOf = (code) => code.toLowerCase().split("-")[0];
+  function alreadyIn(target) {
+    const name = LANGUAGES.find((l) => l.code === target)?.label ?? target;
+    return `The book is already in ${name} \u2014 not translated.`;
+  }
+  var MIN_VOTE = 20;
+  function dominantLanguage(sent, detected) {
+    const weight = /* @__PURE__ */ new Map();
+    sent.forEach((html, i) => {
+      const code = detected[i];
+      const size = html.replace(/<[^>]*>/g, "").trim().length;
+      if (code && size >= MIN_VOTE) weight.set(baseOf(code), (weight.get(baseOf(code)) ?? 0) + size);
+    });
+    let best = "";
+    let most = 0;
+    for (const [code, w] of weight) {
+      if (w > most) {
+        best = code;
+        most = w;
+      }
+    }
+    return best;
+  }
+  var isAbort = (err, signal) => Boolean(signal?.aborted) || err?.name === "AbortError";
+  async function translateBook(book, target, translator, progress, signal, report = {}) {
+    const check = () => {
+      if (signal?.aborted) throw abortError();
+    };
+    const run = (segments) => translator.translate(segments, "auto", target, signal);
+    const band = (done, of) => TRANSLATE_FROM + done / Math.max(1, of) * (TRANSLATE_TO - TRANSLATE_FROM);
+    const total = book.chapters.length;
+    async function chapterAt(i) {
+      check();
+      progress(`Translating chapter ${i + 1} of ${total}\u2026`, band(i, total));
+      const chapter = book.chapters[i];
+      const segments = [];
+      const titleSeg = segments.push(textSegment(chapter.title)) - 1;
+      const body = plan(chapter.xhtml, segments);
+      const bodyEnd = segments.length;
+      const notes = chapter.notesXhtml ? plan(chapter.notesXhtml, segments) : null;
+      const { texts, detected } = await run(segments);
+      return {
+        vote: dominantLanguage(segments.slice(titleSeg + 1, bodyEnd), detected.slice(titleSeg + 1, bodyEnd)),
+        chapter: {
+          ...chapter,
+          title: textBack(texts[titleSeg], chapter.title),
+          xhtml: render(body, texts),
+          ...notes ? { notesXhtml: render(notes, texts) } : {}
+        }
+      };
+    }
+    async function frontMatter() {
+      check();
+      progress("Translating the title and summary\u2026", band(1, total));
+      const front2 = [];
+      const titleAt = front2.push(textSegment(book.title)) - 1;
+      const summaryTextAt = book.summaryText ? front2.push(textSegment(book.summaryText)) - 1 : -1;
+      const summaryPlan = book.summaryXhtml ? plan(book.summaryXhtml, front2) : [];
+      const out = (await run(front2)).texts;
+      return {
+        title: textBack(out[titleAt], book.title),
+        ...book.summaryXhtml ? { summaryXhtml: render(summaryPlan, out) } : {},
+        ...book.summaryText ? { summaryText: textBack(out[summaryTextAt], book.summaryText) } : {}
+      };
+    }
+    const chapters = [];
+    let decided = false;
+    let front = null;
+    let failed = 0;
+    let firstError = null;
+    async function tryFront() {
+      try {
+        front = await frontMatter();
+      } catch (err) {
+        if (isAbort(err, signal)) throw err;
+      }
+    }
+    for (let i = 0; i < total; i += 1) {
+      try {
+        const { chapter, vote } = await chapterAt(i);
+        chapters.push(chapter);
+        if (!decided && vote) {
+          if (vote === baseOf(target)) {
+            progress(alreadyIn(target), TRANSLATE_TO);
+            return book;
+          }
+          decided = true;
+          await tryFront();
+        }
+      } catch (err) {
+        if (isAbort(err, signal)) throw err;
+        failed += 1;
+        firstError ??= err;
+        chapters.push(book.chapters[i]);
+        progress(`Chapter ${i + 1} could not be translated, continuing\u2026`, band(i + 1, total));
+      }
+    }
+    if (failed === total) throw firstError;
+    if (!decided) await tryFront();
+    if (failed) {
+      report.failedChapters = failed;
+      report.failure = `${failed} of ${total} chapters stayed untranslated \u2014 ${firstError.message} Try again later for a full translation.`;
+    }
+    return { ...book, ...front ?? {}, language: target, chapters };
+  }
+
+  // src/core.ts
+  var RETRY_STATUS2 = /* @__PURE__ */ new Set([408, 425, 429, 500, 502, 503, 504]);
+  var MAX_ATTEMPTS = 5;
+  var MAX_WAIT2 = 6e4;
   var SLOW_DOWN = /* @__PURE__ */ new Set([429, 503]);
   function netError(message) {
     const err = new Error(message);
@@ -1887,7 +2280,7 @@ ${stripTags(c.xhtml)}`).join("\n");
     });
     const aborted = () => Boolean(signal && signal.aborted);
     async function pause(attempt, floor, status) {
-      const delay = backoffDelay(attempt, { floor, max: MAX_WAIT });
+      const delay = backoffDelay(attempt, { floor, max: MAX_WAIT2 });
       if (SLOW_DOWN.has(status)) {
         report(`The site asked us to slow down \u2014 continuing in ${Math.ceil(delay / 1e3)} s\u2026`);
       }
@@ -1912,8 +2305,8 @@ ${stripTags(c.xhtml)}`).join("\n");
           limiter.reward();
           return res;
         }
-        if (!RETRY_STATUS.has(res.status)) throw netError(httpMessage(res.status));
-        const floor = Math.min(MAX_WAIT, parseRetryAfter(res.headers.get("Retry-After")));
+        if (!RETRY_STATUS2.has(res.status)) throw netError(httpMessage(res.status));
+        const floor = Math.min(MAX_WAIT2, parseRetryAfter(res.headers.get("Retry-After")));
         last = netError(httpMessage(res.status));
         limiter.penalize(floor);
         if (attempt < MAX_ATTEMPTS - 1) await pause(attempt, floor, res.status);
@@ -1940,9 +2333,18 @@ ${stripTags(c.xhtml)}`).join("\n");
     fb2: { build: build2, ext: "fb2" },
     txt: { build: build4, ext: "txt" }
   };
-  async function buildBook({ doc, url, format, progress, signal }) {
+  async function buildBook({
+    doc,
+    url,
+    format,
+    progress,
+    signal,
+    translateTo,
+    translator
+  }) {
     const adapter = resolveAdapter(url);
-    const ctx = makeContext({ progress, signal, pacing: adapter.pacing });
+    const reading = translateTo ? (text, percent) => progress(text, percent === void 0 ? void 0 : percent * 0.4) : progress;
+    const ctx = makeContext({ progress: reading, signal, pacing: adapter.pacing });
     progress(`Reading the page (${siteLabel(url)})\u2026`, 2);
     let book;
     try {
@@ -1961,6 +2363,14 @@ ${stripTags(c.xhtml)}`).join("\n");
         `Only ${book.chapters.length} of ${expected} chapters could be read \u2014 the book would come out incomplete. Try again.`
       );
     }
+    let untranslated;
+    if (translateTo) {
+      const before = book;
+      const report = {};
+      book = await translateBook(book, translateTo, translator ?? createGoogleTranslator(), progress, signal, report);
+      if (book === before) untranslated = alreadyIn(translateTo);
+      else if (report.failure) untranslated = report.failure;
+    }
     const builder = BUILDERS[format] || BUILDERS.epub;
     progress(`Assembling ${builder.ext.toUpperCase()} (${book.chapters.length} ch.)\u2026`, 90);
     const blob = await builder.build(book);
@@ -1968,7 +2378,7 @@ ${stripTags(c.xhtml)}`).join("\n");
       book.author ? `${book.title} \u2014 ${book.author}` : book.title,
       builder.ext
     );
-    return { blob, filename, book, adapter: adapter.id, missing };
+    return { blob, filename, book, adapter: adapter.id, missing, untranslated };
   }
   function saveBlob(blob, filename) {
     const url = URL.createObjectURL(blob);
@@ -4624,7 +5034,11 @@ half4 main(float2 xy) {
 }
 .head .site { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .head .grip { flex: none; margin-left: auto; opacity: .55; }
-.fmt { display: flex; flex-direction: column; }
+.fmt {
+  display: flex; flex-direction: column;
+  margin-top: 4px; padding-top: 4px;
+  border-top: 1px solid color-mix(in oklch, var(--vg-ink) 10%, transparent);
+}
 /* Concentric: sheet radius 20 = item radius 14 + padding 6. */
 .fmt button {
   display: flex; align-items: baseline; gap: 8px; width: 100%;
@@ -4638,6 +5052,34 @@ half4 main(float2 xy) {
   outline: none;
 }
 .fmt .hint { color: var(--vg-dim); font-size: 11.5px; }
+
+/* The translation row sits above the formats and is read as a setting, not as an
+   action: the value is dim until a language is picked. */
+.tr {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 2px 4px 2px 10px; color: var(--vg-ink); font-size: 14px;
+}
+.tr .pick { position: relative; display: flex; align-items: center; min-width: 0; }
+.tr select {
+  appearance: none; -webkit-appearance: none;
+  background: transparent; border: 0; cursor: pointer; color: var(--vg-dim);
+  font: inherit; font-size: 13.5px; text-align: right; text-align-last: right;
+  padding: 7px 22px 7px 10px; border-radius: 14px; max-width: 150px;
+  color-scheme: dark;
+  /* Hugs the chosen language instead of the widest one in the list; older engines just stay wide. */
+  field-sizing: content;
+  transition: color .13s var(--ease), background .13s var(--ease);
+}
+.root.ink-dark .tr select { color-scheme: light; }
+.tr.on select { color: var(--vg-ink); }
+.tr select:hover, .tr select:focus-visible {
+  color: var(--vg-ink);
+  background: color-mix(in oklch, var(--vg-ink) 9%, transparent);
+  outline: none;
+}
+.tr .chev { position: absolute; right: 8px; pointer-events: none; opacity: .7; color: var(--vg-dim); }
+.tr-note { padding: 0 10px 6px; color: var(--vg-dim); font-size: 11.5px; line-height: 1.4; }
+.tr-note[hidden] { display: none; }
 
 .pad { width: 268px; padding: 13px 14px 14px; }
 .label { font-size: 13px; color: var(--vg-ink); margin-bottom: 10px; min-height: 17px; }
@@ -4661,6 +5103,7 @@ half4 main(float2 xy) {
 }
 `;
   var ICON = '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.8v8.4M4.6 7l3.4 3.4L11.4 7M2.2 13.4h11.6"/></svg>';
+  var CHEVRON = '<svg class="chev" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.2 3.8 5 6.6l2.8-2.8"/></svg>';
   var GRIP = '<svg class="grip" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><circle cx="3" cy="2.5" r="1"/><circle cx="9" cy="2.5" r="1"/><circle cx="3" cy="6" r="1"/><circle cx="9" cy="6" r="1"/><circle cx="3" cy="9.5" r="1"/><circle cx="9" cy="9.5" r="1"/></svg>';
   var FORMATS = [
     { id: "epub", label: "EPUB", hint: "for Send to Kindle" },
@@ -4679,6 +5122,8 @@ half4 main(float2 xy) {
     defaultFormat,
     corner,
     onCornerChange,
+    translateTo: initialTranslateTo,
+    onTranslateChange,
     onDownload
   }) {
     const host = document.createElement("div");
@@ -4723,6 +5168,7 @@ half4 main(float2 xy) {
       shell.classList.add("flat");
     }
     let at = normalizeCorner(corner);
+    let translateTo = normalizeTarget(initialTranslateTo);
     function applyCorner() {
       rootEl.classList.toggle("x-right", at[1] === "r");
       rootEl.classList.toggle("x-left", at[1] === "l");
@@ -4987,7 +5433,7 @@ half4 main(float2 xy) {
       setView(fab, true);
       if (focus) fab.focus();
     }
-    function renderMenu() {
+    function renderMenu(focusTranslate = false) {
       settled = false;
       mode = "menu";
       const panel = document.createElement("div");
@@ -5027,9 +5473,31 @@ half4 main(float2 xy) {
         const i = items.indexOf(shadow.activeElement);
         items[(i + delta + items.length) % items.length].focus();
       });
-      panel.append(head, list);
+      const tr = document.createElement("label");
+      tr.className = "tr" + (translateTo ? " on" : "");
+      const trLabel = document.createElement("span");
+      trLabel.textContent = "Translate";
+      const pick2 = document.createElement("span");
+      pick2.className = "pick";
+      const select = document.createElement("select");
+      select.setAttribute("aria-label", "Translate the book into");
+      select.append(new Option("Off", ""), ...LANGUAGES.map((l) => new Option(l.label, l.code)));
+      select.value = translateTo;
+      pick2.append(select);
+      pick2.insertAdjacentHTML("beforeend", CHEVRON);
+      tr.append(trLabel, pick2);
+      const note = document.createElement("div");
+      note.className = "tr-note";
+      note.textContent = "Chapter text is sent to Google Translate.";
+      note.hidden = !translateTo;
+      select.addEventListener("change", () => {
+        translateTo = normalizeTarget(select.value);
+        if (onTranslateChange) onTranslateChange(translateTo);
+        renderMenu(true);
+      });
+      panel.append(head, tr, note, list);
       setView(panel, false);
-      const first = list.querySelector("button");
+      const first = focusTranslate ? select : list.querySelector("button");
       if (first) first.focus();
     }
     function renderProgress() {
@@ -5101,7 +5569,7 @@ half4 main(float2 xy) {
         }
       };
       try {
-        const result = await onDownload({ format, progress, signal: controller.signal });
+        const result = await onDownload({ format, translateTo, progress, signal: controller.signal });
         ui.fill.style.width = "100%";
         renderResult({ filename: result.filename, note: result.note });
       } catch (err) {
@@ -5154,16 +5622,25 @@ half4 main(float2 xy) {
       setTimeout(() => a.remove(), 15e3);
       return { filename: `${format.toUpperCase()} from the site` };
     }
-    async function onDownload({ format, progress, signal }) {
-      progress("Checking for a ready-made file on the site\u2026", 3);
-      const native2 = await nativeDownload(format);
-      if (native2) return native2;
-      const result = await buildBook({ doc: document, url, format, progress, signal });
+    async function onDownload({ format, translateTo, progress, signal }) {
+      if (!translateTo) {
+        progress("Checking for a ready-made file on the site\u2026", 3);
+        const native2 = await nativeDownload(format);
+        if (native2) return native2;
+      }
+      const result = await buildBook({
+        doc: document,
+        url,
+        format,
+        progress,
+        signal,
+        translateTo: translateTo || void 0
+      });
       progress("Saving the file\u2026", 99);
       saveBlob(result.blob, result.filename);
       return {
         filename: result.filename,
-        note: result.missing ? `Chapters not parsed: ${result.missing}` : ""
+        note: [result.missing ? `Chapters not parsed: ${result.missing}` : "", result.untranslated ?? ""].filter(Boolean).join(" ")
       };
     }
     function mount(prefs) {
@@ -5180,13 +5657,20 @@ half4 main(float2 xy) {
           } catch {
           }
         },
+        translateTo: prefs?.translateTo,
+        onTranslateChange: (code) => {
+          try {
+            chrome.storage.sync.set({ translateTo: code });
+          } catch {
+          }
+        },
         onDownload
       });
       document.documentElement.appendChild(widget.host);
       window.__VIREBOOK_WIDGET__ = widget;
     }
     try {
-      chrome.storage.sync.get({ defaultFormat: "epub", widgetCorner: "br" }, (s) => mount(s));
+      chrome.storage.sync.get({ defaultFormat: "epub", widgetCorner: "br", translateTo: "" }, (s) => mount(s));
     } catch {
       mount(null);
     }

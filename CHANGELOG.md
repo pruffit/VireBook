@@ -3,6 +3,36 @@
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 the numbering [SemVer](https://semver.org/).
 
+## [1.5.0] — 2026-10-16
+
+### Added
+
+- **Optional translation of the whole book.** A **Translate** control in the
+  panel, above the formats — Off by default — takes one of thirteen target
+  languages and translates the book between reading it and writing the file, so
+  EPUB, MOBI, FB2 and TXT all get it. Chapters go out block by block with their
+  inline markup (italics, bold, line breaks), and what comes back is sanitised
+  again, so the writers still get well-formed XHTML; chapter titles, notes, the
+  title and the summary are translated too, the author, tags and fandom are not,
+  and the book's language becomes the target. A book already in that language is
+  recognised from the first chapter (by the language Google reports, not by the
+  site's label) and then left alone. Only chapter bodies vote, not notes or
+  titles. A chapter the engine keeps refusing stays in the original language
+  instead of failing the build, and the panel reports how many stayed that way. The choice is remembered in `chrome.storage.sync` as `translateTo`.
+
+  The engine is Google Translate's unofficial web endpoint behind a small
+  `Translator` interface (`src/translate/`), so another one is a single file.
+  Requests are batched under a character budget, spaced out, retried with backoff
+  on 429/5xx (honouring `Retry-After`) and stop on cancel; the stray space the
+  engine leaves before punctuation after a closing tag is removed. No new
+  permission and no new dependency.
+
+  **This is the first thing the extension sends anywhere**, which is why it is
+  opt-in: with translation on, chapter text goes to `translate.googleapis.com`.
+  The panel says so under the control, and the README's privacy section is updated.
+  With translation on, a site's own ready-made file (AO3's) is bypassed — it could
+  not be translated.
+
 ## [1.4.0] — 2026-10-16
 
 ### Changed
@@ -166,6 +196,7 @@ In full under "Honest limitations" in the README.
   the known structure and was not exercised live.
 - Images do not make it into the book — text only.
 
+[1.5.0]: https://github.com/pruffit/VireBook/releases/tag/v1.5.0
 [1.4.0]: https://github.com/pruffit/VireBook/releases/tag/v1.4.0
 [1.3.0]: https://github.com/pruffit/VireBook/releases/tag/v1.3.0
 [1.2.0]: https://github.com/pruffit/VireBook/releases/tag/v1.2.0

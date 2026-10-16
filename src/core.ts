@@ -6,6 +6,9 @@ import * as epub from './lib/epub.ts';
 import * as fb2 from './lib/fb2.ts';
 import * as mobi from './lib/mobi.ts';
 import * as txt from './lib/txt.ts';
+import { createGoogleTranslator } from './translate/google.ts';
+import { alreadyIn, translateBook, type TranslateReport } from './translate/book.ts';
+import type { Translator } from './translate/types.ts';
 import { abortError, backoffDelay, createRateLimiter, parseRetryAfter, safeFilename, sleep } from './lib/util.ts';
 
 export { resolveAdapter };
@@ -124,6 +127,10 @@ export interface BuildRequest {
   format: Format;
   progress: ProgressFn;
   signal?: AbortSignal;
+  /** Language code to translate the book into; omitted means the book is left as it is. */
+  translateTo?: string;
+  /** Which engine to translate with; Google Translate when omitted. */
+  translator?: Translator;
 }
 
 export interface BuildResult {
@@ -132,11 +139,25 @@ export interface BuildResult {
   book: Book;
   adapter: string;
   missing: number;
+  /** Set when translation was asked for but did not (fully) happen: already in that language, or chapters the engine refused. */
+  untranslated?: string;
 }
 
-export async function buildBook({ doc, url, format, progress, signal }: BuildRequest): Promise<BuildResult> {
+export async function buildBook({
+  doc,
+  url,
+  format,
+  progress,
+  signal,
+  translateTo,
+  translator,
+}: BuildRequest): Promise<BuildResult> {
   const adapter = resolveAdapter(url);
-  const ctx = makeContext({ progress, signal, pacing: adapter.pacing });
+  // Reading takes the first part of the bar and translation the next, so the bar never runs backwards.
+  const reading: ProgressFn = translateTo
+    ? (text, percent) => progress(text, percent === undefined ? undefined : percent * 0.4)
+    : progress;
+  const ctx = makeContext({ progress: reading, signal, pacing: adapter.pacing });
 
   progress(`Reading the page (${siteLabel(url)})…`, 2);
   let book: Book;
@@ -164,6 +185,16 @@ export async function buildBook({ doc, url, format, progress, signal }: BuildReq
     );
   }
 
+  let untranslated: string | undefined;
+  if (translateTo) {
+    const before = book;
+    const report: TranslateReport = {};
+    book = await translateBook(book, translateTo, translator ?? createGoogleTranslator(), progress, signal, report);
+    // Assembling replaces the progress label at once, so the reader is told in the result instead.
+    if (book === before) untranslated = alreadyIn(translateTo);
+    else if (report.failure) untranslated = report.failure;
+  }
+
   const builder = BUILDERS[format] || BUILDERS.epub;
   progress(`Assembling ${builder.ext.toUpperCase()} (${book.chapters.length} ch.)…`, 90);
   const blob = await builder.build(book);
@@ -172,7 +203,7 @@ export async function buildBook({ doc, url, format, progress, signal }: BuildReq
     builder.ext,
   );
 
-  return { blob, filename, book, adapter: adapter.id, missing };
+  return { blob, filename, book, adapter: adapter.id, missing, untranslated };
 }
 
 export function saveBlob(blob: Blob, filename: string): void {

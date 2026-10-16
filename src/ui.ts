@@ -11,6 +11,7 @@
 // which spot is in the way.
 import type { Format } from './types.ts';
 import { createGlass, type GlassAnchor, type GlassSurface } from './glass.ts';
+import { LANGUAGES, normalizeTarget } from './translate/types.ts';
 
 /** How long a throw into another corner takes. Shared with the CSS below, because the material
  *  has to be read again once the pane lands and the wait is measured from here. */
@@ -196,7 +197,11 @@ const CSS = `
 }
 .head .site { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .head .grip { flex: none; margin-left: auto; opacity: .55; }
-.fmt { display: flex; flex-direction: column; }
+.fmt {
+  display: flex; flex-direction: column;
+  margin-top: 4px; padding-top: 4px;
+  border-top: 1px solid color-mix(in oklch, var(--vg-ink) 10%, transparent);
+}
 /* Concentric: sheet radius 20 = item radius 14 + padding 6. */
 .fmt button {
   display: flex; align-items: baseline; gap: 8px; width: 100%;
@@ -210,6 +215,34 @@ const CSS = `
   outline: none;
 }
 .fmt .hint { color: var(--vg-dim); font-size: 11.5px; }
+
+/* The translation row sits above the formats and is read as a setting, not as an
+   action: the value is dim until a language is picked. */
+.tr {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 2px 4px 2px 10px; color: var(--vg-ink); font-size: 14px;
+}
+.tr .pick { position: relative; display: flex; align-items: center; min-width: 0; }
+.tr select {
+  appearance: none; -webkit-appearance: none;
+  background: transparent; border: 0; cursor: pointer; color: var(--vg-dim);
+  font: inherit; font-size: 13.5px; text-align: right; text-align-last: right;
+  padding: 7px 22px 7px 10px; border-radius: 14px; max-width: 150px;
+  color-scheme: dark;
+  /* Hugs the chosen language instead of the widest one in the list; older engines just stay wide. */
+  field-sizing: content;
+  transition: color .13s var(--ease), background .13s var(--ease);
+}
+.root.ink-dark .tr select { color-scheme: light; }
+.tr.on select { color: var(--vg-ink); }
+.tr select:hover, .tr select:focus-visible {
+  color: var(--vg-ink);
+  background: color-mix(in oklch, var(--vg-ink) 9%, transparent);
+  outline: none;
+}
+.tr .chev { position: absolute; right: 8px; pointer-events: none; opacity: .7; color: var(--vg-dim); }
+.tr-note { padding: 0 10px 6px; color: var(--vg-dim); font-size: 11.5px; line-height: 1.4; }
+.tr-note[hidden] { display: none; }
 
 .pad { width: 268px; padding: 13px 14px 14px; }
 .label { font-size: 13px; color: var(--vg-ink); margin-bottom: 10px; min-height: 17px; }
@@ -235,6 +268,8 @@ const CSS = `
 
 const ICON =
   '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.8v8.4M4.6 7l3.4 3.4L11.4 7M2.2 13.4h11.6"/></svg>';
+const CHEVRON =
+  '<svg class="chev" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.2 3.8 5 6.6l2.8-2.8"/></svg>';
 const GRIP =
   '<svg class="grip" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><circle cx="3" cy="2.5" r="1"/><circle cx="9" cy="2.5" r="1"/><circle cx="3" cy="6" r="1"/><circle cx="9" cy="6" r="1"/><circle cx="3" cy="9.5" r="1"/><circle cx="9" cy="9.5" r="1"/></svg>';
 
@@ -264,6 +299,8 @@ function normalizeCorner(value: string | null | undefined): GlassAnchor {
 
 export interface DownloadRequest {
   format: Format;
+  /** Language code to translate into, or empty for no translation. */
+  translateTo: string;
   progress: (text: string, percent?: number) => void;
   signal: AbortSignal;
 }
@@ -278,6 +315,8 @@ export interface WidgetOptions {
   defaultFormat?: Format;
   corner?: string | null;
   onCornerChange?: (corner: GlassAnchor) => void;
+  translateTo?: string;
+  onTranslateChange?: (code: string) => void;
   onDownload: (request: DownloadRequest) => Promise<DownloadResult>;
 }
 
@@ -294,6 +333,8 @@ export function create({
   defaultFormat,
   corner,
   onCornerChange,
+  translateTo: initialTranslateTo,
+  onTranslateChange,
   onDownload,
 }: WidgetOptions): Widget {
   const host = document.createElement('div');
@@ -343,6 +384,7 @@ export function create({
   }
 
   let at = normalizeCorner(corner);
+  let translateTo = normalizeTarget(initialTranslateTo);
 
   function applyCorner(): void {
     rootEl.classList.toggle('x-right', at[1] === 'r');
@@ -714,7 +756,7 @@ export function create({
     if (focus) fab.focus();
   }
 
-  function renderMenu(): void {
+  function renderMenu(focusTranslate = false): void {
     settled = false;
     mode = 'menu';
     const panel = document.createElement('div');
@@ -756,9 +798,31 @@ export function create({
       const i = items.indexOf(shadow.activeElement as HTMLButtonElement);
       items[(i + delta + items.length) % items.length]!.focus();
     });
-    panel.append(head, list);
+    const tr = document.createElement('label');
+    tr.className = 'tr' + (translateTo ? ' on' : '');
+    const trLabel = document.createElement('span');
+    trLabel.textContent = 'Translate';
+    const pick = document.createElement('span');
+    pick.className = 'pick';
+    const select = document.createElement('select');
+    select.setAttribute('aria-label', 'Translate the book into');
+    select.append(new Option('Off', ''), ...LANGUAGES.map((l) => new Option(l.label, l.code)));
+    select.value = translateTo;
+    pick.append(select);
+    pick.insertAdjacentHTML('beforeend', CHEVRON);
+    tr.append(trLabel, pick);
+    const note = document.createElement('div');
+    note.className = 'tr-note';
+    note.textContent = 'Chapter text is sent to Google Translate.';
+    note.hidden = !translateTo;
+    select.addEventListener('change', () => {
+      translateTo = normalizeTarget(select.value);
+      if (onTranslateChange) onTranslateChange(translateTo);
+      renderMenu(true);
+    });
+    panel.append(head, tr, note, list);
     setView(panel, false);
-    const first = list.querySelector('button');
+    const first = focusTranslate ? select : list.querySelector('button');
     if (first) first.focus();
   }
 
@@ -834,7 +898,7 @@ export function create({
       }
     };
     try {
-      const result = await onDownload({ format, progress, signal: controller.signal });
+      const result = await onDownload({ format, translateTo, progress, signal: controller.signal });
       ui.fill.style.width = '100%';
       renderResult({ filename: result.filename, note: result.note });
     } catch (err) {
