@@ -3,7 +3,7 @@
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 the numbering [SemVer](https://semver.org/).
 
-## [Unreleased]
+## [1.4.0] — 2026-10-16
 
 ### Changed
 
@@ -166,6 +166,7 @@ In full under "Honest limitations" in the README.
   the known structure and was not exercised live.
 - Images do not make it into the book — text only.
 
+[1.4.0]: https://github.com/pruffit/VireBook/releases/tag/v1.4.0
 [1.3.0]: https://github.com/pruffit/VireBook/releases/tag/v1.3.0
 [1.2.0]: https://github.com/pruffit/VireBook/releases/tag/v1.2.0
 [1.1.1]: https://github.com/pruffit/VireBook/releases/tag/v1.1.1
