@@ -20,9 +20,8 @@ in the browser. The extension walks the chapters, pulls the text out of the HTML
 and glues the file together locally. The site's server generates nothing, so
 there is nothing to wait for.
 
-The interface is a panel made of [VireGlass](#the-glass), the material of the
-vire project: refraction of the live DOM, not a CSS shadow. The pane can be
-thrown into any corner of the window.
+The interface is a panel made of [VireGlass](#the-glass): refraction of the live
+DOM, not a CSS shadow. The pane can be thrown into any corner of the window.
 
 | | |
 |---|---|
@@ -129,22 +128,44 @@ Sites get restyled — that is normal and is fixed one file at a time.
 
 ## The glass
 
-The extension's panel is made of the **VireGlass** material from the vire
-monorepo: the causes of the material (`ior`, thickness, bevel, roughness,
-`legibility`, `presence`) are set by the core, and the consequences —
-refraction, Fresnel, rim, highlight and shadow — are computed by its WebGL2
-shaders.
+The extension's panel is made of the **VireGlass** material, from the
+[`vireglass`](https://github.com/pruffit/vireglass) package on npm: the causes
+of the material (`ior`, thickness, bevel, roughness, `legibility`, `presence`)
+are set by the model, and the consequences — refraction, rim, body, shadow and
+the response to a finger — follow from them.
 
-What is worth knowing before changing anything here:
+The package ships a renderer for exactly this case, `attachGlass` from
+`vireglass/dom`, and `src/glass.ts` is a port of it rather than a second
+implementation: every number is imported. What is worth knowing before changing
+anything here:
 
-- **The refraction is of the live DOM, not of a snapshot.** The core's shader
-  lens samples a scene the renderer drew itself — the extension has no raster of
-  somebody else's page. The only way to get one is `captureVisibleTab`, which
-  means `<all_urls>`, two frames a second, capturing the widget along with the
-  page and going stale on any scroll. So the lens pass is off (`lens: false`) and
-  the refraction is done by `backdrop-filter: url(#vg-refract)` —
-  `feDisplacementMap` over a map built by `src/glass/entry.ts` out of the pane's
-  shape and the optics values (`bevelDp × refraction`). Live, permission-free,
+- **Two things keep this a port instead of a call to `attachGlass`.** The first
+  is the finger. The pane answers a touch by *moving* — it lags behind on the
+  core's pull spring and sinks under a press — and that is a transform on the
+  whole widget, which no material can apply for it; `GlassHandle` hands out
+  neither the spring's state nor a way to drive it. The gesture has to be ours in
+  any case, because on this pane a drag is not a drag of the material but a throw
+  into another corner of the window, and only the widget knows which is which.
+  The second is the morph: `attachGlass` re-reads the backdrop and re-bakes the
+  map at full device resolution on every resize, which while the panel is
+  changing shape means every frame. Here the map is built once for the shape the
+  pane is travelling to and stretched over the live box until it lands.
+
+  What is *not* a reason any more is the shadow DOM. Up to 2.1.0 `attachGlass`
+  put its filter `<svg>` on `document.body` and its rim stylesheet on
+  `document.head`, and a widget in a shadow root could use neither — a document
+  stylesheet does not cross the boundary, and `backdrop-filter: url(#id)` used
+  *from inside* a shadow tree resolves against **that** tree, so the filter is
+  simply not found and the pane gets no backdrop at all, not even the blur
+  fallback, because the reference itself is perfectly valid CSS. 2.2.0 finds the
+  element's own root. The filter here still lives in the shadow tree for the same
+  reason, just by our own hand.
+
+- **The refraction is of the live DOM, not of a snapshot.** The browser never
+  hands a page's pixels to script — that boundary is the whole reason
+  `backdrop-filter` exists — so the displacement happens in the compositor:
+  `backdrop-filter: url(#vg-refract)` over an `feDisplacementMap` whose map the
+  package bakes from the pane's shape and its optics. Live, permission-free,
   never stale.
 
 - **The filter must carry `color-interpolation-filters="sRGB"`.** By default SVG
@@ -174,47 +195,67 @@ What is worth knowing before changing anything here:
   causes come from `VIREGLASS_CONTROL_MATERIAL`: it is a control after all, and
   needs thickness, a bevel and presence.
 
-  Body density is computed by the core (`bodyDensityFor`/`bodyLuma`) and CSS only
-  paints it: the lens is off, and "adaptation is impossible at the surface — it
-  does not see the background" (`packages/vireglass/src/adapters.ts`). The
-  busyness of the background, which the probe would have read off the scene, is
-  estimated by walking sample points under the panel in `src/ui.ts`.
+  The body — how much medium stands between the page and the eye, and which way
+  it tints — is `resolveBody`/`withPresence` from the package, and CSS only
+  paints what they return.
 
-- **Ink polarity is the application's decision**, not the shader's:
-  `shouldInkBeLight()` from the core, over a measurement of the background.
-  Without it, over a light page the pane becomes a grey slab with unreadable
-  text. The switch waits `CONFIRMATIONS` frames, so the paint loop keeps running
-  until `settled()` says that density, body colour and polarity have all
-  arrived: stopping earlier means freezing half-done on a slow machine.
+- **The backdrop is read from declared styles, not from pixels**, which is the
+  package's documented limit and not a shortcut: the browser never hands a
+  page's pixels to script. `probeBackdrop` walks the stacking order under a grid
+  of points and composites what it finds, down to the canvas — which matters
+  here, because a pane pinned to a window corner usually hangs past the end of
+  the body box, where the only element beneath it is a transparent `<html>`.
+
+- **Ink polarity is the application's decision**, not the material's:
+  `shouldInkBeLight()` over that reading. Without it, over a light page the pane
+  becomes a grey slab with unreadable text. The package's `CONFIRMATIONS` is
+  deliberately **not** used: it counts readings and is sized for a renderer that
+  takes them about five times a second, while this one reads on events — at
+  mount, when a scroll stops, when the pane lands. Three of those can be a
+  minute apart. The hysteresis inside `shouldInkBeLight` is what keeps a cover
+  sliding under the edge from recolouring the panel.
 
 - **The cursor response is part of the material, and it has to be let out.**
-  The springs for press, pull and wave are computed by the core's
-  `createDeform()`; only the gesture comes from here. But the core bends the
-  field for the LENS pass, which is off, and for the SURFACE pass, which is
-  about a tenth of what you see — so all eight values it produces are carried
-  out to the CSS layers every frame instead. A press clears the medium and
-  deepens its refraction (that is `activeMaterial`: three quarters less
-  roughness, more ior and bevel), the pull makes the pane lag behind the finger,
-  the wave rings through the depth of the refraction, and the contact point
-  blooms at the radius the core gives it. Bake the optics into the filter once
-  per shape, as this used to, and the whole response is thrown away: the springs
-  run and nothing on screen moves.
+  The springs for press, pull and wave are the package's `createDeform()`; only
+  the gesture comes from here. The map is rebuilt around the contact point every
+  frame while a finger is down, and what the map cannot carry — the pane lagging
+  behind the finger, the sink under a press — is handed back to the widget for
+  the transform. A press makes the medium denser and cleaner: that is
+  `activeMaterial`, and blur goes 12 → 3 while the bevel widens and the index
+  rises. Deliberately **not** `raiseIntoGlass`, which the package's own DOM
+  renderer uses here — that one is for a control which is *not* glass at rest and
+  materialises into it, and it takes roughness to nothing at a full press. This
+  pane is glass already and is lying over a page of text: clear it completely and
+  the chapter comes through sharp behind the panel's own labels.
 
-If WebGL2 is unavailable the panel falls back to a flat material and stays
-usable — just without the glass.
+- **Dispersion is skipped when it would not show.** Per-channel refraction costs
+  three displacement passes, three colour matrices and two composites, per frame.
+  `refractionStrength` saturates at `n = 1.6` and this material sits at 1.69, so
+  the shifted indices land on the same full strength and all three channels ask
+  for the same scale — the single-pass picture, exactly, for three times the
+  work. `src/glass.ts` builds the three-pass graph only when the ratios actually
+  come out apart.
+
+If `backdrop-filter` is missing entirely the panel falls back to a flat material
+and stays usable — just without the glass. Where `backdrop-filter` works but a
+filter *reference* does not (Firefox, older Safari), the package's own fallback
+stands in: blur and saturation from the same optics.
 
 ## Development
 
 ```bash
-npm install         # for tests and the build; there are no runtime dependencies
+npm install         # vireglass, plus the build and test tooling
 npm run build       # bundle src/ → dist/ (this is what the browser loads)
 npm run typecheck   # tsc --noEmit, strict
 npm test            # formats + adapters
 npm run check       # all three of the above, in the order CI runs them
 npm run demo        # serve test/ui-demo.html on localhost:5599 to look at the panel
-npm run build:glass # rebuild the glass from the VireGlass core (needs the monorepo)
 npm run icons       # redraw the icons
 ```
+
+There is one runtime dependency, [`vireglass`](https://www.npmjs.com/package/vireglass),
+and it is bundled into `dist/` along with everything else — the extension still
+installs as a folder with no `node_modules` in it.
 
 The whole source tree is TypeScript under `strict`. Node 24 runs the sources and
 the tests directly by stripping types, so there is no compile step for testing;
@@ -230,17 +271,6 @@ pane has to travel to all four corners.
 > npm to get a button on a page. CI rebuilds `dist/` and fails if the result
 > differs from what is committed, so a stale bundle cannot slip through. After
 > changing anything in `src/`, run `npm run build` and commit the result.
-
-> **About `src/glass/vireglass.bundle.js`.** This is a generated artefact, built
-> from the `@vire/vireglass` package, which lives in the vire monorepo and is
-> **not published**. That is why the file is committed ready-made: without it
-> the extension still works (see the fallback above), and it cannot be rebuilt
-> without the monorepo. Its types are hand-written next to it, in
-> `vireglass.bundle.d.ts`, and those are type-checked.
->
-> ```bash
-> VIRE_REPO=/path/to/vire npm run build:glass   # defaults to ../vire
-> ```
 
 The tests do not take "the file was built" for an answer: EPUB is unpacked and
 checked for well-formed XML, MOBI is taken apart by PalmDB record and
@@ -261,10 +291,9 @@ src/lib/               — formats and utilities
   fb2.ts   txt.ts
   util.ts              — pacing, backoff, filenames
 src/adapters/          — one file per site, plus base.ts, generic.ts and the registry
-src/glass/entry.ts     — source of the glass bundle: the bridge to @vire/vireglass
-src/glass/*.bundle.*   — the GENERATED bundle and its hand-written types
+src/glass.ts           — the material: vireglass/dom's renderer, ported into a shadow tree
 src/core.ts            — choosing an adapter, fetching chapters, saving the file
-src/ui.ts              — the floating panel (shadow DOM + the glass canvas)
+src/ui.ts              — the floating panel (shadow DOM, and the layers the glass writes into)
 src/content.ts         — the entry point on a page
 src/popup.ts           — the toolbar popup
 src/background.ts      — the default format on install

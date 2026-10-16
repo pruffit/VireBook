@@ -1,17 +1,20 @@
 // The floating panel on the page. Everything lives in a shadow DOM: book sites
 // love global !important rules, and the widget has to look the same everywhere.
 //
-// The material is VireGlass carried over into CSS. The shader lens cannot come
-// here: WebGL does not see the DOM and cannot refract the live page beneath it,
-// and refracting the page is the entire point of the glass. backdrop-filter can,
-// so the causes of the material are expressed through it: the haze of the sheet,
-// the density of the body, the bevel, the rim.
+// The material is VireGlass over the live page: the `vireglass` package refracts
+// what is behind the pane through `backdrop-filter`, and hands this file the
+// body, the rim, the shadow and the glow as values to wear. Everything physical
+// is the package's; see glass.ts for the one thing the shadow tree changes.
 //
 // The pane lives in one of the four corners of the window and can be dragged to
 // any other: there is chapter text underneath it, and only the reader knows
 // which spot is in the way.
 import type { Format } from './types.ts';
-import { createGlassSurface, type GlassAnchor, type GlassSurface } from './glass/vireglass.bundle.js';
+import { createGlass, type GlassAnchor, type GlassSurface } from './glass.ts';
+
+/** How long a throw into another corner takes. Shared with the CSS below, because the material
+ *  has to be read again once the pane lands and the wait is measured from here. */
+const GLIDE_MS = 380;
 
 const CSS = `
 :host {
@@ -44,7 +47,7 @@ const CSS = `
 .root.y-bottom { bottom: var(--edge); }
 .root.y-top { top: var(--edge); }
 /* A throw into another corner finishes the very motion the pane was dragged by. */
-.root.gliding { transition: transform 0.38s var(--ease); }
+.root.gliding { transition: transform ${GLIDE_MS}ms var(--ease); }
 .root.dragging { transition: none; }
 .root.dragging, .root.dragging * { cursor: grabbing !important; user-select: none; }
 /* Ink polarity follows the background: over a very light page the body of the
@@ -58,12 +61,6 @@ const CSS = `
 .fab, .head, .fmt button, .fmt .hint, .label, .link, .err, .note {
   transition: color .42s var(--ease);
 }
-
-/* The VireGlass core draws the material into this canvas: body, bevel, Fresnel,
-   highlight and shadow as consequences of the material's causes, not a pile of
-   CSS shadows. The canvas is wider than the pane: shadow and light gathering
-   reach outside the shape. */
-.glass { position: absolute; pointer-events: none; z-index: 0; }
 
 .shell {
   position: relative;
@@ -106,29 +103,50 @@ const CSS = `
 .refract { position: absolute; inset: calc(var(--slack) * -1); }
 /* The body goes ABOVE the refraction. As a background of the shell it would be
    pulled into the refraction: a parent's background is part of its own child's
-   backdrop. */
-.tint { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
-/* The light that blooms under a finger. When the medium goes active the core
-   raises its presence and its ior; on a surface pass that reads as a brighter
-   rim and a specular bloom, and this is the part of it CSS can wear directly.
-   Position and radius come from the core's own contact spot — the finger has an
-   area, not a point — and they arrive as custom properties so a frame writes
-   three numbers rather than re-parsing a gradient string. */
+   backdrop. The colour is the material's own — how much medium stands between
+   the page and the eye, and which way it tints — so CSS only paints it. It
+   eases in over the same FADE_MS the ink recolours over: the density changes in
+   steps, as the reader scrolls, and a step in the body reads as a flash. */
+.tint {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: var(--vireglass-body-color, transparent);
+  transition: background .42s var(--ease);
+}
+/* The light that blooms under a finger: a concentration of the surroundings,
+   not the glass's own whiteness. The gradient arrives whole from the material —
+   position, reach and the colour it picked up off the page. */
 .glow {
   position: absolute;
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  opacity: var(--g-a, 0);
-  background: radial-gradient(
-    circle var(--g-r, 90px) at var(--g-x, 50%) var(--g-y, 50%),
-    color-mix(in oklch, var(--vg-ink) 30%, transparent),
-    transparent 72%
-  );
+  background: var(--vireglass-glow, none);
+  opacity: var(--vireglass-glow-opacity, 0);
+}
+/* The hairline: two opposing arcs of the key light and a dark edge, all out of
+   the material. A ring rather than a fill — the same box painted twice, once
+   clipped to the content box, and composited so only the padding band survives.
+   The trick is the package's own; it lives here because the stylesheet that
+   carries it in the package hangs on document.head and cannot reach a shadow
+   tree. */
+.rim {
+  position: absolute;
+  inset: 0;
+  /* Above the content, like the ::after the package paints it with: the ring is
+     one pixel at the very edge, and the panel's own padding keeps it clear. */
+  z-index: 3;
+  pointer-events: none;
+  border-radius: inherit;
+  padding: var(--vireglass-rim-width, 1px);
+  background: var(--vireglass-rim, none);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
 }
 
-/* The fallback material when WebGL2 is unavailable: the extension has to work
-   without the glass too. */
+/* The fallback material when there is no backdrop-filter at all: the extension
+   has to work without the glass too. */
 .shell.flat {
   background: color-mix(in oklch, var(--vg-body) 90%, transparent);
   -webkit-backdrop-filter: blur(18px) saturate(160%);
@@ -286,8 +304,6 @@ export function create({
 
   const rootEl = document.createElement('div');
   rootEl.className = 'root';
-  const canvas = document.createElement('canvas');
-  canvas.className = 'glass';
   const shell = document.createElement('div');
   shell.className = 'shell';
   const clipEl = document.createElement('div');
@@ -299,130 +315,45 @@ export function create({
   tintEl.className = 'tint';
   const glowEl = document.createElement('div');
   glowEl.className = 'glow';
-  shell.append(clipEl, tintEl, glowEl);
-  rootEl.append(canvas, shell);
+  const rimEl = document.createElement('div');
+  rimEl.className = 'rim';
+  shell.append(clipEl, tintEl, glowEl, rimEl);
+  rootEl.append(shell);
 
-  // The refraction filter lives in the shadow tree: url(#…) inside a
-  // backdrop-filter resolves within it, and the page knows nothing about it.
-  const SVGNS = 'http://www.w3.org/2000/svg';
-  const svg = document.createElementNS(SVGNS, 'svg');
-  svg.setAttribute('width', '0');
-  svg.setAttribute('height', '0');
-  svg.style.position = 'absolute';
-  const filterEl = document.createElementNS(SVGNS, 'filter');
-  filterEl.setAttribute('id', 'vg-refract');
-  // sRGB is mandatory. By default SVG computes a filter in linearRGB, and then
-  // the neutral middle of the map (128) arrives at the shader as 55 — a shift of
-  // a third of the scale, which means the WHOLE backdrop under the pane slides
-  // diagonally by ~9 px and the rim drags in whatever lies outside. The same
-  // linearRGB washes out the scattering: over a dark page the pane used to glow.
-  filterEl.setAttribute('color-interpolation-filters', 'sRGB');
-  // The region is exactly the box of the REFRACTION LAYER, which is wider than
-  // the sheet by --slack. The slack is for the blur and the displacement; the
-  // rectangular spill past the shape is cut off by the clip (see .refract in CSS).
-  filterEl.setAttribute('filterUnits', 'objectBoundingBox');
-  filterEl.setAttribute('x', '0');
-  filterEl.setAttribute('y', '0');
-  filterEl.setAttribute('width', '1');
-  filterEl.setAttribute('height', '1');
-  // A neutral fill under the map: where there is no map the channel is zero,
-  // and that is a shift by half the scale — the whole slack would slide.
-  const flood = document.createElementNS(SVGNS, 'feFlood');
-  flood.setAttribute('flood-color', 'rgb(128,128,128)');
-  flood.setAttribute('result', 'flat');
-  const feImage = document.createElementNS(SVGNS, 'feImage');
-  feImage.setAttribute('result', 'shape');
-  feImage.setAttribute('preserveAspectRatio', 'none');
-  const merge = document.createElementNS(SVGNS, 'feMerge');
-  merge.setAttribute('result', 'map');
-  for (const src of ['flat', 'shape']) {
-    const node = document.createElementNS(SVGNS, 'feMergeNode');
-    node.setAttribute('in', src);
-    merge.append(node);
-  }
-  // Scattering FIRST, displacement second: in frosted glass the light scatters
-  // inside the body, and there is nothing sharp left to refract afterwards. The
-  // other way round, the rim drags still-sharp page text under the pane, and it
-  // reads as dirty smears.
-  const blurEl = document.createElementNS(SVGNS, 'feGaussianBlur');
-  blurEl.setAttribute('in', 'SourceGraphic');
-  blurEl.setAttribute('stdDeviation', '0');
-  blurEl.setAttribute('result', 'scattered');
-  const feDisp = document.createElementNS(SVGNS, 'feDisplacementMap');
-  feDisp.setAttribute('in', 'scattered');
-  feDisp.setAttribute('in2', 'map');
-  feDisp.setAttribute('xChannelSelector', 'R');
-  feDisp.setAttribute('yChannelSelector', 'G');
-  filterEl.append(flood, feImage, merge, blurEl, feDisp);
-  svg.append(filterEl);
-  shadow.append(style, svg, rootEl);
+  shadow.append(style, rootEl);
 
   /** Slack of the refraction layer, the same as the --slack token. */
   const SLACK = 40;
-  // The largest shape's size: the canvas is placed under it once and is not
-  // recreated afterwards — during a morph the size changes every frame.
-  const MAX_W = 290;
-  const MAX_H = 240;
   let glass: GlassSurface | null = null;
   try {
-    glass = createGlassSurface(canvas, MAX_W, MAX_H);
+    glass = createGlass({
+      root: shadow,
+      layers: { shell, refract: refractEl, tint: tintEl, glow: glowEl, rim: rimEl },
+      slack: SLACK,
+    });
   } catch {
     glass = null;
   }
   if (!glass) {
-    canvas.remove();
     clipEl.remove();
     tintEl.remove();
     glowEl.remove();
+    rimEl.remove();
     shell.classList.add('flat');
   }
 
   let at = normalizeCorner(corner);
-
-  /** The canvas is pinned to the same corner as the widget: the pane moves
-   *  inside it while it stays put — resize recreates textures. */
-  function placeCanvas(): void {
-    if (!glass) return;
-    const off = -glass.pad + 'px';
-    canvas.style.left = at[1] === 'l' ? off : '';
-    canvas.style.right = at[1] === 'r' ? off : '';
-    canvas.style.top = at[0] === 't' ? off : '';
-    canvas.style.bottom = at[0] === 'b' ? off : '';
-  }
 
   function applyCorner(): void {
     rootEl.classList.toggle('x-right', at[1] === 'r');
     rootEl.classList.toggle('x-left', at[1] === 'l');
     rootEl.classList.toggle('y-bottom', at[0] === 'b');
     rootEl.classList.toggle('y-top', at[0] === 't');
-    placeCanvas();
-    // The canvas moved at once, the pane inside it only on the next frame:
-    // without this one frame the shadow and bevel are visibly offset from the sheet.
-    if (glass && shell.offsetWidth) {
-      glass.draw(
-        shell.offsetWidth,
-        shell.offsetHeight,
-        parseFloat(getComputedStyle(shell).borderTopLeftRadius) || 0,
-        at,
-      );
-    }
   }
   applyCorner();
 
-  /** The material mixes its own lightness with the lightness of the background,
-   *  so it needs the colour of the page under the widget, not "black by default". */
-  function pageBackdrop(): string {
-    for (const el of [document.body, document.documentElement]) {
-      if (!el) continue;
-      const bg = getComputedStyle(el).backgroundColor;
-      if (bg && bg !== 'transparent' && !/rgba\(\s*0,\s*0,\s*0,\s*0\s*\)/.test(bg)) return bg;
-    }
-    return '#ffffff';
-  }
-
   let painting = 0;
   let paintUntil = 0;
-  let lastSpread = -1;
   /** The sheet radius, the same as the --r-sheet token. */
   const SHEET_RADIUS = 26;
 
@@ -440,96 +371,37 @@ export function create({
       const w = shell.offsetWidth;
       const h = shell.offsetHeight;
       if (w && h && glass) {
-        const r = parseFloat(getComputedStyle(shell).borderTopLeftRadius) || 0;
-        const out = glass.draw(w, h, r, at);
-        rootEl.classList.toggle('ink-dark', !out.inkLight);
-        tintEl.style.background = out.body;
+        // The response to a finger. The material wears its own share of it —
+        // under a press the medium clears up and bends harder, and the glow
+        // blooms where the contact is — and hands back the part that moves the
+        // pane as a whole: the pull spring and the depth of the press.
+        const out = glass.frame();
         // The map is a raster built for the target shape, but the sheet is still
         // travelling. Stretch it to follow the live size: the field is smooth, so
         // the stretch is invisible, and the bevel stays glued to the real rim.
-        fitMap(w, h);
-        // The response to a finger, worn by the layers that actually draw. The
-        // depth of the refraction and the haze come straight off the live optics,
-        // so a press clears the medium up and bends it harder; the pull is the
-        // core's spring, and the pane lags behind the finger by it.
-        wear(out.blur, out.refract);
-        glow(out, w, h);
+        glass.fit(w, h);
         deformX = out.pullX;
         deformY = out.pullY;
         pressed = out.press;
         applyTransform();
       }
-      if (performance.now() < paintUntil || !glass!.idle() || !glass!.settled()) {
+      if (performance.now() < paintUntil || !glass!.idle()) {
         painting = requestAnimationFrame(frame);
       } else if (w && h) {
-        // The displacement map is a raster: build it on a settled shape, not every frame.
-        refract(w, h, parseFloat(getComputedStyle(shell).borderTopLeftRadius) || 0);
-        // Busyness is measured by walking sample points — also on a settled
-        // shape. Repaint only if it changed noticeably, or the loop wakes itself.
-        const next = pageSpread();
-        if (Math.abs(next - lastSpread) > 0.05) {
-          lastSpread = next;
-          glass!.setSpread(next);
-          paintGlass(performance.now() + 500);
-        }
+        // Settled. The backdrop is read and the map rebuilt at full resolution
+        // for the shape as it finally stands — both are too expensive per frame.
+        refreshBackdrop();
       }
     };
     painting = requestAnimationFrame(frame);
   }
 
-  interface Box {
-    left: number;
-    top: number;
-    width: number;
-    height: number;
-  }
-
-  /**
-   * Busyness of the background under the pane. The core's probe reads it off the
-   * drawn scene, but we have no scene — the lens is off. We estimate it from the
-   * DOM: the share of points under the panel where something, rather than empty
-   * space, is lying. Over a flat background no density is needed, over text it
-   * is, and that is the model's decision to make, not ours.
-   */
-  function pageSpread(rect?: Box): number {
-    const box: Box = rect || shell.getBoundingClientRect();
-    if (!box.width || !box.height) return 0;
-    const cols = 5;
-    const rows = 4;
-    let hits = 0;
-    let total = 0;
-    for (let i = 0; i < cols; i += 1) {
-      for (let j = 0; j < rows; j += 1) {
-        const x = box.left + (box.width * (i + 0.5)) / cols;
-        const y = box.top + (box.height * (j + 0.5)) / rows;
-        if (x < 0 || y < 0 || x > innerWidth || y > innerHeight) continue;
-        total += 1;
-        for (const el of document.elementsFromPoint(x, y)) {
-          if (el === host || el === document.documentElement || el === document.body) continue;
-          // A picture or non-empty text — what the model calls busyness.
-          const tag = el.tagName;
-          if (tag === 'IMG' || tag === 'VIDEO' || tag === 'CANVAS' || tag === 'SVG') {
-            hits += 1;
-            break;
-          }
-          if ((el.textContent || '').trim()) {
-            hits += 1;
-            break;
-          }
-        }
-      }
-    }
-    return total ? hits / total : 0;
-  }
-
-  /** The core's probe needs the background colour: body density and ink polarity
-   *  both depend on it. */
+  /** Everything the page under the pane decides: the density and colour of the
+   *  body, the rim, the shadow, and which way the lettering goes. */
   function refreshBackdrop(): void {
     if (!glass) return;
-    glass.setBackdropColor(pageBackdrop());
-    lastSpread = pageSpread();
-    glass.setSpread(lastSpread);
-    paintGlass(performance.now() + 900);
+    glass.update();
+    rootEl.classList.toggle('ink-dark', !glass.ink());
   }
 
   // ── What the pane is wearing right now ────────────────────────────────────
@@ -554,77 +426,6 @@ export function create({
     const move = x || y ? `translate(${x.toFixed(2)}px,${y.toFixed(2)}px)` : '';
     const sink = pressed > 0.001 ? ` scale(${scale.toFixed(4)})` : '';
     rootEl.style.transform = move || sink ? `${move}${sink}`.trim() : '';
-  }
-
-  let glowing = -1;
-  /** The bloom under the finger. The core hands over where the contact is and
-   *  how active the medium has become; the gradient only paints it. */
-  function glow(out: { active: number; touchX: number; touchY: number; touchRadius: number }, w: number, h: number): void {
-    const a = out.active;
-    // Nothing lit and nothing left over — do not touch the style at all.
-    if (a < 0.002 && glowing < 0.002) return;
-    glowing = a;
-    const st = glowEl.style;
-    st.setProperty('--g-a', a.toFixed(3));
-    st.setProperty('--g-x', (w / 2 + out.touchX).toFixed(1) + 'px');
-    st.setProperty('--g-y', (h / 2 + out.touchY).toFixed(1) + 'px');
-    st.setProperty('--g-r', out.touchRadius.toFixed(1) + 'px');
-  }
-
-  let wornBlur = -1;
-  let wornRefract = -1;
-  /** The live optics, onto the filter. Written every frame, so the two numbers
-   *  are compared first: an SVG attribute write invalidates the filter, and
-   *  re-running a displacement map over the backdrop at 60 Hz for no change is
-   *  the one thing here expensive enough to notice. */
-  function wear(blur: number, refract: number): void {
-    if (Math.abs(blur - wornBlur) > 0.05) {
-      wornBlur = blur;
-      blurEl.setAttribute('stdDeviation', (blur / 2).toFixed(2));
-    }
-    if (Math.abs(refract - wornRefract) > 0.05) {
-      wornRefract = refract;
-      feDisp.setAttribute('scale', (refract * 2).toFixed(2));
-    }
-  }
-
-  let mapFor = '';
-  // Building the map is a loop over pixels plus PNG encoding, and it is
-  // synchronous. The widget has only a handful of shapes, so each is built once.
-  const mapCache = new Map<string, { map: string; scale: number; blur: number }>();
-
-  /** The map lives in the coordinate system of the refraction layer, which is
-   *  wider than the sheet by the slack: the sheet itself starts SLACK in. */
-  function fitMap(w: number, h: number): void {
-    feImage.setAttribute('x', String(SLACK));
-    feImage.setAttribute('y', String(SLACK));
-    feImage.setAttribute('width', String(w));
-    feImage.setAttribute('height', String(h));
-  }
-
-  /** Refraction of the live DOM: the core computes the map and the shift,
-   *  backdrop-filter applies them. Recomputed only when the shape changes. */
-  function refract(w: number, h: number, r: number): void {
-    if (!glass) return;
-    const key = w + 'x' + h + 'r' + Math.round(r);
-    if (key === mapFor) return;
-    mapFor = key;
-    let out = mapCache.get(key);
-    if (!out) {
-      out = glass.refraction(w, h, r);
-      // The widget has only a few shapes, but a page can have its own zoom and
-      // its own width: the cache must not grow without a bound.
-      if (mapCache.size > 24) mapCache.clear();
-      mapCache.set(key, out);
-    }
-    if (!out.map) return;
-    feImage.setAttribute('href', out.map);
-    fitMap(w, h);
-    // Prime the depth and the haze for the settled material; from here on the
-    // paint loop keeps writing them from the live optics, every frame.
-    wear(out.blur, out.scale / 2);
-    refractEl.style.backdropFilter = 'url(#vg-refract)';
-    refractEl.style.setProperty('-webkit-backdrop-filter', 'url(#vg-refract)');
   }
 
   let controller: AbortController | null = null;
@@ -673,7 +474,8 @@ export function create({
     const after = shell.getBoundingClientRect();
     const dx = before.left - after.left;
     const dy = before.top - after.top;
-    if (animate && (dx || dy)) {
+    const gliding = animate && !!(dx || dy);
+    if (gliding) {
       dragX = dx;
       dragY = dy;
       applyTransform();
@@ -685,8 +487,14 @@ export function create({
       });
     }
     if (onCornerChange) onCornerChange(at);
-    // A different background under the new corner: both body density and ink polarity.
-    refreshBackdrop();
+    // A different background under the new corner: the body, the rim, the shadow
+    // and the polarity of the ink all change with it. A pane still in the air is
+    // measured where it is and not where it is going, so the reading waits out
+    // the glide — and the paint loop ends in one, which is also what keeps this
+    // off `transitionend`, an event that does not arrive when the glide turns
+    // out to be a move of zero pixels.
+    if (gliding) paintGlass(performance.now() + GLIDE_MS + 40);
+    else refreshBackdrop();
   }
 
   /** The neighbouring corner in a direction; nowhere to go that way means staying. */
@@ -858,18 +666,11 @@ export function create({
     shell.append(next);
     view = next;
 
-    // The material is computed for the TARGET size before the morph begins:
-    // otherwise the panel slides in with the density and map of the old shape and
-    // is brought to its senses afterwards — which reads as "wrong first, then it
-    // twitched".
+    // The map is built for the TARGET shape before the morph begins: otherwise
+    // the panel slides in wearing the refraction of the old one and is brought
+    // to its senses afterwards — which reads as "wrong first, then it twitched".
     if (glass) {
-      const now = shell.getBoundingClientRect();
-      // The sheet grows out of the pinned corner — measure the target box from it.
-      const left = at[1] === 'l' ? now.left : (now.right || innerWidth - 18) - w;
-      const top = at[0] === 't' ? now.top : (now.bottom || innerHeight - 18) - h;
-      lastSpread = pageSpread({ left, top, width: w, height: h });
-      glass.setSpread(lastSpread);
-      refract(w, h, pill ? h / 2 : SHEET_RADIUS);
+      glass.reshape(w, h, pill ? h / 2 : SHEET_RADIUS);
       // The medium rings when it is reshaped. The impulse starts at the corner
       // the sheet is pinned to, because that is the one place that stays put
       // while everything else travels — in the core's own morph model, the neck

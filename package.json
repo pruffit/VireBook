@@ -8,7 +8,6 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "build:watch": "node scripts/build.mjs --watch",
-    "build:glass": "node scripts/build-glass.mjs",
     "typecheck": "tsc --noEmit",
     "test": "node test/run.ts && node test/adapters.ts",
     "test:formats": "node test/run.ts",
@@ -23,5 +22,8 @@
     "esbuild": "^0.28.2",
     "jsdom": "^26.1.0",
     "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "vireglass": "^2.2.0"
   }
 }

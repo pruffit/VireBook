@@ -2,7 +2,7 @@
 // the UI to the core.
 import type { DownloadRequest, DownloadResult } from './ui.ts';
 import type { Format } from './types.ts';
-import type { GlassAnchor } from './glass/vireglass.bundle.js';
+import type { GlassAnchor } from './glass.ts';
 import { findMainContent, siteLabel } from './adapters/base.ts';
 import { buildBook, resolveAdapter, saveBlob } from './core.ts';
 import { create } from './ui.ts';
