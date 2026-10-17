@@ -1,10 +1,22 @@
 // Requests that survive a connection which dies without saying so.
+import type { NetworkError } from '../types.ts';
 import { abortError } from './util.ts';
+
+export const NETWORK_DOWN = 'The network is not responding — check your connection.';
+
+/** Mark network failures: falling back to the generic parser is pointless for them. */
+export function netError(message: string): NetworkError {
+  const err = new Error(message) as NetworkError;
+  err.network = true;
+  return err;
+}
+
+export const isNetworkError = (err: unknown): boolean => Boolean((err as NetworkError | null)?.network);
 
 export interface NetTiming {
   /** Silence, ms, after which an attempt is given up: no headers and no body bytes. */
   idle: number;
-  /** How long one request keeps retrying through a dead network, ms. */
+  /** How long a download keeps retrying through a dead network, ms. */
   grace: number;
   /** First backoff step between network retries, ms. */
   backoff: number;
@@ -13,6 +25,31 @@ export interface NetTiming {
 }
 
 export const NET_TIMING: NetTiming = { idle: 20000, grace: 120000, backoff: 1000, maxBackoff: 8000 };
+
+export interface Outage {
+  /** A failed attempt; true when it is the one that opens the outage. */
+  begin(): boolean;
+  /** The network has been gone for longer than the grace window. */
+  over(): boolean;
+  /** Any answer at all: the network is back. */
+  end(): void;
+}
+
+/** One clock per download, shared by every request: a long outage ends them all at once. */
+export function createOutage(grace: number, now: () => number = () => performance.now()): Outage {
+  let since = -1;
+  return {
+    begin() {
+      if (since >= 0) return false;
+      since = now();
+      return true;
+    },
+    over: () => since >= 0 && now() - since >= grace,
+    end() {
+      since = -1;
+    },
+  };
+}
 
 export interface Fetched {
   ok: boolean;
@@ -58,6 +95,7 @@ export async function fetchFully(
   try {
     arm();
     const res = await guard(fetchFn(url, { ...init, signal: ctl.signal }));
+    arm();
     if (!res.ok) {
       res.body?.cancel().catch(() => {});
       return { ok: false, status: res.status, headers: res.headers, body: new Uint8Array() };

@@ -10,7 +10,9 @@ import { createGoogleTranslator } from './translate/google.ts';
 import { alreadyIn, translateBook, type TranslateReport } from './translate/book.ts';
 import type { Translator } from './translate/types.ts';
 import { abortError, backoffDelay, createRateLimiter, parseRetryAfter, safeFilename, sleep } from './lib/util.ts';
-import { decodeText, fetchFully, NET_TIMING, type Fetched, type NetTiming } from './lib/net.ts';
+import {
+  createOutage, decodeText, fetchFully, NET_TIMING, NETWORK_DOWN, netError, type Fetched, type NetTiming,
+} from './lib/net.ts';
 
 export { resolveAdapter };
 
@@ -18,13 +20,6 @@ const RETRY_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
 const MAX_ATTEMPTS = 5;
 const MAX_WAIT = 60000;
 const SLOW_DOWN = new Set([429, 503]);
-
-/** Mark network failures: falling back to the generic parser is pointless for them. */
-function netError(message: string): NetworkError {
-  const err = new Error(message) as NetworkError;
-  err.network = true;
-  return err;
-}
 
 function httpMessage(status: number): string {
   if (status === 429) return 'The site limited the request rate. Wait a couple of minutes and try again.';
@@ -46,6 +41,7 @@ export function makeContext({ progress, signal, pacing, fetch: fetchFn, timing }
   const parser = new DOMParser();
   const report: ProgressFn = progress || (() => {});
   const net: NetTiming = { ...NET_TIMING, ...timing };
+  const outage = createOutage(net.grace);
   const limiter = createRateLimiter({
     interval: pacing?.interval ?? 600,
     maxInterval: pacing?.maxInterval ?? 15000,
@@ -64,11 +60,10 @@ export function makeContext({ progress, signal, pacing, fetch: fetchFn, timing }
   }
 
   // A dropped network is retried for a stretch of time, not a count of attempts: a VPN
-  // reconnect takes seconds, and the server never asked us to slow down.
+  // reconnect takes seconds. The pace is widened once per outage, not on every retry.
   async function request(url: string): Promise<Uint8Array> {
     let httpAttempt = 0;
     let netAttempt = 0;
-    let downSince = 0;
     for (;;) {
       await limiter.acquire(signal);
       if (aborted()) throw abortError();
@@ -82,19 +77,14 @@ export function makeContext({ progress, signal, pacing, fetch: fetchFn, timing }
         );
       } catch (err) {
         if (aborted()) throw err;
-        if (!downSince) {
-          downSince = Date.now();
-          limiter.penalize(0);
-        }
-        if (Date.now() - downSince >= net.grace) {
-          throw netError('The network is not responding — check your connection.');
-        }
+        if (outage.begin()) limiter.penalize(0);
+        if (outage.over()) throw netError(NETWORK_DOWN);
         const delay = backoffDelay(netAttempt++, { base: net.backoff, max: net.maxBackoff });
         report(`The connection dropped — retrying in ${Math.ceil(delay / 1000)} s…`);
         await sleep(delay, signal);
         continue;
       }
-      downSince = 0;
+      outage.end();
       netAttempt = 0;
 
       if (res.ok) {

@@ -99,8 +99,17 @@ await test('a body that stops halfway fails after the idle timeout', async () =>
 });
 
 await test('a slow body that keeps arriving is not cut off: the timer is idle time, not total time', async () => {
-  const res = await fetchFully('https://x/', {}, { idle: 60, fetchFn: trickle(['a', 'b', 'c', 'd'], 30) });
-  assertEq(new TextDecoder().decode(res.body), 'abcd', 'body');
+  const res = await fetchFully('https://x/', {}, { idle: 120, fetchFn: trickle([...'abcdefgh'], 20) });
+  assertEq(new TextDecoder().decode(res.body), 'abcdefgh', 'body');
+});
+
+await test('slow headers do not eat into the time for the body', async () => {
+  const late: typeof fetch = async () => {
+    await wait(90);
+    return trickle(['x'], 90)('https://x/');
+  };
+  const res = await fetchFully('https://x/', {}, { idle: 150, fetchFn: late });
+  assertEq(new TextDecoder().decode(res.body), 'x', 'body');
 });
 
 await test('cancelling stops a hung attempt at once, as a cancel and not a network error', async () => {
@@ -119,6 +128,32 @@ await test('a brief drop mid-download is ridden out: hang, refusal, then the pag
   assertEq(text, '<p>chapter</p>', 'the page arrived');
   assertEq(s.calls(), 3, 'two failed attempts, one good');
   assert(said.some((t) => /connection dropped/.test(t)), `the panel was told: ${said.join(' | ')}`);
+});
+
+await test('an idle timeout that a real fetch reports as AbortError is retried, not taken for a cancel', async () => {
+  // Browsers reject an aborted fetch with a DOMException named AbortError before our own timer error.
+  const honest: typeof fetch = (_input, init) =>
+    new Promise<Response>((_, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(new DOMException('The operation was aborted.', 'AbortError')));
+    });
+  const s = script(honest, page('<p>after</p>'));
+  const ctx = makeContext({ fetch: s.fn, timing: FAST, pacing: { interval: 1 } });
+  assertEq(await ctx.fetchText('https://x/1'), '<p>after</p>', 'the retry arrived');
+});
+
+await test('a server error is still retried a bounded number of times', async () => {
+  const s = script(async () => new Response('', { status: 503 }), page('<p>ok</p>'));
+  const ctx = makeContext({ fetch: s.fn, timing: FAST, pacing: { interval: 1 } });
+  assertEq(await ctx.fetchText('https://x/1'), '<p>ok</p>', 'the retry arrived');
+  assertEq(s.calls(), 2, 'one 503, one good');
+});
+
+await test('one outage clock for the whole download: once it is over, the next request fails at once', async () => {
+  const ctx = makeContext({ fetch: drop, timing: { ...FAST, grace: 400 }, pacing: { interval: 1 } });
+  await rejects(ctx.fetchText('https://x/1'), /not responding/, 'first');
+  const started = performance.now();
+  await rejects(ctx.fetchText('https://x/2'), /not responding/, 'second');
+  assert(performance.now() - started < 200, 'the second request did not wait out a new window');
 });
 
 await test('a body cut off by the drop is fetched again, not passed on half-read', async () => {
@@ -157,9 +192,27 @@ await test('translation rides out a hung request too', async () => {
     return Response.json(q.map((t) => `RU ${t}`));
   });
   const engine = createGoogleTranslator({ fetch: s.fn, gap: 0, backoffBase: 1, timing: FAST });
-  const out = await engine.translate(['Hello'], 'en', 'ru');
+  const said: string[] = [];
+  const out = await engine.translate(['Hello'], 'en', 'ru', undefined, (t) => said.push(t));
   assertEq(out.texts[0], 'RU Hello', 'translated');
   assertEq(s.calls(), 2, 'one hung attempt, one good');
+  assert(said.some((t) => /connection dropped/.test(t)), 'the wait was announced');
+});
+
+await test('translation: once the outage is over, the next chapter fails at once, as a network error', async () => {
+  const engine = createGoogleTranslator({ fetch: drop, gap: 0, timing: { ...FAST, grace: 400 } });
+  await rejects(engine.translate(['One'], 'en', 'ru'), /not responding/, 'first');
+  const started = performance.now();
+  const err = (await rejects(engine.translate(['Two'], 'en', 'ru'), /not responding/, 'second')) as NetworkError;
+  assert(performance.now() - started < 200, 'no new window per chapter');
+  assert(err.network, 'marked as a network failure');
+});
+
+await test('translation: cancelling during a hung request stops at once', async () => {
+  const engine = createGoogleTranslator({ fetch: hang, gap: 0, timing: { ...FAST, idle: 5000 } });
+  const ac = new AbortController();
+  setTimeout(() => ac.abort(), 20);
+  await rejects(engine.translate(['Hello'], 'en', 'ru', ac.signal), /Abort|Cancelled/, 'abort');
 });
 
 console.log(`\npassed: ${passed}, failed: ${failures.length}`);

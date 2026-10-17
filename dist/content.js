@@ -1938,7 +1938,28 @@ ${stripTags(c.xhtml)}`).join("\n");
   }
 
   // src/lib/net.ts
+  var NETWORK_DOWN = "The network is not responding \u2014 check your connection.";
+  function netError(message) {
+    const err = new Error(message);
+    err.network = true;
+    return err;
+  }
+  var isNetworkError = (err) => Boolean(err?.network);
   var NET_TIMING = { idle: 2e4, grace: 12e4, backoff: 1e3, maxBackoff: 8e3 };
+  function createOutage(grace, now = () => performance.now()) {
+    let since = -1;
+    return {
+      begin() {
+        if (since >= 0) return false;
+        since = now();
+        return true;
+      },
+      over: () => since >= 0 && now() - since >= grace,
+      end() {
+        since = -1;
+      }
+    };
+  }
   async function fetchFully(url, init, { idle, signal, fetchFn = fetch }) {
     if (signal?.aborted) throw abortError();
     const ctl = new AbortController();
@@ -1966,6 +1987,7 @@ ${stripTags(c.xhtml)}`).join("\n");
     try {
       arm();
       const res = await guard(fetchFn(url, { ...init, signal: ctl.signal }));
+      arm();
       if (!res.ok) {
         res.body?.cancel().catch(() => {
         });
@@ -2032,13 +2054,13 @@ ${stripTags(c.xhtml)}`).join("\n");
     const doFetch = options.fetch ?? ((input, init) => fetch(input, init));
     const limiter = createRateLimiter({ interval: gap, maxInterval: 15e3 });
     const net = { ...NET_TIMING, ...options.timing };
-    async function send(queries, from, to, signal) {
+    const outage = createOutage(net.grace);
+    async function send(queries, from, to, signal, notice) {
       const url = `${ENDPOINT}?client=gtx&sl=${encodeURIComponent(from)}&tl=${encodeURIComponent(to)}&format=html`;
       const body = new URLSearchParams();
       for (const q of queries) body.append("q", q);
       let httpAttempt = 0;
       let netAttempt = 0;
-      let downSince = 0;
       for (; ; ) {
         await limiter.acquire(signal);
         if (signal?.aborted) throw abortError();
@@ -2047,17 +2069,14 @@ ${stripTags(c.xhtml)}`).join("\n");
           res = await fetchFully(url, { method: "POST", body }, { idle: net.idle, signal, fetchFn: doFetch });
         } catch (err) {
           if (signal?.aborted) throw err;
-          if (!downSince) {
-            downSince = Date.now();
-            limiter.penalize(0);
-          }
-          if (Date.now() - downSince >= net.grace) {
-            throw new Error("The network is not responding \u2014 check your connection.");
-          }
-          await sleep(backoffDelay(netAttempt++, { base: backoffBase, max: net.maxBackoff }), signal);
+          if (outage.begin()) limiter.penalize(0);
+          if (outage.over()) throw netError(NETWORK_DOWN);
+          const delay = backoffDelay(netAttempt++, { base: net.backoff, max: net.maxBackoff });
+          notice?.(`The connection dropped \u2014 retrying in ${Math.ceil(delay / 1e3)} s\u2026`);
+          await sleep(delay, signal);
           continue;
         }
-        downSince = 0;
+        outage.end();
         netAttempt = 0;
         if (res.ok) {
           limiter.reward();
@@ -2073,7 +2092,7 @@ ${stripTags(c.xhtml)}`).join("\n");
     }
     return {
       id: "google",
-      async translate(segments, from, to, signal) {
+      async translate(segments, from, to, signal, notice) {
         const results = segments.map((s) => s.trim() ? "" : s);
         const owners = [];
         const pieces = [];
@@ -2087,7 +2106,7 @@ ${stripTags(c.xhtml)}`).join("\n");
         const translated = new Array(pieces.length);
         const langs = new Array(pieces.length).fill("");
         for (const group of planBatches(pieces, budget, maxSegments)) {
-          const answer = await send(group.map((i) => pieces[i]), from || "auto", to, signal);
+          const answer = await send(group.map((i) => pieces[i]), from || "auto", to, signal, notice);
           group.forEach((pieceIndex, k) => {
             translated[pieceIndex] = normalizeSpacing(answer.texts[k], to);
             langs[pieceIndex] = answer.detected[k];
@@ -2253,7 +2272,7 @@ ${stripTags(c.xhtml)}`).join("\n");
     const check = () => {
       if (signal?.aborted) throw abortError();
     };
-    const run = (segments) => translator.translate(segments, "auto", target, signal);
+    const run = (segments) => translator.translate(segments, "auto", target, signal, (t) => progress(t));
     const band = (done, of) => TRANSLATE_FROM + done / Math.max(1, of) * (TRANSLATE_TO - TRANSLATE_FROM);
     const total = book.chapters.length;
     async function chapterAt(i) {
@@ -2294,6 +2313,7 @@ ${stripTags(c.xhtml)}`).join("\n");
     let decided = false;
     let front = null;
     let failed = 0;
+    let offline = false;
     let firstError = null;
     async function tryFront() {
       try {
@@ -2316,14 +2336,20 @@ ${stripTags(c.xhtml)}`).join("\n");
         }
       } catch (err) {
         if (isAbort(err, signal)) throw err;
-        failed += 1;
         firstError ??= err;
+        if (isNetworkError(err)) {
+          offline = true;
+          failed += total - i;
+          chapters.push(...book.chapters.slice(i));
+          break;
+        }
+        failed += 1;
         chapters.push(book.chapters[i]);
         progress(`Chapter ${i + 1} could not be translated, continuing\u2026`, band(i + 1, total));
       }
     }
     if (failed === total) throw firstError;
-    if (!decided) await tryFront();
+    if (!decided && !offline) await tryFront();
     if (failed) {
       report.failedChapters = failed;
       report.failure = `${failed} of ${total} chapters stayed untranslated \u2014 ${firstError.message} Try again later for a full translation.`;
@@ -2336,11 +2362,6 @@ ${stripTags(c.xhtml)}`).join("\n");
   var MAX_ATTEMPTS = 5;
   var MAX_WAIT2 = 6e4;
   var SLOW_DOWN = /* @__PURE__ */ new Set([429, 503]);
-  function netError(message) {
-    const err = new Error(message);
-    err.network = true;
-    return err;
-  }
   function httpMessage(status) {
     if (status === 429) return "The site limited the request rate. Wait a couple of minutes and try again.";
     if (status === 403) return "The site refused the page (403) \u2014 check that the book opens in a normal tab.";
@@ -2353,6 +2374,7 @@ ${stripTags(c.xhtml)}`).join("\n");
     const report = progress || (() => {
     });
     const net = { ...NET_TIMING, ...timing };
+    const outage = createOutage(net.grace);
     const limiter = createRateLimiter({
       interval: pacing?.interval ?? 600,
       maxInterval: pacing?.maxInterval ?? 15e3
@@ -2368,7 +2390,6 @@ ${stripTags(c.xhtml)}`).join("\n");
     async function request(url) {
       let httpAttempt = 0;
       let netAttempt = 0;
-      let downSince = 0;
       for (; ; ) {
         await limiter.acquire(signal);
         if (aborted()) throw abortError();
@@ -2381,19 +2402,14 @@ ${stripTags(c.xhtml)}`).join("\n");
           );
         } catch (err) {
           if (aborted()) throw err;
-          if (!downSince) {
-            downSince = Date.now();
-            limiter.penalize(0);
-          }
-          if (Date.now() - downSince >= net.grace) {
-            throw netError("The network is not responding \u2014 check your connection.");
-          }
+          if (outage.begin()) limiter.penalize(0);
+          if (outage.over()) throw netError(NETWORK_DOWN);
           const delay = backoffDelay(netAttempt++, { base: net.backoff, max: net.maxBackoff });
           report(`The connection dropped \u2014 retrying in ${Math.ceil(delay / 1e3)} s\u2026`);
           await sleep(delay, signal);
           continue;
         }
-        downSince = 0;
+        outage.end();
         netAttempt = 0;
         if (res.ok) {
           limiter.reward();
