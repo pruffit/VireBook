@@ -3,6 +3,7 @@
 import type { TranslateResult, Translator } from './types.ts';
 import { joinPieces, normalizeSpacing, planBatches, splitSegment } from './text.ts';
 import { abortError, backoffDelay, createRateLimiter, parseRetryAfter, sleep } from '../lib/util.ts';
+import { decodeText, fetchFully, NET_TIMING, type Fetched, type NetTiming } from '../lib/net.ts';
 
 const ENDPOINT = 'https://translate.googleapis.com/translate_a/t';
 const RETRY_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
@@ -18,6 +19,7 @@ export interface GoogleOptions {
   maxAttempts?: number;
   /** First backoff step, ms. */
   backoffBase?: number;
+  timing?: Partial<NetTiming>;
 }
 
 function refusal(status: number): Error {
@@ -43,42 +45,50 @@ export function createGoogleTranslator(options: GoogleOptions = {}): Translator 
   const { budget = 4500, maxSegments = 40, gap = 350, maxAttempts = 5, backoffBase = 1200 } = options;
   const doFetch: typeof fetch = options.fetch ?? ((input, init) => fetch(input, init));
   const limiter = createRateLimiter({ interval: gap, maxInterval: 15000 });
+  const net: NetTiming = { ...NET_TIMING, ...options.timing };
 
   async function send(queries: string[], from: string, to: string, signal?: AbortSignal): Promise<TranslateResult> {
     const url = `${ENDPOINT}?client=gtx&sl=${encodeURIComponent(from)}&tl=${encodeURIComponent(to)}&format=html`;
     const body = new URLSearchParams();
     for (const q of queries) body.append('q', q);
 
-    let refused: Error | null = null;
-    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    let httpAttempt = 0;
+    let netAttempt = 0;
+    let downSince = 0;
+    for (;;) {
       await limiter.acquire(signal);
       if (signal?.aborted) throw abortError();
 
-      let res: Response;
+      let res: Fetched;
       try {
-        res = await doFetch(url, { method: 'POST', body, signal });
+        res = await fetchFully(url, { method: 'POST', body }, { idle: net.idle, signal, fetchFn: doFetch });
       } catch (err) {
         if (signal?.aborted) throw err;
-        refused = new Error('The network is not responding — check your connection.');
-        limiter.penalize(0);
-        if (attempt < maxAttempts - 1) await sleep(backoffDelay(attempt, { base: backoffBase, max: MAX_WAIT }), signal);
+        if (!downSince) {
+          downSince = Date.now();
+          limiter.penalize(0);
+        }
+        if (Date.now() - downSince >= net.grace) {
+          throw new Error('The network is not responding — check your connection.');
+        }
+        await sleep(backoffDelay(netAttempt++, { base: backoffBase, max: net.maxBackoff }), signal);
         continue;
       }
+      downSince = 0;
+      netAttempt = 0;
 
       if (res.ok) {
         limiter.reward();
-        return textsOf(await res.json(), queries.length);
+        return textsOf(JSON.parse(decodeText(res.body)), queries.length);
       }
       if (!RETRY_STATUS.has(res.status)) throw refusal(res.status);
 
       const floor = Math.min(MAX_WAIT, parseRetryAfter(res.headers.get('Retry-After')));
-      refused = refusal(res.status);
       limiter.penalize(floor);
-      if (attempt < maxAttempts - 1) {
-        await sleep(backoffDelay(attempt, { base: backoffBase, max: MAX_WAIT, floor }), signal);
-      }
+      httpAttempt += 1;
+      if (httpAttempt >= maxAttempts) throw refusal(res.status);
+      await sleep(backoffDelay(httpAttempt - 1, { base: backoffBase, max: MAX_WAIT, floor }), signal);
     }
-    throw refused ?? new Error('Google Translate did not answer.');
   }
 
   return {

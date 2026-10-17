@@ -1937,6 +1937,76 @@ ${stripTags(c.xhtml)}`).join("\n");
     return html.replace(target.toLowerCase().startsWith("fr") ? STRAY_FRENCH : STRAY, "$1");
   }
 
+  // src/lib/net.ts
+  var NET_TIMING = { idle: 2e4, grace: 12e4, backoff: 1e3, maxBackoff: 8e3 };
+  async function fetchFully(url, init, { idle, signal, fetchFn = fetch }) {
+    if (signal?.aborted) throw abortError();
+    const ctl = new AbortController();
+    let timedOut = false;
+    const stopped = new Promise((_, reject) => {
+      ctl.signal.addEventListener(
+        "abort",
+        () => reject(timedOut ? new Error(`No answer for ${Math.round(idle / 1e3)} s`) : abortError()),
+        { once: true }
+      );
+    });
+    stopped.catch(() => {
+    });
+    const cancel = () => ctl.abort();
+    signal?.addEventListener("abort", cancel, { once: true });
+    let timer;
+    const arm = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        timedOut = true;
+        ctl.abort();
+      }, idle);
+    };
+    const guard = (p) => Promise.race([p, stopped]);
+    try {
+      arm();
+      const res = await guard(fetchFn(url, { ...init, signal: ctl.signal }));
+      if (!res.ok) {
+        res.body?.cancel().catch(() => {
+        });
+        return { ok: false, status: res.status, headers: res.headers, body: new Uint8Array() };
+      }
+      const body = res.body ? await readBody(res.body.getReader(), guard, arm) : new Uint8Array(await guard(res.arrayBuffer()));
+      return { ok: true, status: res.status, headers: res.headers, body };
+    } catch (err) {
+      if (signal?.aborted) throw abortError();
+      throw err;
+    } finally {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", cancel);
+    }
+  }
+  async function readBody(reader, guard, onChunk) {
+    const chunks = [];
+    let size = 0;
+    try {
+      for (; ; ) {
+        const { done, value } = await guard(reader.read());
+        if (done) break;
+        onChunk();
+        chunks.push(value);
+        size += value.length;
+      }
+    } catch (err) {
+      reader.cancel().catch(() => {
+      });
+      throw err;
+    }
+    const body = new Uint8Array(size);
+    let at = 0;
+    for (const c of chunks) {
+      body.set(c, at);
+      at += c.length;
+    }
+    return body;
+  }
+  var decodeText = (body) => new TextDecoder().decode(body);
+
   // src/translate/google.ts
   var ENDPOINT = "https://translate.googleapis.com/translate_a/t";
   var RETRY_STATUS = /* @__PURE__ */ new Set([408, 425, 429, 500, 502, 503, 504]);
@@ -1961,37 +2031,45 @@ ${stripTags(c.xhtml)}`).join("\n");
     const { budget = 4500, maxSegments = 40, gap = 350, maxAttempts = 5, backoffBase = 1200 } = options;
     const doFetch = options.fetch ?? ((input, init) => fetch(input, init));
     const limiter = createRateLimiter({ interval: gap, maxInterval: 15e3 });
+    const net = { ...NET_TIMING, ...options.timing };
     async function send(queries, from, to, signal) {
       const url = `${ENDPOINT}?client=gtx&sl=${encodeURIComponent(from)}&tl=${encodeURIComponent(to)}&format=html`;
       const body = new URLSearchParams();
       for (const q of queries) body.append("q", q);
-      let refused = null;
-      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      let httpAttempt = 0;
+      let netAttempt = 0;
+      let downSince = 0;
+      for (; ; ) {
         await limiter.acquire(signal);
         if (signal?.aborted) throw abortError();
         let res;
         try {
-          res = await doFetch(url, { method: "POST", body, signal });
+          res = await fetchFully(url, { method: "POST", body }, { idle: net.idle, signal, fetchFn: doFetch });
         } catch (err) {
           if (signal?.aborted) throw err;
-          refused = new Error("The network is not responding \u2014 check your connection.");
-          limiter.penalize(0);
-          if (attempt < maxAttempts - 1) await sleep(backoffDelay(attempt, { base: backoffBase, max: MAX_WAIT }), signal);
+          if (!downSince) {
+            downSince = Date.now();
+            limiter.penalize(0);
+          }
+          if (Date.now() - downSince >= net.grace) {
+            throw new Error("The network is not responding \u2014 check your connection.");
+          }
+          await sleep(backoffDelay(netAttempt++, { base: backoffBase, max: net.maxBackoff }), signal);
           continue;
         }
+        downSince = 0;
+        netAttempt = 0;
         if (res.ok) {
           limiter.reward();
-          return textsOf(await res.json(), queries.length);
+          return textsOf(JSON.parse(decodeText(res.body)), queries.length);
         }
         if (!RETRY_STATUS.has(res.status)) throw refusal(res.status);
         const floor = Math.min(MAX_WAIT, parseRetryAfter(res.headers.get("Retry-After")));
-        refused = refusal(res.status);
         limiter.penalize(floor);
-        if (attempt < maxAttempts - 1) {
-          await sleep(backoffDelay(attempt, { base: backoffBase, max: MAX_WAIT, floor }), signal);
-        }
+        httpAttempt += 1;
+        if (httpAttempt >= maxAttempts) throw refusal(res.status);
+        await sleep(backoffDelay(httpAttempt - 1, { base: backoffBase, max: MAX_WAIT, floor }), signal);
       }
-      throw refused ?? new Error("Google Translate did not answer.");
     }
     return {
       id: "google",
@@ -2270,10 +2348,11 @@ ${stripTags(c.xhtml)}`).join("\n");
     if (status >= 500) return `The site is answering with error ${status} \u2014 try later.`;
     return `HTTP ${status}`;
   }
-  function makeContext({ progress, signal, pacing }) {
+  function makeContext({ progress, signal, pacing, fetch: fetchFn, timing }) {
     const parser = new DOMParser();
     const report = progress || (() => {
     });
+    const net = { ...NET_TIMING, ...timing };
     const limiter = createRateLimiter({
       interval: pacing?.interval ?? 600,
       maxInterval: pacing?.maxInterval ?? 15e3
@@ -2287,34 +2366,49 @@ ${stripTags(c.xhtml)}`).join("\n");
       await sleep(delay, signal);
     }
     async function request(url) {
-      let last = null;
-      for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+      let httpAttempt = 0;
+      let netAttempt = 0;
+      let downSince = 0;
+      for (; ; ) {
         await limiter.acquire(signal);
         if (aborted()) throw abortError();
         let res;
         try {
-          res = await fetch(url, { credentials: "same-origin", redirect: "follow", signal });
+          res = await fetchFully(
+            url,
+            { credentials: "same-origin", redirect: "follow" },
+            { idle: net.idle, signal, fetchFn }
+          );
         } catch (err) {
           if (aborted()) throw err;
-          last = netError("The network is not responding \u2014 check your connection.");
-          limiter.penalize(0);
-          if (attempt < MAX_ATTEMPTS - 1) await pause(attempt, 0, 0);
+          if (!downSince) {
+            downSince = Date.now();
+            limiter.penalize(0);
+          }
+          if (Date.now() - downSince >= net.grace) {
+            throw netError("The network is not responding \u2014 check your connection.");
+          }
+          const delay = backoffDelay(netAttempt++, { base: net.backoff, max: net.maxBackoff });
+          report(`The connection dropped \u2014 retrying in ${Math.ceil(delay / 1e3)} s\u2026`);
+          await sleep(delay, signal);
           continue;
         }
+        downSince = 0;
+        netAttempt = 0;
         if (res.ok) {
           limiter.reward();
-          return res;
+          return res.body;
         }
         if (!RETRY_STATUS2.has(res.status)) throw netError(httpMessage(res.status));
         const floor = Math.min(MAX_WAIT2, parseRetryAfter(res.headers.get("Retry-After")));
-        last = netError(httpMessage(res.status));
         limiter.penalize(floor);
-        if (attempt < MAX_ATTEMPTS - 1) await pause(attempt, floor, res.status);
+        httpAttempt += 1;
+        if (httpAttempt >= MAX_ATTEMPTS) throw netError(httpMessage(res.status));
+        await pause(httpAttempt - 1, floor, res.status);
       }
-      throw last || netError("The request failed");
     }
     async function fetchText(url) {
-      return (await request(url)).text();
+      return decodeText(await request(url));
     }
     async function fetchDoc(url) {
       return parser.parseFromString(await fetchText(url), "text/html");
@@ -2323,7 +2417,7 @@ ${stripTags(c.xhtml)}`).join("\n");
       return parser.parseFromString(`<body>${html}</body>`, "text/html").body;
     }
     async function fetchBytes(url) {
-      return new Uint8Array(await (await request(url)).arrayBuffer());
+      return request(url);
     }
     return { fetchText, fetchDoc, fetchBytes, parseFragment, progress: report, signal };
   }
