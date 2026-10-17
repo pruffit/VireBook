@@ -172,6 +172,53 @@ await test('ficbook: the header metadata is parsed', async () => {
   );
 });
 
+await test('ficbook: authors, co-authors and translators are credited, not the beta or reward givers', async () => {
+  const person = (id: number, name: string, role: string | null, itemprop = false) => `
+    <div class="d-flex align-items-center gap-8">
+      <div class="avatar-cropper"><a href="/authors/${id}"><img alt="${name}" src="x.jpg"></a></div>
+      <div class="d-flex flex-column align-items-start gap-4 text-n1">
+        <span><a href="/authors/${id}" class="word-break"${itemprop ? ' itemprop="author"' : ''}>${name}</a></span>
+        ${role ? `<span class="ds-badge ds-badge-regular">${role}</span>` : ''}
+      </div>
+    </div>`;
+  // The live <fanfic-rewards> renders inside the header's aside, after hydration.
+  const page = (people: string) => `<html><body>
+    <h1 class="heading">Рассказ</h1>
+    <section class="fanfic-hat"><div class="fanfic-hat-body d-flex flex-column">
+      <section>${people}</section>
+      <div class="fanfic-hat-aside"><div class="rewards-list">
+        <div><span class="text-n1 text-bold">Вдохновения вам, дорогой автор</span>
+          <a href="/authors/4" class="reward-giver-name">Дарительница</a></div>
+        <div><span class="text-n1 text-bold">Спасибо!</span>
+          <a href="/authors/5" class="reward-giver-name">Читатель</a></div>
+      </div></div>
+    </div></section>
+    <div id="content">Текст рассказа.</div>
+  </body></html>`;
+  const url = 'https://ficbook.net/readfic/42';
+  const authorOf = async (people: string) =>
+    (await ficbook.parse(docOf(page(people), url), url, makeCtx({}))).author;
+
+  assertEq(await authorOf(person(1, 'Автор', 'автор', true)), 'Автор', 'a single author');
+  assertEq(
+    await authorOf(person(1, 'Автор', 'автор', true) + person(2, 'Соавтор', 'соавтор') + person(3, 'Бета', 'бета')),
+    'Автор, Соавтор',
+    'with a co-author and a beta',
+  );
+  assertEq(
+    await authorOf(
+      person(1, 'Переводчик', 'переводчик', true) + person(2, 'Сопереводчик', 'сопереводчик') + person(3, 'Бета', 'бета'),
+    ),
+    'Переводчик, Сопереводчик',
+    'a translation',
+  );
+  assertEq(
+    await authorOf(person(1, 'Автор', null, true) + person(2, 'Кто-то', null)),
+    'Автор',
+    'no badges: itemprop decides',
+  );
+});
+
 await test('ficbook: the promo block does not reach the chapter body', async () => {
   const book = await ficbookBook();
   const first = book.chapters[0]!;

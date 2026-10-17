@@ -1,4 +1,4 @@
-// ficbook.net — selectors checked against the live page on 2026-09-15.
+// ficbook.net — selectors checked against the live page on 2026-09-15, authors on 2026-10-17.
 import type { Adapter, Book, Chapter, Pacing, ParseContext } from '../types.ts';
 import { absolutize, sanitize, toPlainText } from '../lib/html.ts';
 import { mapLimit } from '../lib/util.ts';
@@ -46,14 +46,20 @@ function readMeta(doc: Document) {
   return { fandom, tags, rating: badge('rating'), status: badge('status'), size: badge('size'), pairing };
 }
 
+// The header credits the beta and gamma next to the authors, and the rewards
+// inside it link their givers to /authors/ too — only a role badge credits a name.
+const AUTHOR_ROLE = /^(со)?(автор|переводчик)|^(co-?)?(author|translator)/i;
+
 function readAuthor(doc: Document): string {
-  const links = Array.from(
-    doc.querySelectorAll('a[href^="/authors/"], a[href*="ficbook.net/authors/"]'),
-  );
+  const credited = Array.from(doc.querySelectorAll('.fanfic-hat .ds-badge'))
+    .filter((badge) => AUTHOR_ROLE.test(B.norm(badge.textContent)))
+    .map((badge) => badge.parentElement?.querySelector('a[href*="/authors/"]'))
+    .filter((a): a is Element => !!a);
+  const links = credited.length ? credited : Array.from(doc.querySelectorAll('a[itemprop="author"]'));
   const names = links
     .map((a) => B.norm(a.textContent))
     .filter((t) => t && t.length > 1 && t.length < 60);
-  return Array.from(new Set(names)).slice(0, 3).join(', ');
+  return Array.from(new Set(names)).join(', ');
 }
 
 function readSummary(doc: Document): { summaryXhtml: string; summaryText: string } {
