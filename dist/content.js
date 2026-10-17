@@ -721,10 +721,10 @@
     ).join(", ");
     return { fandom, tags, rating: badge("rating"), status: badge("status"), size: badge("size"), pairing };
   }
+  var AUTHOR_ROLE = /^(со)?автор|^(co-?)?author/i;
   function readAuthor(doc) {
-    const links = Array.from(
-      doc.querySelectorAll('a[href^="/authors/"], a[href*="ficbook.net/authors/"]')
-    );
+    const credited = Array.from(doc.querySelectorAll(".fanfic-hat .ds-badge")).filter((badge) => AUTHOR_ROLE.test(norm(badge.textContent))).map((badge) => badge.parentElement?.querySelector('a[href*="/authors/"]')).filter((a) => !!a);
+    const links = credited.length ? credited : Array.from(doc.querySelectorAll('a[itemprop="author"]'));
     const names = links.map((a) => norm(a.textContent)).filter((t) => t && t.length > 1 && t.length < 60);
     return Array.from(new Set(names)).slice(0, 3).join(", ");
   }

@@ -172,6 +172,37 @@ await test('ficbook: the header metadata is parsed', async () => {
   );
 });
 
+await test('ficbook: only the author and co-authors are credited, not the beta or reward givers', async () => {
+  const person = (id: number, name: string, role: string, itemprop = false) => `
+    <div class="d-flex align-items-center gap-8">
+      <div class="avatar-cropper"><a href="/authors/${id}"><img alt="${name}" src="x.jpg"></a></div>
+      <div class="d-flex flex-column align-items-start gap-4 text-n1">
+        <span><a href="/authors/${id}" class="word-break"${itemprop ? ' itemprop="author"' : ''}>${name}</a></span>
+        <span class="ds-badge ds-badge-regular">${role}</span>
+      </div>
+    </div>`;
+  const page = (people: string) => `<html><body>
+    <h1 class="heading">Рассказ</h1>
+    <section class="fanfic-hat"><div class="fanfic-hat-body d-flex flex-column">
+      <section>${people}</section>
+      <div class="rewards">
+        <a href="/authors/4" class="word-break">Дарительница</a><a href="/authors/5" class="word-break">Читатель</a>
+      </div>
+    </div></section>
+    <div id="content">Текст рассказа.</div>
+  </body></html>`;
+  const url = 'https://ficbook.net/readfic/42';
+  const authorOf = async (people: string) =>
+    (await ficbook.parse(docOf(page(people), url), url, makeCtx({}))).author;
+
+  assertEq(await authorOf(person(1, 'Автор', 'автор', true)), 'Автор', 'a single author');
+  assertEq(
+    await authorOf(person(1, 'Автор', 'автор', true) + person(2, 'Соавтор', 'соавтор') + person(3, 'Бета', 'бета')),
+    'Автор, Соавтор',
+    'with a co-author and a beta',
+  );
+});
+
 await test('ficbook: the promo block does not reach the chapter body', async () => {
   const book = await ficbookBook();
   const first = book.chapters[0]!;
