@@ -3,6 +3,15 @@
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 the numbering [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- **ficbook credits only the people who wrote or translated the work.** The author list took every
+  `/authors/` link on the page, so reward givers (rendered inside the work header) and the beta ended
+  up in the file name and the book's metadata. Names now come from the role badges: author,
+  co-author, translator, co-translator. The three-name cap is gone with the guesswork.
+
 ## [1.5.0] — 2026-10-16
 
 ### Added

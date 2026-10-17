@@ -48,7 +48,7 @@ function readMeta(doc: Document) {
 
 // The header credits the beta and gamma next to the authors, and the rewards
 // inside it link their givers to /authors/ too — only a role badge credits a name.
-const AUTHOR_ROLE = /^(со)?автор|^(co-?)?author/i;
+const AUTHOR_ROLE = /^(со)?(автор|переводчик)|^(co-?)?(author|translator)/i;
 
 function readAuthor(doc: Document): string {
   const credited = Array.from(doc.querySelectorAll('.fanfic-hat .ds-badge'))
@@ -59,7 +59,7 @@ function readAuthor(doc: Document): string {
   const names = links
     .map((a) => B.norm(a.textContent))
     .filter((t) => t && t.length > 1 && t.length < 60);
-  return Array.from(new Set(names)).slice(0, 3).join(', ');
+  return Array.from(new Set(names)).join(', ');
 }
 
 function readSummary(doc: Document): { summaryXhtml: string; summaryText: string } {
