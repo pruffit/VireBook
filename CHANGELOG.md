@@ -15,7 +15,8 @@ the numbering [SemVer](https://semver.org/).
   stay pending forever, and retries only ran when a request failed outright. Every request (headers
   and body) now gives up after 20 s of silence, and a dropped network is retried for up to two
   minutes with the panel saying so; only then does the download stop with an error. A body cut off
-  halfway is fetched again. Translation requests behave the same way.
+  halfway is fetched again. Translation waits out a drop the same way; if the network stays down past
+  the window, the remaining chapters stay in the original, as a chapter the engine refuses does.
 
 ## [1.5.0] — 2026-10-16
 
