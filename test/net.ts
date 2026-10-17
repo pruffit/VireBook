@@ -130,13 +130,12 @@ await test('a brief drop mid-download is ridden out: hang, refusal, then the pag
   assert(said.some((t) => /connection dropped/.test(t)), `the panel was told: ${said.join(' | ')}`);
 });
 
-await test('an idle timeout that a real fetch reports as AbortError is retried, not taken for a cancel', async () => {
-  // Browsers reject an aborted fetch with a DOMException named AbortError before our own timer error.
-  const honest: typeof fetch = (_input, init) =>
-    new Promise<Response>((_, reject) => {
-      init?.signal?.addEventListener('abort', () => reject(new DOMException('The operation was aborted.', 'AbortError')));
-    });
-  const s = script(honest, page('<p>after</p>'));
+await test('a fetch failing with an AbortError the user did not ask for is retried, not taken for a cancel', async () => {
+  // Browsers report our own idle abort this way; only the user's signal means "cancel".
+  const aborted: typeof fetch = async () => {
+    throw new DOMException('The operation was aborted.', 'AbortError');
+  };
+  const s = script(aborted, page('<p>after</p>'));
   const ctx = makeContext({ fetch: s.fn, timing: FAST, pacing: { interval: 1 } });
   assertEq(await ctx.fetchText('https://x/1'), '<p>after</p>', 'the retry arrived');
 });

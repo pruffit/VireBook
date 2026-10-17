@@ -228,7 +228,7 @@ export async function translateBook(
     } catch (err) {
       if (isAbort(err, signal)) throw err;
       firstError ??= err as Error;
-      // The network outlasted the engine's grace window: every further chapter would wait it out again.
+      // The network outlasted the engine's grace window; each further chapter would still try once, a silent hang for 20 s.
       if (isNetworkError(err)) {
         offline = true;
         failed += total - i;
