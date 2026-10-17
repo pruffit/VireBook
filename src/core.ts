@@ -10,6 +10,9 @@ import { createGoogleTranslator } from './translate/google.ts';
 import { alreadyIn, translateBook, type TranslateReport } from './translate/book.ts';
 import type { Translator } from './translate/types.ts';
 import { abortError, backoffDelay, createRateLimiter, parseRetryAfter, safeFilename, sleep } from './lib/util.ts';
+import {
+  createOutage, decodeText, fetchFully, NET_TIMING, NETWORK_DOWN, netError, type Fetched, type NetTiming,
+} from './lib/net.ts';
 
 export { resolveAdapter };
 
@@ -17,13 +20,6 @@ const RETRY_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
 const MAX_ATTEMPTS = 5;
 const MAX_WAIT = 60000;
 const SLOW_DOWN = new Set([429, 503]);
-
-/** Mark network failures: falling back to the generic parser is pointless for them. */
-function netError(message: string): NetworkError {
-  const err = new Error(message) as NetworkError;
-  err.network = true;
-  return err;
-}
 
 function httpMessage(status: number): string {
   if (status === 429) return 'The site limited the request rate. Wait a couple of minutes and try again.';
@@ -37,11 +33,15 @@ export interface ContextOptions {
   progress?: ProgressFn;
   signal?: AbortSignal;
   pacing?: Pacing;
+  fetch?: typeof fetch;
+  timing?: Partial<NetTiming>;
 }
 
-export function makeContext({ progress, signal, pacing }: ContextOptions): ParseContext {
+export function makeContext({ progress, signal, pacing, fetch: fetchFn, timing }: ContextOptions): ParseContext {
   const parser = new DOMParser();
   const report: ProgressFn = progress || (() => {});
+  const net: NetTiming = { ...NET_TIMING, ...timing };
+  const outage = createOutage(net.grace);
   const limiter = createRateLimiter({
     interval: pacing?.interval ?? 600,
     maxInterval: pacing?.maxInterval ?? 15000,
@@ -59,39 +59,50 @@ export function makeContext({ progress, signal, pacing }: ContextOptions): Parse
     await sleep(delay, signal);
   }
 
-  async function request(url: string): Promise<Response> {
-    let last: Error | null = null;
-    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+  // A dropped network is retried for a stretch of time, not a count of attempts: a VPN
+  // reconnect takes seconds. The pace is widened once per outage, not on every retry.
+  async function request(url: string): Promise<Uint8Array> {
+    let httpAttempt = 0;
+    let netAttempt = 0;
+    for (;;) {
       await limiter.acquire(signal);
       if (aborted()) throw abortError();
 
-      let res: Response;
+      let res: Fetched;
       try {
-        res = await fetch(url, { credentials: 'same-origin', redirect: 'follow', signal });
+        res = await fetchFully(
+          url,
+          { credentials: 'same-origin', redirect: 'follow' },
+          { idle: net.idle, signal, fetchFn },
+        );
       } catch (err) {
         if (aborted()) throw err;
-        last = netError('The network is not responding — check your connection.');
-        limiter.penalize(0);
-        if (attempt < MAX_ATTEMPTS - 1) await pause(attempt, 0, 0);
+        if (outage.begin()) limiter.penalize(0);
+        if (outage.over()) throw netError(NETWORK_DOWN);
+        const delay = backoffDelay(netAttempt++, { base: net.backoff, max: net.maxBackoff });
+        report(`The connection dropped — retrying in ${Math.ceil(delay / 1000)} s…`);
+        await sleep(delay, signal);
         continue;
       }
+      outage.end();
+      netAttempt = 0;
 
       if (res.ok) {
         limiter.reward();
-        return res;
+        return res.body;
       }
       if (!RETRY_STATUS.has(res.status)) throw netError(httpMessage(res.status));
 
       const floor = Math.min(MAX_WAIT, parseRetryAfter(res.headers.get('Retry-After')));
-      last = netError(httpMessage(res.status));
       limiter.penalize(floor);
-      if (attempt < MAX_ATTEMPTS - 1) await pause(attempt, floor, res.status);
+      httpAttempt += 1;
+      if (httpAttempt >= MAX_ATTEMPTS) throw netError(httpMessage(res.status));
+      await pause(httpAttempt - 1, floor, res.status);
     }
-    throw last || netError('The request failed');
   }
 
   async function fetchText(url: string): Promise<string> {
-    return (await request(url)).text();
+    return decodeText(await request(url));
   }
 
   async function fetchDoc(url: string): Promise<Document> {
@@ -103,7 +114,7 @@ export function makeContext({ progress, signal, pacing }: ContextOptions): Parse
   }
 
   async function fetchBytes(url: string): Promise<Uint8Array> {
-    return new Uint8Array(await (await request(url)).arrayBuffer());
+    return request(url);
   }
 
   return { fetchText, fetchDoc, fetchBytes, parseFragment, progress: report, signal };

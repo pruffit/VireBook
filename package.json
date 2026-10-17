@@ -9,10 +9,11 @@
     "build": "node scripts/build.mjs",
     "build:watch": "node scripts/build.mjs --watch",
     "typecheck": "tsc --noEmit",
-    "test": "node test/run.ts && node test/adapters.ts && node test/translate.ts",
+    "test": "node test/run.ts && node test/adapters.ts && node test/translate.ts && node test/net.ts",
     "test:formats": "node test/run.ts",
     "test:adapters": "node test/adapters.ts",
     "test:translate": "node test/translate.ts",
+    "test:net": "node test/net.ts",
     "check": "npm run typecheck && npm run build && npm test",
     "demo": "node scripts/serve.mjs",
     "icons": "node scripts/make-icons.mjs"

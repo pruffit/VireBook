@@ -5,6 +5,7 @@ import type { Book, Chapter, ProgressFn } from '../types.ts';
 import { LANGUAGES, type Translator } from './types.ts';
 import { escapeText, sanitize } from '../lib/html.ts';
 import { abortError, normalizeSpace } from '../lib/util.ts';
+import { isNetworkError } from '../lib/net.ts';
 
 /** Where translation sits on the progress bar: after reading, before assembling. */
 export const TRANSLATE_FROM = 40;
@@ -156,7 +157,7 @@ export async function translateBook(
   const check = (): void => {
     if (signal?.aborted) throw abortError();
   };
-  const run = (segments: string[]) => translator.translate(segments, 'auto', target, signal);
+  const run = (segments: string[]) => translator.translate(segments, 'auto', target, signal, (t) => progress(t));
   const band = (done: number, of: number): number =>
     TRANSLATE_FROM + (done / Math.max(1, of)) * (TRANSLATE_TO - TRANSLATE_FROM);
   const total = book.chapters.length;
@@ -201,6 +202,7 @@ export async function translateBook(
   let decided = false;
   let front: Awaited<ReturnType<typeof frontMatter>> | null = null;
   let failed = 0;
+  let offline = false;
   let firstError: Error | null = null;
 
   async function tryFront(): Promise<void> {
@@ -225,14 +227,21 @@ export async function translateBook(
       }
     } catch (err) {
       if (isAbort(err, signal)) throw err;
-      failed += 1;
       firstError ??= err as Error;
+      // The network outlasted the engine's grace window; each further chapter would still try once, a silent hang for 20 s.
+      if (isNetworkError(err)) {
+        offline = true;
+        failed += total - i;
+        chapters.push(...book.chapters.slice(i));
+        break;
+      }
+      failed += 1;
       chapters.push(book.chapters[i]!);
       progress(`Chapter ${i + 1} could not be translated, continuing…`, band(i + 1, total));
     }
   }
   if (failed === total) throw firstError!;
-  if (!decided) await tryFront();
+  if (!decided && !offline) await tryFront();
 
   if (failed) {
     report.failedChapters = failed;

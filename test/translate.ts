@@ -11,6 +11,7 @@ import { translateBook, TRANSLATE_FROM, TRANSLATE_TO } from '../src/translate/bo
 import { joinPieces, normalizeSpacing, planBatches, splitSegment } from '../src/translate/text.ts';
 import { normalizeTarget, type TranslateResult, type Translator } from '../src/translate/types.ts';
 import * as epub from '../src/lib/epub.ts';
+import { NETWORK_DOWN, netError } from '../src/lib/net.ts';
 
 const dom = new JSDOM();
 globalThis.DOMParser = dom.window.DOMParser;
@@ -71,7 +72,7 @@ function fakeFetch(handler: (call: Call, n: number) => Response | Promise<Respon
 
 const ok = (call: Call): Response => Response.json(call.q.map(translateText));
 const engine = (f: typeof fetch, extra = {}): Translator =>
-  createGoogleTranslator({ fetch: f, gap: 0, backoffBase: 1, ...extra });
+  createGoogleTranslator({ fetch: f, gap: 0, backoffBase: 1, timing: { backoff: 1 }, ...extra });
 
 // ================== text helpers ==================
 
@@ -466,6 +467,26 @@ await test('translateBook: a failed front matter keeps the original title and su
 
 await test('translateBook: with every chapter refused it throws, not a book with no translation', async () => {
   await rejects(translateBook(threeChapters(), 'ru', refusing('river'), () => {}), /limiting requests/, 'all refused');
+});
+
+await test('translateBook: a network that stays down stops the translation instead of waiting it out per chapter', async () => {
+  const down = netError(NETWORK_DOWN);
+  let calls = 0;
+  const engine: Translator = {
+    id: 'down-after-one',
+    async translate(segments) {
+      calls += 1;
+      if (segments.some((x) => x.includes('river Two'))) throw down;
+      return said(segments.map(translateText));
+    },
+  };
+  const report: { failedChapters?: number; failure?: string } = {};
+  const out = await translateBook(threeChapters(), 'ru', engine, () => {}, undefined, report);
+  assert(out.chapters[0]!.xhtml.includes('ПЕРЕВОД She walked'), 'chapter 1 translated');
+  assert(!out.chapters[2]!.xhtml.includes('ПЕРЕВОД'), 'chapter 3 left as it is');
+  assertEq(report.failedChapters, 2, 'two chapters untranslated');
+  assert(/not responding/.test(report.failure ?? ''), `message: ${report.failure}`);
+  assertEq(calls, 2, 'chapters 1 and 2, and nothing after the outage');
 });
 
 await test('translateBook: an abort is never swallowed as a failed chapter', async () => {

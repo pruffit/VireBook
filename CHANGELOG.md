@@ -11,6 +11,12 @@ the numbering [SemVer](https://semver.org/).
   `/authors/` link on the page, so reward givers (rendered inside the work header) and the beta ended
   up in the file name and the book's metadata. Names now come from the role badges: author,
   co-author, translator, co-translator. The three-name cap is gone with the guesswork.
+- **A brief network drop no longer freezes the download.** A request caught in a VPN reconnect could
+  stay pending forever, and retries only ran when a request failed outright. Every request (headers
+  and body) now gives up after 20 s of silence, and a dropped network is retried for up to two
+  minutes with the panel saying so; only then does the download stop with an error. A body cut off
+  halfway is fetched again. Translation waits out a drop the same way; if the network stays down past
+  the window, the remaining chapters stay in the original, as a chapter the engine refuses does.
 
 ## [1.5.0] — 2026-10-16
 

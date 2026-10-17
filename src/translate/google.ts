@@ -3,6 +3,9 @@
 import type { TranslateResult, Translator } from './types.ts';
 import { joinPieces, normalizeSpacing, planBatches, splitSegment } from './text.ts';
 import { abortError, backoffDelay, createRateLimiter, parseRetryAfter, sleep } from '../lib/util.ts';
+import {
+  createOutage, decodeText, fetchFully, NET_TIMING, NETWORK_DOWN, netError, type Fetched, type NetTiming,
+} from '../lib/net.ts';
 
 const ENDPOINT = 'https://translate.googleapis.com/translate_a/t';
 const RETRY_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
@@ -18,6 +21,7 @@ export interface GoogleOptions {
   maxAttempts?: number;
   /** First backoff step, ms. */
   backoffBase?: number;
+  timing?: Partial<NetTiming>;
 }
 
 function refusal(status: number): Error {
@@ -43,47 +47,59 @@ export function createGoogleTranslator(options: GoogleOptions = {}): Translator 
   const { budget = 4500, maxSegments = 40, gap = 350, maxAttempts = 5, backoffBase = 1200 } = options;
   const doFetch: typeof fetch = options.fetch ?? ((input, init) => fetch(input, init));
   const limiter = createRateLimiter({ interval: gap, maxInterval: 15000 });
+  const net: NetTiming = { ...NET_TIMING, ...options.timing };
+  // One translator per book: an outage that outlasted the window on one chapter fails the next at once.
+  const outage = createOutage(net.grace);
 
-  async function send(queries: string[], from: string, to: string, signal?: AbortSignal): Promise<TranslateResult> {
+  async function send(
+    queries: string[],
+    from: string,
+    to: string,
+    signal?: AbortSignal,
+    notice?: (text: string) => void,
+  ): Promise<TranslateResult> {
     const url = `${ENDPOINT}?client=gtx&sl=${encodeURIComponent(from)}&tl=${encodeURIComponent(to)}&format=html`;
     const body = new URLSearchParams();
     for (const q of queries) body.append('q', q);
 
-    let refused: Error | null = null;
-    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    let httpAttempt = 0;
+    let netAttempt = 0;
+    for (;;) {
       await limiter.acquire(signal);
       if (signal?.aborted) throw abortError();
 
-      let res: Response;
+      let res: Fetched;
       try {
-        res = await doFetch(url, { method: 'POST', body, signal });
+        res = await fetchFully(url, { method: 'POST', body }, { idle: net.idle, signal, fetchFn: doFetch });
       } catch (err) {
         if (signal?.aborted) throw err;
-        refused = new Error('The network is not responding — check your connection.');
-        limiter.penalize(0);
-        if (attempt < maxAttempts - 1) await sleep(backoffDelay(attempt, { base: backoffBase, max: MAX_WAIT }), signal);
+        if (outage.begin()) limiter.penalize(0);
+        if (outage.over()) throw netError(NETWORK_DOWN);
+        const delay = backoffDelay(netAttempt++, { base: net.backoff, max: net.maxBackoff });
+        notice?.(`The connection dropped — retrying in ${Math.ceil(delay / 1000)} s…`);
+        await sleep(delay, signal);
         continue;
       }
+      outage.end();
+      netAttempt = 0;
 
       if (res.ok) {
         limiter.reward();
-        return textsOf(await res.json(), queries.length);
+        return textsOf(JSON.parse(decodeText(res.body)), queries.length);
       }
       if (!RETRY_STATUS.has(res.status)) throw refusal(res.status);
 
       const floor = Math.min(MAX_WAIT, parseRetryAfter(res.headers.get('Retry-After')));
-      refused = refusal(res.status);
       limiter.penalize(floor);
-      if (attempt < maxAttempts - 1) {
-        await sleep(backoffDelay(attempt, { base: backoffBase, max: MAX_WAIT, floor }), signal);
-      }
+      httpAttempt += 1;
+      if (httpAttempt >= maxAttempts) throw refusal(res.status);
+      await sleep(backoffDelay(httpAttempt - 1, { base: backoffBase, max: MAX_WAIT, floor }), signal);
     }
-    throw refused ?? new Error('Google Translate did not answer.');
   }
 
   return {
     id: 'google',
-    async translate(segments, from, to, signal) {
+    async translate(segments, from, to, signal, notice) {
       // An empty query would be dropped by the server and shift every answer after it.
       const results = segments.map((s) => (s.trim() ? '' : s));
       const owners: number[] = [];
@@ -99,7 +115,7 @@ export function createGoogleTranslator(options: GoogleOptions = {}): Translator 
       const translated: string[] = new Array(pieces.length);
       const langs: string[] = new Array(pieces.length).fill('');
       for (const group of planBatches(pieces, budget, maxSegments)) {
-        const answer = await send(group.map((i) => pieces[i]!), from || 'auto', to, signal);
+        const answer = await send(group.map((i) => pieces[i]!), from || 'auto', to, signal, notice);
         group.forEach((pieceIndex, k) => {
           translated[pieceIndex] = normalizeSpacing(answer.texts[k]!, to);
           langs[pieceIndex] = answer.detected[k]!;

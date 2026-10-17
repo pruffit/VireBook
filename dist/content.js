@@ -1937,6 +1937,98 @@ ${stripTags(c.xhtml)}`).join("\n");
     return html.replace(target.toLowerCase().startsWith("fr") ? STRAY_FRENCH : STRAY, "$1");
   }
 
+  // src/lib/net.ts
+  var NETWORK_DOWN = "The network is not responding \u2014 check your connection.";
+  function netError(message) {
+    const err = new Error(message);
+    err.network = true;
+    return err;
+  }
+  var isNetworkError = (err) => Boolean(err?.network);
+  var NET_TIMING = { idle: 2e4, grace: 12e4, backoff: 1e3, maxBackoff: 8e3 };
+  function createOutage(grace, now = () => performance.now()) {
+    let since = -1;
+    return {
+      begin() {
+        if (since >= 0) return false;
+        since = now();
+        return true;
+      },
+      over: () => since >= 0 && now() - since >= grace,
+      end() {
+        since = -1;
+      }
+    };
+  }
+  async function fetchFully(url, init, { idle, signal, fetchFn = fetch }) {
+    if (signal?.aborted) throw abortError();
+    const ctl = new AbortController();
+    let timedOut = false;
+    const stopped = new Promise((_, reject) => {
+      ctl.signal.addEventListener(
+        "abort",
+        () => reject(timedOut ? new Error(`No answer for ${Math.round(idle / 1e3)} s`) : abortError()),
+        { once: true }
+      );
+    });
+    stopped.catch(() => {
+    });
+    const cancel = () => ctl.abort();
+    signal?.addEventListener("abort", cancel, { once: true });
+    let timer;
+    const arm = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        timedOut = true;
+        ctl.abort();
+      }, idle);
+    };
+    const guard = (p) => Promise.race([p, stopped]);
+    try {
+      arm();
+      const res = await guard(fetchFn(url, { ...init, signal: ctl.signal }));
+      arm();
+      if (!res.ok) {
+        res.body?.cancel().catch(() => {
+        });
+        return { ok: false, status: res.status, headers: res.headers, body: new Uint8Array() };
+      }
+      const body = res.body ? await readBody(res.body.getReader(), guard, arm) : new Uint8Array(await guard(res.arrayBuffer()));
+      return { ok: true, status: res.status, headers: res.headers, body };
+    } catch (err) {
+      if (signal?.aborted) throw abortError();
+      throw err;
+    } finally {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", cancel);
+    }
+  }
+  async function readBody(reader, guard, onChunk) {
+    const chunks = [];
+    let size = 0;
+    try {
+      for (; ; ) {
+        const { done, value } = await guard(reader.read());
+        if (done) break;
+        onChunk();
+        chunks.push(value);
+        size += value.length;
+      }
+    } catch (err) {
+      reader.cancel().catch(() => {
+      });
+      throw err;
+    }
+    const body = new Uint8Array(size);
+    let at = 0;
+    for (const c of chunks) {
+      body.set(c, at);
+      at += c.length;
+    }
+    return body;
+  }
+  var decodeText = (body) => new TextDecoder().decode(body);
+
   // src/translate/google.ts
   var ENDPOINT = "https://translate.googleapis.com/translate_a/t";
   var RETRY_STATUS = /* @__PURE__ */ new Set([408, 425, 429, 500, 502, 503, 504]);
@@ -1961,41 +2053,46 @@ ${stripTags(c.xhtml)}`).join("\n");
     const { budget = 4500, maxSegments = 40, gap = 350, maxAttempts = 5, backoffBase = 1200 } = options;
     const doFetch = options.fetch ?? ((input, init) => fetch(input, init));
     const limiter = createRateLimiter({ interval: gap, maxInterval: 15e3 });
-    async function send(queries, from, to, signal) {
+    const net = { ...NET_TIMING, ...options.timing };
+    const outage = createOutage(net.grace);
+    async function send(queries, from, to, signal, notice) {
       const url = `${ENDPOINT}?client=gtx&sl=${encodeURIComponent(from)}&tl=${encodeURIComponent(to)}&format=html`;
       const body = new URLSearchParams();
       for (const q of queries) body.append("q", q);
-      let refused = null;
-      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      let httpAttempt = 0;
+      let netAttempt = 0;
+      for (; ; ) {
         await limiter.acquire(signal);
         if (signal?.aborted) throw abortError();
         let res;
         try {
-          res = await doFetch(url, { method: "POST", body, signal });
+          res = await fetchFully(url, { method: "POST", body }, { idle: net.idle, signal, fetchFn: doFetch });
         } catch (err) {
           if (signal?.aborted) throw err;
-          refused = new Error("The network is not responding \u2014 check your connection.");
-          limiter.penalize(0);
-          if (attempt < maxAttempts - 1) await sleep(backoffDelay(attempt, { base: backoffBase, max: MAX_WAIT }), signal);
+          if (outage.begin()) limiter.penalize(0);
+          if (outage.over()) throw netError(NETWORK_DOWN);
+          const delay = backoffDelay(netAttempt++, { base: net.backoff, max: net.maxBackoff });
+          notice?.(`The connection dropped \u2014 retrying in ${Math.ceil(delay / 1e3)} s\u2026`);
+          await sleep(delay, signal);
           continue;
         }
+        outage.end();
+        netAttempt = 0;
         if (res.ok) {
           limiter.reward();
-          return textsOf(await res.json(), queries.length);
+          return textsOf(JSON.parse(decodeText(res.body)), queries.length);
         }
         if (!RETRY_STATUS.has(res.status)) throw refusal(res.status);
         const floor = Math.min(MAX_WAIT, parseRetryAfter(res.headers.get("Retry-After")));
-        refused = refusal(res.status);
         limiter.penalize(floor);
-        if (attempt < maxAttempts - 1) {
-          await sleep(backoffDelay(attempt, { base: backoffBase, max: MAX_WAIT, floor }), signal);
-        }
+        httpAttempt += 1;
+        if (httpAttempt >= maxAttempts) throw refusal(res.status);
+        await sleep(backoffDelay(httpAttempt - 1, { base: backoffBase, max: MAX_WAIT, floor }), signal);
       }
-      throw refused ?? new Error("Google Translate did not answer.");
     }
     return {
       id: "google",
-      async translate(segments, from, to, signal) {
+      async translate(segments, from, to, signal, notice) {
         const results = segments.map((s) => s.trim() ? "" : s);
         const owners = [];
         const pieces = [];
@@ -2009,7 +2106,7 @@ ${stripTags(c.xhtml)}`).join("\n");
         const translated = new Array(pieces.length);
         const langs = new Array(pieces.length).fill("");
         for (const group of planBatches(pieces, budget, maxSegments)) {
-          const answer = await send(group.map((i) => pieces[i]), from || "auto", to, signal);
+          const answer = await send(group.map((i) => pieces[i]), from || "auto", to, signal, notice);
           group.forEach((pieceIndex, k) => {
             translated[pieceIndex] = normalizeSpacing(answer.texts[k], to);
             langs[pieceIndex] = answer.detected[k];
@@ -2175,7 +2272,7 @@ ${stripTags(c.xhtml)}`).join("\n");
     const check = () => {
       if (signal?.aborted) throw abortError();
     };
-    const run = (segments) => translator.translate(segments, "auto", target, signal);
+    const run = (segments) => translator.translate(segments, "auto", target, signal, (t) => progress(t));
     const band = (done, of) => TRANSLATE_FROM + done / Math.max(1, of) * (TRANSLATE_TO - TRANSLATE_FROM);
     const total = book.chapters.length;
     async function chapterAt(i) {
@@ -2216,6 +2313,7 @@ ${stripTags(c.xhtml)}`).join("\n");
     let decided = false;
     let front = null;
     let failed = 0;
+    let offline = false;
     let firstError = null;
     async function tryFront() {
       try {
@@ -2238,14 +2336,20 @@ ${stripTags(c.xhtml)}`).join("\n");
         }
       } catch (err) {
         if (isAbort(err, signal)) throw err;
-        failed += 1;
         firstError ??= err;
+        if (isNetworkError(err)) {
+          offline = true;
+          failed += total - i;
+          chapters.push(...book.chapters.slice(i));
+          break;
+        }
+        failed += 1;
         chapters.push(book.chapters[i]);
         progress(`Chapter ${i + 1} could not be translated, continuing\u2026`, band(i + 1, total));
       }
     }
     if (failed === total) throw firstError;
-    if (!decided) await tryFront();
+    if (!decided && !offline) await tryFront();
     if (failed) {
       report.failedChapters = failed;
       report.failure = `${failed} of ${total} chapters stayed untranslated \u2014 ${firstError.message} Try again later for a full translation.`;
@@ -2258,11 +2362,6 @@ ${stripTags(c.xhtml)}`).join("\n");
   var MAX_ATTEMPTS = 5;
   var MAX_WAIT2 = 6e4;
   var SLOW_DOWN = /* @__PURE__ */ new Set([429, 503]);
-  function netError(message) {
-    const err = new Error(message);
-    err.network = true;
-    return err;
-  }
   function httpMessage(status) {
     if (status === 429) return "The site limited the request rate. Wait a couple of minutes and try again.";
     if (status === 403) return "The site refused the page (403) \u2014 check that the book opens in a normal tab.";
@@ -2270,10 +2369,12 @@ ${stripTags(c.xhtml)}`).join("\n");
     if (status >= 500) return `The site is answering with error ${status} \u2014 try later.`;
     return `HTTP ${status}`;
   }
-  function makeContext({ progress, signal, pacing }) {
+  function makeContext({ progress, signal, pacing, fetch: fetchFn, timing }) {
     const parser = new DOMParser();
     const report = progress || (() => {
     });
+    const net = { ...NET_TIMING, ...timing };
+    const outage = createOutage(net.grace);
     const limiter = createRateLimiter({
       interval: pacing?.interval ?? 600,
       maxInterval: pacing?.maxInterval ?? 15e3
@@ -2287,34 +2388,43 @@ ${stripTags(c.xhtml)}`).join("\n");
       await sleep(delay, signal);
     }
     async function request(url) {
-      let last = null;
-      for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+      let httpAttempt = 0;
+      let netAttempt = 0;
+      for (; ; ) {
         await limiter.acquire(signal);
         if (aborted()) throw abortError();
         let res;
         try {
-          res = await fetch(url, { credentials: "same-origin", redirect: "follow", signal });
+          res = await fetchFully(
+            url,
+            { credentials: "same-origin", redirect: "follow" },
+            { idle: net.idle, signal, fetchFn }
+          );
         } catch (err) {
           if (aborted()) throw err;
-          last = netError("The network is not responding \u2014 check your connection.");
-          limiter.penalize(0);
-          if (attempt < MAX_ATTEMPTS - 1) await pause(attempt, 0, 0);
+          if (outage.begin()) limiter.penalize(0);
+          if (outage.over()) throw netError(NETWORK_DOWN);
+          const delay = backoffDelay(netAttempt++, { base: net.backoff, max: net.maxBackoff });
+          report(`The connection dropped \u2014 retrying in ${Math.ceil(delay / 1e3)} s\u2026`);
+          await sleep(delay, signal);
           continue;
         }
+        outage.end();
+        netAttempt = 0;
         if (res.ok) {
           limiter.reward();
-          return res;
+          return res.body;
         }
         if (!RETRY_STATUS2.has(res.status)) throw netError(httpMessage(res.status));
         const floor = Math.min(MAX_WAIT2, parseRetryAfter(res.headers.get("Retry-After")));
-        last = netError(httpMessage(res.status));
         limiter.penalize(floor);
-        if (attempt < MAX_ATTEMPTS - 1) await pause(attempt, floor, res.status);
+        httpAttempt += 1;
+        if (httpAttempt >= MAX_ATTEMPTS) throw netError(httpMessage(res.status));
+        await pause(httpAttempt - 1, floor, res.status);
       }
-      throw last || netError("The request failed");
     }
     async function fetchText(url) {
-      return (await request(url)).text();
+      return decodeText(await request(url));
     }
     async function fetchDoc(url) {
       return parser.parseFromString(await fetchText(url), "text/html");
@@ -2323,7 +2433,7 @@ ${stripTags(c.xhtml)}`).join("\n");
       return parser.parseFromString(`<body>${html}</body>`, "text/html").body;
     }
     async function fetchBytes(url) {
-      return new Uint8Array(await (await request(url)).arrayBuffer());
+      return request(url);
     }
     return { fetchText, fetchDoc, fetchBytes, parseFragment, progress: report, signal };
   }

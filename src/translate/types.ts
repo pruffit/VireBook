@@ -12,8 +12,14 @@ export interface TranslateResult {
 export interface Translator {
   /** Technical identifier, for logic and tests — never shown to anyone. */
   id: string;
-  /** `from` may be `auto`. Batching and pacing are the engine's own concern. */
-  translate(htmlSegments: string[], from: string, to: string, signal?: AbortSignal): Promise<TranslateResult>;
+  /** `from` may be `auto`. Batching and pacing are the engine's own concern; `notice` tells the panel about a wait. */
+  translate(
+    htmlSegments: string[],
+    from: string,
+    to: string,
+    signal?: AbortSignal,
+    notice?: (text: string) => void,
+  ): Promise<TranslateResult>;
 }
 
 export interface TranslateLanguage {
