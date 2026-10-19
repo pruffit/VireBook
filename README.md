@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://github.com/pruffit/VireBook/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/pruffit/VireBook/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-informational"></a>
-  <a href="CHANGELOG.md"><img alt="Version 1.3.0" src="https://img.shields.io/badge/version-1.3.0-success"></a>
+  <a href="CHANGELOG.md"><img alt="Version 1.6.0" src="https://img.shields.io/badge/version-1.6.0-success"></a>
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-3178c6">
   <img alt="Manifest V3" src="https://img.shields.io/badge/Chrome-Manifest%20V3-blue">
   <img alt="No runtime dependencies" src="https://img.shields.io/badge/runtime%20dependencies-none-brightgreen">
@@ -224,8 +224,10 @@ anything here:
   needs thickness, a bevel and presence.
 
   The body — how much medium stands between the page and the eye, and which way
-  it tints — is `resolveBody`/`withPresence` from the package, and CSS only
-  paints what they return.
+  it tints — is `bodyLayer` from the package (one translucent layer, lighter than
+  its surround on every backdrop), and CSS only paints what it returns. The rim is
+  `rimGradientCss`: a thin line round the whole contour, stronger where the
+  surround is light.
 
 - **The backdrop is read from declared styles, not from pixels**, which is the
   package's documented limit and not a shortcut: the browser never hands a

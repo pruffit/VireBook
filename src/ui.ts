@@ -124,9 +124,10 @@ const CSS = `
   background: var(--vireglass-glow, none);
   opacity: var(--vireglass-glow-opacity, 0);
 }
-/* The hairline: two opposing arcs of the key light and a dark edge, all out of
-   the material. A ring rather than a fill — the same box painted twice, once
-   clipped to the content box, and composited so only the padding band survives.
+/* The hairline: a light line round the whole contour, brighter toward the key
+   light, over a dark edge, all out of the material. A ring rather than a fill —
+   the same box painted twice, once clipped to the content box, and composited so
+   only the padding band survives.
    The trick is the package's own; it lives here because the stylesheet that
    carries it in the package hangs on document.head and cannot reach a shadow
    tree. */

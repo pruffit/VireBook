@@ -2358,10 +2358,11 @@ ${stripTags(c.xhtml)}`).join("\n");
   }
 
   // src/core.ts
-  var RETRY_STATUS2 = /* @__PURE__ */ new Set([408, 425, 429, 500, 502, 503, 504]);
+  var RETRY_STATUS2 = /* @__PURE__ */ new Set([408, 425, 429, 500, 502, 503, 504, 520, 521, 522, 523, 524, 525]);
   var MAX_ATTEMPTS = 5;
   var MAX_WAIT2 = 6e4;
   var SLOW_DOWN = /* @__PURE__ */ new Set([429, 503]);
+  var ORIGIN_DOWN = /* @__PURE__ */ new Set([520, 521, 522, 523, 524, 525]);
   function httpMessage(status) {
     if (status === 429) return "The site limited the request rate. Wait a couple of minutes and try again.";
     if (status === 403) return "The site refused the page (403) \u2014 check that the book opens in a normal tab.";
@@ -2369,7 +2370,7 @@ ${stripTags(c.xhtml)}`).join("\n");
     if (status >= 500) return `The site is answering with error ${status} \u2014 try later.`;
     return `HTTP ${status}`;
   }
-  function makeContext({ progress, signal, pacing, fetch: fetchFn, timing }) {
+  function makeContext({ progress, signal, pacing, fetch: fetchFn, timing, backoffBase }) {
     const parser = new DOMParser();
     const report = progress || (() => {
     });
@@ -2381,9 +2382,11 @@ ${stripTags(c.xhtml)}`).join("\n");
     });
     const aborted = () => Boolean(signal && signal.aborted);
     async function pause(attempt, floor, status) {
-      const delay = backoffDelay(attempt, { floor, max: MAX_WAIT2 });
+      const delay = backoffDelay(attempt, { base: backoffBase, floor, max: MAX_WAIT2 });
       if (SLOW_DOWN.has(status)) {
         report(`The site asked us to slow down \u2014 continuing in ${Math.ceil(delay / 1e3)} s\u2026`);
+      } else if (ORIGIN_DOWN.has(status)) {
+        report(`The site is not answering (error ${status}) \u2014 trying again in ${Math.ceil(delay / 1e3)} s\u2026`);
       }
       await sleep(delay, signal);
     }
@@ -2505,7 +2508,7 @@ ${stripTags(c.xhtml)}`).join("\n");
     }, 2e4);
   }
 
-  // node_modules/vireglass/dist/chunk-MMPK6DCK.js
+  // node_modules/vireglass/dist/chunk-CPSIY2DZ.js
   var RIM = {
     /**
      * The key-light lobe's exponent. Two opposing arcs come out of one expression, which is why
@@ -2530,7 +2533,47 @@ ${stripTags(c.xhtml)}`).join("\n");
      */
     darkEdge: 0.22,
     /** Width of the hairline, CSS px. "About a point, not a band and not a bevel" (§2). */
-    widthPx: 1
+    widthPx: 1,
+    /**
+     * How strongly the line is drawn, by the lightness around the element. The rim is a reflection
+     * of the surroundings, so it is faint over a dark one and plain over a bright one, not white at
+     * full strength everywhere (§2, §6).
+     *
+     * MEASURED off the controls of A 2:17 (over dark video), M 2:52 (over sky) and A 2:18 (over
+     * grass), as the brightest rim bin's OKLab lightness over the surround's: 0.24 to 0.27 over dark,
+     * 0.25 over sky, 0.37 over grass. Through the DOM path onto the same backdrops these land within
+     * 0.08 of the smooth rows (docs/dom.md); a line white at full strength reads 0.70 to 0.80 over the
+     * dark frames.
+     */
+    strengthDark: 0.37,
+    strengthLight: 0.95,
+    /**
+     * The surround lightness between which the strength moves from one to the other. UNMEASURED: the
+     * two ends are, and the controls in between were not looked for.
+     */
+    ambientFrom: 0.15,
+    ambientTo: 0.45,
+    /**
+     * The share of the line's width, from the silhouette inward, that the light line leaves to the
+     * dark edge. UNMEASURED: without it the line covers the dark edge and an element over a bright
+     * flat backdrop loses the one mark that holds it there.
+     */
+    lineInset: 0.3,
+    /**
+     * The share of the peak that the line keeps along the whole contour, away from the key light.
+     * MEASURED: the reference line goes all the way round. Its dimmest bin sits 0.06 to 0.12 of
+     * lightness over the surround on the dark frames, against a peak of 0.24 to 0.27 (A 2:17).
+     */
+    contour: 0.3,
+    /** How far the line's colour is lifted from the surroundings' toward white. UNMEASURED: the
+     *  lens always had 0.75 here, and this is that figure with a name. */
+    whiteShare: 0.75,
+    /**
+     * The reflectance (`fresnelStrength`) at which the line is drawn at the strengths above: that
+     * of ordinary glass, index 1.5. A denser medium does not draw it brighter than they say; a
+     * thinner one draws it fainter. UNMEASURED.
+     */
+    reflectanceRef: 0.7
   };
   var BODY3 = {
     /** Lightness ceiling for the body when legibility is loose. */
@@ -2544,10 +2587,14 @@ ${stripTags(c.xhtml)}`).join("\n");
     busyEdge: 0.75,
     /** Fine texture the body has to stop being a window for. */
     groundSpan: 0.06,
-    /** Where the tint flips direction, by the element's AVERAGE lightness — a local threshold cuts
-     *  a diagonal step across the body on a gradient. */
-    darkSideFrom: 0.42,
-    darkSideTo: 0.58,
+    /**
+     * The spread under the element at which the ink's legibility requirement starts to bind, and the
+     * spread where it binds fully. Over a flat backdrop polarity flips before the ink drowns, so
+     * the body does not darken under a light glyph there; over texture it does. UNMEASURED: the
+     * reference shows a lighter body under a white glyph over sky, nothing about texture.
+     */
+    inkBusyFrom: 0.02,
+    inkBusyTo: 0.12,
     /** Ceiling on any single demand, so one requirement cannot make the glass opaque on its own. */
     maxDemand: 0.92,
     /**
@@ -2556,7 +2603,13 @@ ${stripTags(c.xhtml)}`).join("\n");
      * separation is the ceiling, and glass at `maxDemand` has stopped being a window. Better to
      * separate as far as transparency allows and no further. UNMEASURED.
      */
-    presenceDemand: 0.5
+    presenceDemand: 0.5,
+    /**
+     * The density at which the body is wholly the ink's own pole. Between `presenceDemand` and this
+     * the body moves from the light a thin body carries to the pole: a density no presence floor
+     * reaches is one the ink's legibility, or a system setting, has asked for. UNMEASURED.
+     */
+    inkPoleTo: 0.8
   };
   var SHADOW = {
     /**
@@ -2937,7 +2990,7 @@ ${stripTags(c.xhtml)}`).join("\n");
     hardAlpha: 0.18
   };
 
-  // node_modules/vireglass/dist/chunk-SLRPHDV7.js
+  // node_modules/vireglass/dist/chunk-Z4FKYY47.js
   var roundedRectGeometry = (width, height, cornerRadius) => ({ width, height, cornerRadius });
   var halfMinDp = (g) => Math.max(Math.min(g.width, g.height) / 2, 1);
   var MAX_STRETCH = 0.34;
@@ -2962,7 +3015,7 @@ ${stripTags(c.xhtml)}`).join("\n");
     return Math.round(shadowOpacity(sample.busy) / SHADOW_DENSITY.step) * SHADOW_DENSITY.step;
   }
 
-  // node_modules/vireglass/dist/chunk-H5QTBF67.js
+  // node_modules/vireglass/dist/chunk-YAN2OK4H.js
   var clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
   var clamp01 = (v) => clamp(v, 0, 1);
   var fresnelF0 = (ior) => ((ior - 1) / (ior + 1)) ** 2;
@@ -3050,7 +3103,7 @@ ${stripTags(c.xhtml)}`).join("\n");
     thickness: 44,
     bevel: 8,
     roughness: 0.035,
-    presence: 0.176
+    presence: 0
   };
   var VIREGLASS_MATERIAL = VIREGLASS_MATERIAL_V5;
   function materialForInk(material, carriesInk) {
@@ -3832,7 +3885,11 @@ half4 main(float2 xy) {
   float rimKey = u_specular * (pow(max(rimFacing, 0.0), ${RIM.lobeExponent}.0) + ${RIM.opposingArc} * pow(max(-rimFacing, 0.0), ${RIM.lobeExponent}.0));
   // Wherever the key light doesn't fall, the face reflects its shaded surroundings \u2014 hence the
   // dark outline.
-  float3 env = refl * (0.55 + 0.45 * min(key, 1.0)) + float3(1.2 * key);
+  // The key light's glint is a reflection of the surroundings too: it is scaled by the same
+  // ambient strength as the rim line, so it is not white at full strength over a dark backdrop.
+  float rimStrength = mix(${RIM.strengthDark}, ${RIM.strengthLight},
+    smoothstep(${RIM.ambientFrom}, ${RIM.ambientTo}, vgLuma(ambient)));
+  float3 env = refl * (0.55 + 0.45 * min(key, 1.0)) + float3(1.2 * key * rimStrength / ${RIM.strengthLight});
 
   // Interference and diffraction live in the reflected ray at a grazing angle \u2014 a single hue
   // multiplier applied to the reflection, no extra samples.
@@ -3908,12 +3965,10 @@ half4 main(float2 xy) {
   // transparent glass by the model.
   float demand = clamp(u_legibility * 4.0, 0.0, 1.0);
 
-  // Where there's no ink, the glass tints away from the backdrop. The direction is chosen by the
-  // average lightness under the element, not the local spot's lightness: otherwise on a gradient
-  // the threshold cuts across the body as a diagonal step.
-  float darkSide = smoothstep(${BODY3.darkSideFrom}, ${BODY3.darkSideTo}, mean);
-  float away = mix(VG_TINT_LIGHT, VG_TINT_DARK, darkSide);
-  float tintLuma = mix(away, mix(VG_TINT_LIGHT, VG_TINT_DARK, pol), demand);
+  // The body is lighter than its surroundings whatever the glyph on it is: glass concentrates
+  // light (M 2:29), and the reference keeps a lighter body under a white glyph over sky as much as
+  // over dark. Only a requirement of the ink pulls it to the ink's own pole, below.
+  float inkPole = mix(VG_TINT_LIGHT, VG_TINT_DARK, pol);
 
   // How much medium it takes to push lightness under the ink past the threshold \u2014 locally.
   // Computed from whichever edge of the backdrop's spread is closer to the ink: a light ink
@@ -3928,32 +3983,22 @@ half4 main(float2 xy) {
   float needForDark = inkLo < floorDark
     ? clamp((floorDark - inkLo) / max(VG_TINT_LIGHT - inkLo, 1e-4), 0.0, ${BODY3.maxDemand})
     : 0.0;
-  float needForInk = mix(needForDark, needForLight, pol) * demand;
+  // Over a flat backdrop the ink asks for nothing: polarity flips before it drowns. It is spread
+  // under the ink that the body has to answer.
+  float structured = smoothstep(${BODY3.inkBusyFrom}, ${BODY3.inkBusyTo}, busy);
+  float needForInk = mix(needForDark, needForLight, pol) * demand * structured;
 
   float ground = structure * u_legibility * VG_GROUND_SPAN;
   float density = max(max(u_bodyDensity, ground), needForInk);
 
   // PRESENCE (\xA73). Over a uniform backdrop there is nothing to refract, and an element that is
-  // only a rim honestly disappears \u2014 right for a piece of background, wrong for a control.
-  //
-  // This used to live on the rim line alone, as lit = max(rimKey, u_presence x 2), while the
-  // DOM path has always implemented it as a floor on the BODY. Two renderers, one field, two
-  // meanings. Measured on Apple's own control over a flat page (frames/verify/m-707), the body
-  // carries 16 levels of separation there and the rim 11.6 \u2014 so the body is where it belongs,
-  // and the rim's reading was the wrong one.
-  // The separation asked for is capped by the range that is left: over a backdrop at 0.96 there
-  // is no room to go 0.05 lighter. And what it is DIVIDED by is the distance to the tint's own
-  // end, not to the tint the body currently sits at \u2014 dividing by the latter explodes wherever
-  // the two are close, which is how the first version of this drove density to its ceiling at
-  // both extremes and took the window down to 7%.
-  bool lighter = local < 0.5;
-  float target = lighter ? min(local + u_presence, 1.0) : max(local - u_presence, 0.0);
-  float separation = abs(target - local);
-  float reached = abs(tintLuma - local) * density;
-  if (u_presence > 0.0 && reached < separation) {
-    float toEnd = abs((lighter ? VG_TINT_LIGHT : VG_TINT_DARK) - local);
-    density = max(density, min(separation / max(toEnd, 1e-4), ${BODY3.maxDemand}));
+  // only a rim honestly disappears \u2014 right for a piece of background, wrong for a control. A floor
+  // on the density, toward light: the lift it gives is presence times the room left under the
+  // light pole, so it fades out as the room does and has no step anywhere on the scale.
+  if (u_presence > 0.0) {
+    density = max(density, min(u_presence / VG_TINT_LIGHT, ${BODY3.presenceDemand}));
   }
+  float tintLuma = mix(VG_TINT_LIGHT, inkPole, max(clamp(needForInk / max(density, 1e-4), 0.0, 1.0), smoothstep(${BODY3.presenceDemand}, ${BODY3.inkPoleTo}, density)));
 
   // Glass has no color of its own \u2014 only the color of what's beneath it (HIG "Color").
   float3 tintHue = mix(float3(1.0), vgHue(wide * 0.5 + ambient * 0.5), u_colorPickup);
@@ -3993,17 +4038,18 @@ half4 main(float2 xy) {
   }
 
   // RIM LIGHT \u2014 a separate layer, a line about 1 pt wide along the silhouette (M 2:36, 11:04):
-  // brighter where the face faces the key light, weaker opposite it; where no light falls, a
-  // dark outline. This line is what holds the element's presence, not a fill on the body: over a
-  // flat backdrop a control is visible along its whole silhouette because of it.
-  float line = (1.0 - smoothstep(0.0, lineW, e)) * lens;
+  // brighter where the face faces the key light, weaker opposite it, and never absent: the line
+  // runs the whole contour. It is a reflection of the surroundings, so it is faint over a dark
+  // one and plain over a bright one (\xA72, \xA76).
+  float line = smoothstep(0.0, lineW * ${RIM.lineInset}, e) * (1.0 - smoothstep(lineW * ${RIM.lineInset}, lineW, e)) * lens;
   float outline = (1.0 - smoothstep(0.0, lineW * 0.6, e)) * lens;
-  float lit = clamp(max(rimKey * 1.4, u_presence * 2.0), 0.0, 1.0);
+  float reflectN = min(u_fresnel / ${RIM.reflectanceRef}, 1.0);
+  float lit = clamp(rimStrength * reflectN * (${RIM.contour} + (1.0 - ${RIM.contour}) * rimKey / max(u_fresnel, 0.001)), 0.0, 1.0);
   // The dark rim is its own layer around the whole silhouette, and the highlight sits ON TOP of
   // it (iOS 27). While the outline used to fade via a (1 \u2212 lit) multiplier, the silhouette read
   // as a single arc: highlight OR shadow.
   rgb *= 1.0 - ${RIM.darkEdge} * outline;
-  rgb = mix(rgb, mix(refl, float3(1.0), 0.75), line * lit);
+  rgb = mix(rgb, mix(refl, float3(1.0), ${RIM.whiteShare}), line * lit);
 
   if (u_debug > 9.5 && u_debug < 10.5) { rgb = spectral * 0.5; }
   if (u_debug > 10.5 && u_debug < 11.5) { rgb = float3(density, needForInk, structure); }
@@ -4038,7 +4084,7 @@ half4 main(float2 xy) {
   var FLIP_LUMA = 0.62;
   var RETURN_LUMA = 0.5;
 
-  // node_modules/vireglass/dist/chunk-CTTZNZFV.js
+  // node_modules/vireglass/dist/chunk-VLDD655U.js
   var LUMA = [0.2126, 0.7152, 0.0722];
   var luma = (c) => c[0] * LUMA[0] + c[1] * LUMA[1] + c[2] * LUMA[2];
   function shadowTint(ambient) {
@@ -4555,8 +4601,10 @@ half4 main(float2 xy) {
     tintLight: TINT_LIGHT,
     groundSpan: GROUND_SPAN,
     busyEdge: BUSY_EDGE,
-    darkSideFrom: DARK_SIDE_FROM,
-    darkSideTo: DARK_SIDE_TO,
+    inkBusyFrom: INK_BUSY_FROM,
+    inkBusyTo: INK_BUSY_TO,
+    inkPoleTo: INK_POLE_TO,
+    presenceDemand: PRESENCE_DEMAND,
     maxDemand: MAX_DEMAND
   } = BODY3;
   var clamp3 = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
@@ -4564,6 +4612,10 @@ half4 main(float2 xy) {
   function smoothstep2(edge0, edge1, x) {
     const t = clamp3((x - edge0) / (edge1 - edge0), 0, 1);
     return t * t * (3 - 2 * t);
+  }
+  function tintFor(density, need, pole) {
+    const asked = Math.max(clamp3(need / Math.max(density, 1e-4), 0, 1), smoothstep2(PRESENCE_DEMAND, INK_POLE_TO, density));
+    return mix(TINT_LIGHT, pole, asked);
   }
   function resolveBody(optics, sample, ink) {
     const strict = clamp3(optics.legibility * 2, 0, 1);
@@ -4573,33 +4625,45 @@ half4 main(float2 xy) {
     const demand = clamp3(optics.legibility * 4, 0, 1);
     const mean = clamp3(sample.luma, 0, 1);
     const busy = Math.max(sample.busy, 0);
-    const darkSide = smoothstep2(DARK_SIDE_FROM, DARK_SIDE_TO, mean);
-    const away = mix(TINT_LIGHT, TINT_DARK, darkSide);
-    const tintLuma = mix(away, mix(TINT_LIGHT, TINT_DARK, pol), demand);
+    const pole = mix(TINT_LIGHT, TINT_DARK, pol);
     const edge = busy * BUSY_EDGE;
     const inkHi = Math.min(mean + edge, 1);
     const inkLo = Math.max(mean - edge, 0);
     const needForLight = inkHi > capLight ? clamp3((inkHi - capLight) / Math.max(inkHi - TINT_DARK, 1e-4), 0, MAX_DEMAND) : 0;
     const needForDark = inkLo < floorDark ? clamp3((floorDark - inkLo) / Math.max(TINT_LIGHT - inkLo, 1e-4), 0, MAX_DEMAND) : 0;
-    const needForInk = mix(needForDark, needForLight, pol) * demand;
+    const structured = smoothstep2(INK_BUSY_FROM, INK_BUSY_TO, busy);
+    const needForInk = mix(needForDark, needForLight, pol) * demand * structured;
     const ground = busy * optics.legibility * GROUND_SPAN;
-    return { density: Math.max(Math.max(optics.bodyDensity, ground), needForInk), tintLuma };
+    const density = Math.max(Math.max(optics.bodyDensity, ground), needForInk);
+    return { density, tintLuma: tintFor(density, needForInk, pole), need: needForInk, pole };
   }
-  function withPresence(body, optics, sample) {
+  function withPresence(body, optics, _sample) {
     if (optics.presence <= 0) return body;
-    const mean = clamp3(sample.luma, 0, 1);
-    const above = Math.abs(body.tintLuma - mean) > 1e-4 ? body.tintLuma > mean : mean < 0.5;
-    const pole = above ? TINT_LIGHT : TINT_DARK;
-    const separation = Math.min(optics.presence, Math.abs(pole - mean));
-    const reached = Math.abs(body.tintLuma - mean) * body.density;
-    if (reached >= separation) return body;
-    const needed = separation / Math.max(Math.abs(pole - mean), 1e-4);
-    return {
-      density: Math.max(body.density, Math.min(needed, BODY3.presenceDemand)),
-      // Left where the tint law put it, unless it landed exactly on the backdrop — which is the
-      // case that used to be created here rather than avoided.
-      tintLuma: Math.abs(body.tintLuma - mean) > 1e-4 ? body.tintLuma : pole
+    const density = Math.max(body.density, Math.min(optics.presence / TINT_LIGHT, PRESENCE_DEMAND));
+    return { ...body, density, tintLuma: tintFor(density, body.need, body.pole) };
+  }
+  function hueOf(c) {
+    const l = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    if (l < 0.02) return [1, 1, 1];
+    return [clamp3(c[0] / l, 0, 2), clamp3(c[1] / l, 0, 2), clamp3(c[2] / l, 0, 2)];
+  }
+  function bodyLayer(optics, sample, ink, ambient, appear = 1) {
+    const a = clamp3(appear, 0, 1);
+    const body = withPresence(resolveBody(optics, sample, ink), optics);
+    const hue = hueOf(ambient);
+    const pickup = clamp3(optics.colorPickup, 0, 1);
+    const density = clamp3(body.density * a, 0, 1);
+    const matte = optics.legibility * MEDIUM.matteLift * a;
+    const pull = MEDIUM.pull * a;
+    const spill = optics.edgeLight * MEDIUM.ambientSpill * a;
+    const lift = MEDIUM.concentrate * a;
+    const alpha = 1 - (1 - lift) * (1 - pull) * (1 - density);
+    const channel = (i) => {
+      const tintHue = mix(1, hue[i], pickup);
+      const added = (1 - pull) * (density * tintHue * body.tintLuma + matte * tintHue) + pull * hue[i] * MEDIUM.luma + ambient[i] * spill;
+      return alpha > 1e-6 ? clamp3(((1 - lift) * added + lift) / alpha, 0, 1) : 0;
     };
+    return { r: channel(0), g: channel(1), b: channel(2), alpha };
   }
   var QUERIES = {
     reduceTransparency: "(prefers-reduced-transparency: reduce)",
@@ -4639,7 +4703,14 @@ half4 main(float2 xy) {
       for (const list of lists) list.removeEventListener("change", handler);
     };
   }
-  var { lobeExponent: LOBE_EXPONENT, opposingArc: OPPOSING_ARC, darkEdge: DARK_EDGE } = RIM;
+  var {
+    lobeExponent: LOBE_EXPONENT,
+    opposingArc: OPPOSING_ARC,
+    darkEdge: DARK_EDGE,
+    contour: CONTOUR,
+    whiteShare: WHITE_SHARE,
+    reflectanceRef: REFLECTANCE_REF
+  } = RIM;
   var STOPS = 48;
   function lightConicAngle(light) {
     const [lx, ly] = light;
@@ -4654,30 +4725,48 @@ half4 main(float2 xy) {
   }
   var clamp0122 = (v) => v < 0 ? 0 : v > 1 ? 1 : v;
   var to2552 = (v) => Math.round(clamp0122(v) * 255);
+  var mixTo = (a, b, t) => a + (b - a) * t;
+  function smoothstep3(edge0, edge1, x) {
+    const t = clamp0122((x - edge0) / (edge1 - edge0));
+    return t * t * (3 - 2 * t);
+  }
+  function ambientLuma(ambient) {
+    return 0.2126 * ambient[0] + 0.7152 * ambient[1] + 0.0722 * ambient[2];
+  }
+  function rimStrength(luma22) {
+    return mixTo(RIM.strengthDark, RIM.strengthLight, smoothstep3(RIM.ambientFrom, RIM.ambientTo, luma22));
+  }
+  function rimLineAlpha(deltaDeg, optics, luma22) {
+    const reflect = Math.min(optics.fresnel / REFLECTANCE_REF, 1);
+    const damping = optics.fresnel > 0 ? optics.specular / optics.fresnel : 0;
+    const lobe = rimLobe(deltaDeg, damping);
+    return clamp0122(rimStrength(luma22) * reflect * (CONTOUR + (1 - CONTOUR) * lobe));
+  }
   function rimGradientCss(optics, ambient, light, appear = 1) {
     const present = clamp0122(appear);
     const start = lightConicAngle(light);
     const [ar, ag, ab] = ambient;
-    const stops = [];
+    const luma22 = ambientLuma(ambient);
+    const line = [];
     for (let i = 0; i <= STOPS; i += 1) {
       const angle = i / STOPS * 360;
-      const key = rimLobe(angle, optics.specular);
       const facing = Math.cos(angle * Math.PI / 180);
       const fringe = facing < 0 ? optics.iridescence * OPPOSING_ARC : 0;
-      const lift = clamp0122(key * optics.fresnel);
-      const r = ar + (1 - ar) * clamp0122(lift + fringe);
-      const g = ag + (1 - ag) * lift;
-      const b = ab + (1 - ab) * clamp0122(lift - fringe);
-      const alpha = clamp0122(DARK_EDGE + lift * (1 - DARK_EDGE)) * present;
-      const colour = lift > 1e-3 ? `rgba(${to2552(r)},${to2552(g)},${to2552(b)},${alpha.toFixed(3)})` : `rgba(0,0,0,${alpha.toFixed(3)})`;
-      stops.push(`${colour} ${angle.toFixed(1)}deg`);
+      const r = ar + (1 - ar) * clamp0122(WHITE_SHARE + fringe);
+      const g = ag + (1 - ag) * WHITE_SHARE;
+      const b = ab + (1 - ab) * clamp0122(WHITE_SHARE - fringe);
+      const alpha = rimLineAlpha(angle, optics, luma22) * present;
+      line.push(`rgba(${to2552(r)},${to2552(g)},${to2552(b)},${alpha.toFixed(3)}) ${angle.toFixed(1)}deg`);
     }
-    return `conic-gradient(from ${start.toFixed(1)}deg, ${stops.join(", ")})`;
+    const dark = `rgba(0,0,0,${(DARK_EDGE * present).toFixed(3)})`;
+    return `conic-gradient(from ${start.toFixed(1)}deg, ${line.join(", ")}), conic-gradient(${dark} 0deg, ${dark} 360deg)`;
   }
   var RIM_WIDTH_PX = RIM.widthPx;
-  function contrastRimCss(bodyLuma, rimLuma) {
+  function contrastRimCss(bodyLuma, rimLuma, appear = 1) {
     const v = to2552(rimLuma);
-    return `conic-gradient(rgb(${v},${v},${v}) 0deg, rgb(${v},${v},${v}) 360deg)`;
+    const present = clamp0122(appear);
+    const colour = present >= 1 ? `rgb(${v},${v},${v})` : `rgba(${v},${v},${v},${present.toFixed(3)})`;
+    return `conic-gradient(${colour} 0deg, ${colour} 360deg)`;
   }
   var TOUCH_RADIUS_FRACTION = TOUCH.radiusOfHalfSize;
   var WAVE_OF_TRAVEL = TOUCH.waveOfTravel;
@@ -4690,6 +4779,7 @@ half4 main(float2 xy) {
   );
   var SVG_NS = "http://www.w3.org/2000/svg";
   var FILTER_ID = "vg-refract";
+  var APPEAR = 1;
   var IDLE = { pullX: 0, pullY: 0, press: 0, active: 0 };
   var to2553 = (v) => Math.round(Math.min(Math.max(v, 0), 1) * 255);
   function createGlass({ root, layers, slack }) {
@@ -4880,19 +4970,19 @@ half4 main(float2 xy) {
       sample = probeBackdrop(shell);
       inkLight = shouldInkBeLight(sample, inkLight);
       const polarity = inkLight ? 1 : 0;
-      const body = withPresence(resolveBody(o, sample, polarity), o, sample);
       const [ar, ag, ab] = ambientFrom(sample);
-      const hue = (c) => body.tintLuma + (c - body.tintLuma) * o.colorPickup;
+      const layer = bodyLayer(o, sample, polarity, [ar, ag, ab], APPEAR);
       tint.style.setProperty(
         "--vireglass-body-color",
-        `rgba(${to2553(hue(ar))}, ${to2553(hue(ag))}, ${to2553(hue(ab))}, ${body.density.toFixed(3)})`
+        `rgba(${to2553(layer.r)}, ${to2553(layer.g)}, ${to2553(layer.b)}, ${layer.alpha.toFixed(3)})`
       );
+      const pole = withPresence(resolveBody(o, sample, polarity), o, sample).tintLuma;
       rim.style.setProperty(
         "--vireglass-rim",
-        a11y.increaseContrast ? contrastRimCss(body.tintLuma, contrastRimLuma(body.tintLuma)) : rimGradientCss(o, [ar, ag, ab], REST_LIGHT)
+        a11y.increaseContrast ? contrastRimCss(pole, contrastRimLuma(pole), APPEAR) : rimGradientCss(o, [ar, ag, ab], REST_LIGHT, APPEAR)
       );
       rim.style.setProperty("--vireglass-rim-width", `${RIM_WIDTH_PX}px`);
-      shell.style.boxShadow = boxShadowCss(geometry, sample);
+      shell.style.boxShadow = boxShadowCss(geometry, sample, APPEAR);
       if (svgSupported) {
         reshape(geometry.width, geometry.height, geometry.cornerRadius);
         return;
@@ -5071,9 +5161,10 @@ half4 main(float2 xy) {
   background: var(--vireglass-glow, none);
   opacity: var(--vireglass-glow-opacity, 0);
 }
-/* The hairline: two opposing arcs of the key light and a dark edge, all out of
-   the material. A ring rather than a fill \u2014 the same box painted twice, once
-   clipped to the content box, and composited so only the padding band survives.
+/* The hairline: a light line round the whole contour, brighter toward the key
+   light, over a dark edge, all out of the material. A ring rather than a fill \u2014
+   the same box painted twice, once clipped to the content box, and composited so
+   only the padding band survives.
    The trick is the package's own; it lives here because the stylesheet that
    carries it in the package hangs on document.head and cannot reach a shadow
    tree. */

@@ -3,6 +3,23 @@
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 the numbering [SemVer](https://semver.org/).
 
+## [1.6.0] — 2026-10-19
+
+### Changed
+
+- **The panel is glass on VireGlass 3.** The rim is now a thin line round the whole contour, stronger
+  over a light page and softer over a dark one, instead of two arcs at opposite corners that read as
+  a broken outline in Yandex Browser and Chrome. The body is lighter than the page under it on light,
+  dark and busy backgrounds alike, so the button and the pane stand off the page, and the lettering
+  stays legible on all three. Under increased contrast the border is solid and follows the panel.
+
+### Fixed
+
+- **Cloudflare's origin errors no longer stop a download at once.** A work on AO3 answering 525 (or
+  520 to 524) used to fail on the first attempt with "the site is answering with error 525". Those
+  statuses are now retried with the same backoff as the other server errors, and the message appears
+  only after the last attempt. 526, 527 and 530 are not transient and still fail at once.
+
 ## [1.5.1] — 2026-10-17
 
 ### Fixed
