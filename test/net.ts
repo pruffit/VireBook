@@ -161,12 +161,25 @@ await test('a 525 that never clears fails after the attempts, with the 5xx messa
   assertEq(s.calls(), 5, 'every attempt was made');
 });
 
-await test('526 is not transient and is not retried', async () => {
-  const s = script(async () => new Response('', { status: 526 }));
-  const ctx = makeContext({ fetch: s.fn, timing: FAST, pacing: { interval: 1 }, backoffBase: 1 });
-  await rejects(ctx.fetchText('https://x/1'), /526/, '526');
-  assertEq(s.calls(), 1, 'one request');
-});
+for (const status of [520, 524]) {
+  await test(`${status} is retried, and the panel says it is waiting`, async () => {
+    const s = script(async () => new Response('', { status }), page('<p>ok</p>'));
+    const said: string[] = [];
+    const ctx = makeContext({ fetch: s.fn, timing: FAST, pacing: { interval: 1 }, backoffBase: 1, progress: (text) => said.push(text) });
+    assertEq(await ctx.fetchText('https://x/1'), '<p>ok</p>', 'the retry arrived');
+    assertEq(s.calls(), 2, 'one ' + status + ', one good');
+    assertEq(said.some((t) => t.includes(`error ${status}`) && t.includes('trying again')), true, 'the wait is reported');
+  });
+}
+
+for (const status of [526, 527, 530]) {
+  await test(`${status} is not transient and is not retried`, async () => {
+    const s = script(async () => new Response('', { status }));
+    const ctx = makeContext({ fetch: s.fn, timing: FAST, pacing: { interval: 1 }, backoffBase: 1 });
+    await rejects(ctx.fetchText('https://x/1'), new RegExp(String(status)), String(status));
+    assertEq(s.calls(), 1, 'one request');
+  });
+}
 
 await test('one outage clock for the whole download: once it is over, the next request fails at once', async () => {
   const ctx = makeContext({ fetch: drop, timing: { ...FAST, grace: 400 }, pacing: { interval: 1 } });

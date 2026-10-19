@@ -2362,6 +2362,7 @@ ${stripTags(c.xhtml)}`).join("\n");
   var MAX_ATTEMPTS = 5;
   var MAX_WAIT2 = 6e4;
   var SLOW_DOWN = /* @__PURE__ */ new Set([429, 503]);
+  var ORIGIN_DOWN = /* @__PURE__ */ new Set([520, 521, 522, 523, 524, 525]);
   function httpMessage(status) {
     if (status === 429) return "The site limited the request rate. Wait a couple of minutes and try again.";
     if (status === 403) return "The site refused the page (403) \u2014 check that the book opens in a normal tab.";
@@ -2384,6 +2385,8 @@ ${stripTags(c.xhtml)}`).join("\n");
       const delay = backoffDelay(attempt, { base: backoffBase, floor, max: MAX_WAIT2 });
       if (SLOW_DOWN.has(status)) {
         report(`The site asked us to slow down \u2014 continuing in ${Math.ceil(delay / 1e3)} s\u2026`);
+      } else if (ORIGIN_DOWN.has(status)) {
+        report(`The site is not answering (error ${status}) \u2014 trying again in ${Math.ceil(delay / 1e3)} s\u2026`);
       }
       await sleep(delay, signal);
     }
@@ -5159,8 +5162,9 @@ half4 main(float2 xy) {
   opacity: var(--vireglass-glow-opacity, 0);
 }
 /* The hairline: a light line round the whole contour, brighter toward the key
-   light, over a dark edge, all out of the material. A ring rather than a fill \u2014 the same box painted twice, once
-   clipped to the content box, and composited so only the padding band survives.
+   light, over a dark edge, all out of the material. A ring rather than a fill \u2014
+   the same box painted twice, once clipped to the content box, and composited so
+   only the padding band survives.
    The trick is the package's own; it lives here because the stylesheet that
    carries it in the package hangs on document.head and cannot reach a shadow
    tree. */

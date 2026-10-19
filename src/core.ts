@@ -21,6 +21,7 @@ const RETRY_STATUS = new Set([408, 425, 429, 500, 502, 503, 504, 520, 521, 522, 
 const MAX_ATTEMPTS = 5;
 const MAX_WAIT = 60000;
 const SLOW_DOWN = new Set([429, 503]);
+const ORIGIN_DOWN = new Set([520, 521, 522, 523, 524, 525]);
 
 function httpMessage(status: number): string {
   if (status === 429) return 'The site limited the request rate. Wait a couple of minutes and try again.';
@@ -58,6 +59,8 @@ export function makeContext({ progress, signal, pacing, fetch: fetchFn, timing, 
     // 3 of 40" and looks hung.
     if (SLOW_DOWN.has(status)) {
       report(`The site asked us to slow down — continuing in ${Math.ceil(delay / 1000)} s…`);
+    } else if (ORIGIN_DOWN.has(status)) {
+      report(`The site is not answering (error ${status}) — trying again in ${Math.ceil(delay / 1000)} s…`);
     }
     await sleep(delay, signal);
   }
