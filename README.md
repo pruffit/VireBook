@@ -32,11 +32,13 @@ DOM, not a CSS shadow. The pane can be thrown into any corner of the window.
 
 ## Installing
 
-1. Download the repository (Code → Download ZIP) and unpack it, or `git clone` it.
+1. Download **VireBook-x.y.z.zip** from the [latest release](https://github.com/pruffit/VireBook/releases/latest)
+   (not "Source code") and unpack it. Or `git clone` the repository.
 2. Open `chrome://extensions` (in Yandex Browser, `browser://extensions`).
 3. Turn on **Developer mode** — the toggle at the top right.
-4. Press **Load unpacked** and point at the repository folder (the one with
-   `manifest.json` in it).
+4. Press **Load unpacked** and point at the unpacked folder: `manifest.json` is
+   right inside it. (A "Source code" archive nests the files one folder deeper,
+   and the browser then says the manifest is missing.)
 5. Done. The icon appears to the right of the address bar.
 
 The same works in Chrome, Edge and Yandex Browser. No build step is needed:
@@ -280,6 +282,7 @@ npm run typecheck   # tsc --noEmit, strict
 npm test            # formats + adapters
 npm run check       # all three of the above, in the order CI runs them
 npm run demo        # serve test/ui-demo.html on localhost:5599 to look at the panel
+npm run pack        # release/VireBook-x.y.z.zip, the asset a release carries
 npm run icons       # redraw the icons
 ```
 

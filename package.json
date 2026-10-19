@@ -16,7 +16,8 @@
     "test:net": "node test/net.ts",
     "check": "npm run typecheck && npm run build && npm test",
     "demo": "node scripts/serve.mjs",
-    "icons": "node scripts/make-icons.mjs"
+    "icons": "node scripts/make-icons.mjs",
+    "pack": "node scripts/pack.ts"
   },
   "devDependencies": {
     "@types/jsdom": "^30.0.0",
