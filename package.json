@@ -26,6 +26,6 @@
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "vireglass": "^2.2.0"
+    "vireglass": "^3.0.1"
   }
 }

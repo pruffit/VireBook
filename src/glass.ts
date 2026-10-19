@@ -3,7 +3,9 @@
 // The package ships a renderer for exactly this case — `attachGlass` from `vireglass/dom`, glass
 // over live DOM — and this file is a port of it, not a second implementation. Every number still
 // comes from the package: the displacement map, the rim, the shadow, the body, the backdrop
-// reading and the finger springs are all imported. What differs is only the plumbing, and since
+// reading and the finger springs are all imported. The body and the rim are 3.0's: a body lighter
+// than its surround, composed as one translucent layer by `bodyLayer`, and a thin line round the
+// whole contour whose strength follows the surround. What differs is only the plumbing, and since
 // 2.2.0 taught `attachGlass` to find its own shadow root, two reasons are left:
 //
 //   the finger — the pane answers a touch by MOVING: it lags behind the finger on the core's pull
@@ -49,6 +51,7 @@ import {
 import { DISPERSION, TOUCH } from 'vireglass/law';
 import {
   RIM_WIDTH_PX,
+  bodyLayer,
   boxShadowCss,
   buildDisplacementMap,
   buildSpectralMap,
@@ -120,6 +123,9 @@ export interface GlassPaint {
   /** How active the medium is, 0…1. */
   active: number;
 }
+
+/** The pane is always there once it is mounted; the package's `appear` is for glass that is not. */
+const APPEAR = 1;
 
 const IDLE: GlassPaint = { pullX: 0, pullY: 0, press: 0, active: 0 };
 
@@ -400,27 +406,28 @@ export function createGlass({ root, layers, slack }: GlassOptions): GlassSurface
     inkLight = shouldInkBeLight(sample, inkLight);
     const polarity = inkLight ? 1 : 0;
 
-    // The body: the density is what legibility and presence demand over THIS backdrop, the
-    // lightness is what it tints toward, and the hue is the surroundings' — glass has no colour
-    // of its own, only the colour of what lies beneath it.
-    const body = withPresence(resolveBody(o, sample, polarity), o, sample);
+    // The body is one translucent layer composed from the lens's own chain, and it is lighter than
+    // its surround on every backdrop. `o` is the optics before `appear`, which `bodyLayer` applies
+    // itself: scaling both would count it twice.
     const [ar, ag, ab] = ambientFrom(sample);
-    const hue = (c: number): number => body.tintLuma + (c - body.tintLuma) * o.colorPickup;
+    const layer = bodyLayer(o, sample, polarity, [ar, ag, ab], APPEAR);
     tint.style.setProperty(
       '--vireglass-body-color',
-      `rgba(${to255(hue(ar))}, ${to255(hue(ag))}, ${to255(hue(ab))}, ${body.density.toFixed(3)})`,
+      `rgba(${to255(layer.r)}, ${to255(layer.g)}, ${to255(layer.b)}, ${layer.alpha.toFixed(3)})`,
     );
+    // Increased contrast measures its border from the body, not from the surroundings.
+    const pole = withPresence(resolveBody(o, sample, polarity), o, sample).tintLuma;
 
     // Rim and shadow follow the SAMPLE and not just the shape: the surroundings they take their
     // colour and their density from move under a scroll while the silhouette stays still.
     rim.style.setProperty(
       '--vireglass-rim',
       a11y.increaseContrast
-        ? contrastRimCss(body.tintLuma, contrastRimLuma(body.tintLuma))
-        : rimGradientCss(o, [ar, ag, ab], REST_LIGHT),
+        ? contrastRimCss(pole, contrastRimLuma(pole), APPEAR)
+        : rimGradientCss(o, [ar, ag, ab], REST_LIGHT, APPEAR),
     );
     rim.style.setProperty('--vireglass-rim-width', `${RIM_WIDTH_PX}px`);
-    shell.style.boxShadow = boxShadowCss(geometry, sample);
+    shell.style.boxShadow = boxShadowCss(geometry, sample, APPEAR);
 
     if (svgSupported) {
       reshape(geometry.width, geometry.height, geometry.cornerRadius);
