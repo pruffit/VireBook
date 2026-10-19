@@ -147,6 +147,27 @@ await test('a server error is still retried a bounded number of times', async ()
   assertEq(s.calls(), 2, 'one 503, one good');
 });
 
+await test('Cloudflare origin errors (52x) are retried like a 503', async () => {
+  const s = script(async () => new Response('', { status: 525 }), async () => new Response('', { status: 525 }), page('<p>ok</p>'));
+  const ctx = makeContext({ fetch: s.fn, timing: FAST, pacing: { interval: 1 }, backoffBase: 1 });
+  assertEq(await ctx.fetchText('https://x/1'), '<p>ok</p>', 'the third attempt arrived');
+  assertEq(s.calls(), 3, 'two 525, one good');
+});
+
+await test('a 525 that never clears fails after the attempts, with the 5xx message', async () => {
+  const s = script(async () => new Response('', { status: 525 }));
+  const ctx = makeContext({ fetch: s.fn, timing: FAST, pacing: { interval: 1 }, backoffBase: 1 });
+  await rejects(ctx.fetchText('https://x/1'), /error 525 — try later/, '525');
+  assertEq(s.calls(), 5, 'every attempt was made');
+});
+
+await test('526 is not transient and is not retried', async () => {
+  const s = script(async () => new Response('', { status: 526 }));
+  const ctx = makeContext({ fetch: s.fn, timing: FAST, pacing: { interval: 1 }, backoffBase: 1 });
+  await rejects(ctx.fetchText('https://x/1'), /526/, '526');
+  assertEq(s.calls(), 1, 'one request');
+});
+
 await test('one outage clock for the whole download: once it is over, the next request fails at once', async () => {
   const ctx = makeContext({ fetch: drop, timing: { ...FAST, grace: 400 }, pacing: { interval: 1 } });
   await rejects(ctx.fetchText('https://x/1'), /not responding/, 'first');

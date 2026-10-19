@@ -16,7 +16,8 @@ import {
 
 export { resolveAdapter };
 
-const RETRY_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
+// 520-525 are Cloudflare reporting that the origin behind it blinked; 526, 527 and 530 are not transient.
+const RETRY_STATUS = new Set([408, 425, 429, 500, 502, 503, 504, 520, 521, 522, 523, 524, 525]);
 const MAX_ATTEMPTS = 5;
 const MAX_WAIT = 60000;
 const SLOW_DOWN = new Set([429, 503]);
@@ -35,9 +36,11 @@ export interface ContextOptions {
   pacing?: Pacing;
   fetch?: typeof fetch;
   timing?: Partial<NetTiming>;
+  /** First backoff step after an HTTP error, ms. */
+  backoffBase?: number;
 }
 
-export function makeContext({ progress, signal, pacing, fetch: fetchFn, timing }: ContextOptions): ParseContext {
+export function makeContext({ progress, signal, pacing, fetch: fetchFn, timing, backoffBase }: ContextOptions): ParseContext {
   const parser = new DOMParser();
   const report: ProgressFn = progress || (() => {});
   const net: NetTiming = { ...NET_TIMING, ...timing };
@@ -50,7 +53,7 @@ export function makeContext({ progress, signal, pacing, fetch: fetchFn, timing }
   const aborted = (): boolean => Boolean(signal && signal.aborted);
 
   async function pause(attempt: number, floor: number, status: number): Promise<void> {
-    const delay = backoffDelay(attempt, { floor, max: MAX_WAIT });
+    const delay = backoffDelay(attempt, { base: backoffBase, floor, max: MAX_WAIT });
     // Otherwise, through a long pause the panel freezes on "Chapters fetched:
     // 3 of 40" and looks hung.
     if (SLOW_DOWN.has(status)) {
